@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AEGIS SOC — корпоративная система мониторинга безопасности с интеграцией AETHER.chat">
+  <title>AEGIS SOC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">A</div><div><b>AEGIS</b><span>SECURITY OPS</span></div></div>
+    <nav>
+      <button class="nav active" data-view="overview"><span>01</span>Обзор</button>
+      <button class="nav" data-view="incidents"><span>02</span>Инциденты <i>3</i></button>
+      <button class="nav" data-view="assets"><span>03</span>Активы</button>
+      <button class="nav" data-view="access"><span>04</span>Доступ</button>
+      <button class="nav" data-view="cameras"><span>05</span>Камеры</button>
+      <button class="nav" data-view="reports"><span>06</span>Отчёты</button>
+    </nav>
+    <div class="side-bottom">
+      <div class="health"><i></i> Все системы в сети</div>
+      <div class="operator"><div class="avatar">RM</div><div><b>Оператор SOC</b><span>Смена №42</span></div></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header>
+      <div><small>ЦЕНТР УПРАВЛЕНИЯ БЕЗОПАСНОСТЬЮ</small><h1 id="pageTitle">Обзор инфраструктуры</h1></div>
+      <div class="header-actions"><span class="live"><i></i> LIVE</span><span id="clock">--:--:--</span><button id="notify">3</button></div>
+    </header>
+
+    <section class="view active" id="overview">
+      <div class="metrics">
+        <article class="card metric"><div class="metric-top"><span>Риск инфраструктуры</span><em>низкий</em></div><strong>18<small>/100</small></strong><div class="bar"><i style="width:18%"></i></div><p>−7 пунктов за 24 часа</p></article>
+        <article class="card metric"><div class="metric-top"><span>Открытые инциденты</span><em class="bad">3 крит.</em></div><strong>12</strong><p>3 критических • 9 обычных</p></article>
+        <article class="card metric"><div class="metric-top"><span>Активы под контролем</span><em>99.1%</em></div><strong>248</strong><p>246 online • 2 offline</p></article>
+        <article class="card metric"><div class="metric-top"><span>События сегодня</span><em>+8%</em></div><strong>1 284</strong><p>13 требуют внимания</p></article>
+      </div>
+
+      <div class="grid2">
+        <article class="card">
+          <div class="card-head"><div><small>ПОСЛЕДНИЕ 24 ЧАСА</small><h2>Динамика угроз</h2></div><div class="legend"><span><i class="blue"></i>События</span><span><i class="red"></i>Критические</span></div></div>
+          <svg class="chart" viewBox="0 0 760 230" aria-label="График угроз">
+            <defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5f8fff" stop-opacity=".3"/><stop offset="1" stop-color="#5f8fff" stop-opacity="0"/></linearGradient></defs>
+            <g class="gridlines"><line x1="20" y1="35" x2="740" y2="35"/><line x1="20" y1="85" x2="740" y2="85"/><line x1="20" y1="135" x2="740" y2="135"/><line x1="20" y1="185" x2="740" y2="185"/></g>
+            <path class="area" d="M20 171 C90 157 115 118 170 135 S260 161 310 110 S400 85 455 112 S555 159 610 101 S680 62 740 70 L740 210 L20 210Z"/>
+            <path class="line" d="M20 171 C90 157 115 118 170 135 S260 161 310 110 S400 85 455 112 S555 159 610 101 S680 62 740 70"/>
+            <g class="labels"><text x="20" y="226">00:00</text><text x="195" y="226">06:00</text><text x="375" y="226">12:00</text><text x="555" y="226">18:00</text><text x="700" y="226">Сейчас</text></g>
+          </svg>
+        </article>
+        <article class="card">
+          <div class="card-head"><div><small>ИНФРАСТРУКТУРА</small><h2>Состояние систем</h2></div><b class="ok">Стабильно</b></div>
+          <div class="services">
+            <div><span><i></i>Firewall cluster</span><b>100%</b></div>
+            <div><span><i></i>EDR agents</span><b>99.2%</b></div>
+            <div><span><i></i>Access control</span><b>100%</b></div>
+            <div class="warn"><span><i></i>Camera network</span><b>96.8%</b></div>
+            <div><span><i></i>AETHER relay</span><b>100%</b></div>
+          </div>
+        </article>
+      </div>
+
+      <article class="card incidents-card">
+        <div class="card-head"><div><small>ТРЕБУЮТ ВНИМАНИЯ</small><h2>Последние инциденты</h2></div><button class="link" data-go="incidents">Все инциденты →</button></div>
+        <div class="table">
+          <div class="row head"><span>ID</span><span>Событие</span><span>Источник</span><span>Время</span><span>Статус</span></div>
+          <button class="row incident-jump" data-id="INC-2401"><span>#2401</span><span><i class="sev critical"></i>Подозрительная авторизация</span><span>VPN-GW-02</span><span>02:13</span><span class="pill danger">Критический</span></button>
+          <button class="row incident-jump" data-id="INC-2398"><span>#2398</span><span><i class="sev medium"></i>Аномальный исходящий трафик</span><span>WS-FIN-14</span><span>01:47</span><span class="pill work">В работе</span></button>
+          <button class="row incident-jump" data-id="INC-2394"><span>#2394</span><span><i class="sev low"></i>Повторный отказ доступа</span><span>Door B-17</span><span>00:58</span><span class="pill">Проверка</span></button>
+        </div>
+      </article>
+    </section>
+
+    <section class="view" id="incidents">
+      <div class="incident-layout">
+        <article class="card"><div class="card-head"><div><small>ОЧЕРЕДЬ SOC</small><h2>Активные инциденты</h2></div><button class="primary" id="newIncident">+ Инцидент</button></div><div id="incidentList" class="incident-list"></div></article>
+        <article class="card"><small>КАРТОЧКА РАССЛЕДОВАНИЯ</small><div id="incidentDetail"></div></article>
+      </div>
+    </section>
+
+    <section class="view" id="assets"><article class="card tall"><small>ИНВЕНТАРИЗАЦИЯ</small><h2>Активы предприятия</h2><div class="asset-grid"><div><b>112</b><span>Рабочие станции</span></div><div><b>34</b><span>Серверы</span></div><div><b>76</b><span>IoT / камеры</span></div><div><b>26</b><span>Сетевые устройства</span></div></div></article></section>
+    <section class="view" id="access"><article class="card tall"><small>СКУД</small><h2>Контроль физического доступа</h2><div id="accessLog" class="access-log"></div></article></section>
+    <section class="view" id="cameras"><article class="card tall"><small>ВИДЕОНАБЛЮДЕНИЕ</small><h2>Камеры</h2><div class="camera-grid"><div class="camera"><span>CAM-01 • Lobby</span><b>LIVE</b><i></i></div><div class="camera"><span>CAM-07 • Server room</span><b>LIVE</b><i></i></div><div class="camera"><span>CAM-12 • Parking</span><b>LIVE</b><i></i></div><div class="camera offline"><span>CAM-19 • Warehouse</span><b>OFFLINE</b></div></div></article></section>
+    <section class="view" id="reports"><article class="card tall"><small>АНАЛИТИКА</small><h2>Отчёты и соответствие</h2><p class="muted">Сводки по инцидентам, доступу, активам и действиям операторов.</p><button class="primary" id="report">Сформировать отчёт</button></article></section>
+  </main>
+
+  <aside class="chat">
+    <div class="chat-head"><div><small>AETHER.CHAT</small><h2># Смена-42 <span>4 online</span></h2></div><b>E2E</b></div>
+    <div class="secure"><b>◆</b><div><strong>Защищённый канал</strong><span>Шифрование выполняется на клиентах. Relay получает ciphertext.</span></div></div>
+    <div class="messages" id="messages">
+      <div class="message incoming"><div><b>Анна / L2</b><span>01:49</span></div><p>Вижу всплеск на FIN-14. Проверяю EDR и сетевые соединения.</p></div>
+      <div class="message incoming"><div><b>Илья / SOC</b><span>02:05</span></div><p>VPN-GW-02: 6 неуспешных попыток, потом успешный вход с нового ASN.</p></div>
+      <div class="share"><small>INC-2401</small><b>Подозрительная авторизация</b><span>Критический • VPN-GW-02</span><button data-open="INC-2401">Открыть карточку →</button></div>
+      <div class="message outgoing"><div><b>Вы</b><span>02:11</span></div><p>Принял. Связываю события и поднимаю приоритет.</p></div>
+    </div>
+    <div class="quick"><button data-text="Передаю инцидент L2">Передать L2</button><button data-text="Нужна проверка доступа">Проверить доступ</button><button data-text="Изолировать хост FIN-14">Изолировать хост</button></div>
+    <form id="chatForm"><textarea id="chatInput" rows="1" placeholder="Сообщение в защищённый канал…"></textarea><button>↑</button></form>
+    <footer><span><i></i> Relay connected</span><span>Double Ratchet / demo adapter</span></footer>
+  </aside>
+</div>
+<div class="toast" id="toast"></div>
+<script src="aether.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
