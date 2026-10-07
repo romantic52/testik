@@ -129,6 +129,7 @@ More detail:
 - docs/ARCHITECTURE.md
 - docs/API.md
 - docs/SECURITY.md
+- docs/OPERATIONS.md
 
 ## Repository layout
 
@@ -194,6 +195,26 @@ http://127.0.0.1:8765
 
 The Agent is loopback-only by default.
 
+## Windows Service mode
+
+After building the verified bundle, run an elevated terminal:
+
+~~~powershell
+.\scripts\install-service.ps1
+~~~
+
+or use install-service.bat.
+
+The service is configured for automatic startup and restart-on-failure. Service-mode persistence uses %ProgramData%\AEGIS.
+
+Remove it with:
+
+~~~powershell
+.\scripts\uninstall-service.ps1
+~~~
+
+Data is preserved by default. See docs/OPERATIONS.md.
+
 ## Build a verified Windows bundle
 
 ~~~text
@@ -219,6 +240,7 @@ run-agent.bat uses the packaged executable when present, otherwise it falls back
 
 ~~~text
 GET    /api/health
+GET    /api/diagnostics
 GET    /api/system
 GET    /api/hardware
 GET    /api/network
