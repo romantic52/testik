@@ -1,4 +1,5 @@
-// AETHER operator UI bindings and manual incident creation.\nconst aetherConfig=q("#aetherConfig"),aetherTotpField=q("#aetherTotpField");
+// AETHER operator UI bindings and manual incident creation.
+const aetherConfig=q("#aetherConfig"),aetherTotpField=q("#aetherTotpField");
 const rememberedAether=JSON.parse(localStorage.getItem("aegis_aether_ui")||"{}");
 q("#aetherServer").value=rememberedAether.server||"";
 q("#aetherUser").value=rememberedAether.user||"";
@@ -82,4 +83,4 @@ q("#incidentForm")?.addEventListener("submit",async e=>{
   await saveIncidentApi(incident);await appendAudit("incident.manual",incident.id,incident.title);
   e.target.reset();closeModal("incidentModal");renderIncidents();toast("Инцидент создан");
 });
-q("#notify").onclick=()=>toast(state.incidents.filter(i=>i.status!=="Закрыт").length+" активных инцидентов");\n
+q("#notify").onclick=()=>toast(state.incidents.filter(i=>i.status!=="Закрыт").length+" активных инцидентов");

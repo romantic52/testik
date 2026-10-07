@@ -1,4 +1,5 @@
-// AEGIS frontend core: state, overview, API client, reports and read-only Windows views.\nconst state={current:"",incidents:[]};
+// AEGIS frontend core: state, overview, API client, reports and read-only Windows views.
+const state={current:"",incidents:[]};
 const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",audit:"Журнал аудита",events:"События Windows",services:"Службы Windows"};
 const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
 let lastProcesses=[];
@@ -352,4 +353,4 @@ q("#refreshReport")?.addEventListener("click",loadReportSummary);
 
 function toast(t){const e=q("#toast");e.textContent=t;e.classList.add("show");clearTimeout(window.tt);window.tt=setTimeout(()=>e.classList.remove("show"),1800)}
 function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent();if(id==="audit")loadAudit();if(id==="reports")loadReportSummary();if(id==="events")loadWindowsEvents();if(id==="services")loadWindowsServices()}
-qa(".nav").forEach(b=>b.onclick=()=>view(b.dataset.view));\n
+qa(".nav").forEach(b=>b.onclick=()=>view(b.dataset.view));

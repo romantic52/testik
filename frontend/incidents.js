@@ -1,4 +1,5 @@
-// AEGIS incident lifecycle and chat composition.\nq("#incidentSeverityFilter")?.addEventListener("change",renderIncidents);
+// AEGIS incident lifecycle and chat composition.
+q("#incidentSeverityFilter")?.addEventListener("change",renderIncidents);
 q("#incidentStatusFilter")?.addEventListener("change",renderIncidents);
 q("#incidentSearch")?.addEventListener("input",renderIncidents);qa("[data-go]").forEach(b=>b.onclick=()=>view(b.dataset.go));
 function renderIncidents(){
@@ -61,4 +62,4 @@ q("#chatForm").onsubmit=async e=>{
     addMessage(text);input.value="";
   }catch(error){toast(error.message||"AETHER: ошибка отправки")}
 };
-qa("[data-text]").forEach(b=>b.onclick=()=>{q("#chatInput").value=b.dataset.text;q("#chatInput").focus()});\n
+qa("[data-text]").forEach(b=>b.onclick=()=>{q("#chatInput").value=b.dataset.text;q("#chatInput").focus()});

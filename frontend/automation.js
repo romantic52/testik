@@ -1,4 +1,5 @@
-// Alert settings UI and queued AETHER delivery. Backend remains source of truth for rule evaluation.\nconst ALERT_DEFAULTS={
+// Alert settings UI and queued AETHER delivery. Backend remains source of truth for rule evaluation.
+const ALERT_DEFAULTS={
   enabled:true,
   autoAether:true,
   cpuLoad:95,
@@ -140,4 +141,4 @@ function handleTelemetryMessage(payload){
       if(alertSettings.autoAether)flushAutoShares();
     });
   }
-}\n
+}

@@ -1,4 +1,5 @@
-// Live telemetry, processes, network investigation and Agent diagnostics.\nconst AGENT_HTTP="http://127.0.0.1:8765";
+// Live telemetry, processes, network investigation and Agent diagnostics.
+const AGENT_HTTP="http://127.0.0.1:8765";
 const AGENT_WS="ws://127.0.0.1:8765/ws/monitor";
 let agentSocket=null;
 let reconnectTimer=null;
@@ -244,4 +245,4 @@ function connectAgent(){
   }
 }
 
-q("#reconnectAgent")?.addEventListener("click",()=>{toast("Переподключение к AEGIS Agent…");connectAgent()});\n
+q("#reconnectAgent")?.addEventListener("click",()=>{toast("Переподключение к AEGIS Agent…");connectAgent()});
