@@ -117,3 +117,16 @@ Release считается валидным только после:
 - history endpoint.
 
 Это проверяется scripts/smoke-agent.ps1.
+
+
+## Windows Event Log
+
+Event Log integration is read-only.
+
+AEGIS allow-lists only:
+- System;
+- Application.
+
+The Security log and arbitrary log paths are not exposed by the API.
+
+If Windows denies access or event descriptions cannot be resolved, AEGIS returns unavailable/empty data rather than attempting privilege escalation.
