@@ -25,12 +25,18 @@ public sealed class AgentOptionsTests
             SampleIntervalMs = 10,
             ProcessLimit = 5000,
             HistoryMinutes = 999,
-            AetherTimeoutSeconds = 1
+            AetherTimeoutSeconds = 1,
+            AuditRetentionDays = 99_999,
+            AuditMaxRows = 1,
+            StateMaintenanceMinutes = 1
         };
 
         Assert.Equal(500, options.SafeSampleIntervalMs);
         Assert.Equal(200, options.SafeProcessLimit);
         Assert.Equal(120, options.SafeHistoryMinutes);
         Assert.Equal(5, options.SafeAetherTimeoutSeconds);
+        Assert.Equal(3650, options.SafeAuditRetentionDays);
+        Assert.Equal(100, options.SafeAuditMaxRows);
+        Assert.Equal(5, options.SafeStateMaintenanceMinutes);
     }
 }
