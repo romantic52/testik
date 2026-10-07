@@ -68,6 +68,42 @@ public sealed class StateDatabase
         return next;
     }
 
+    public async Task<StateDatabaseStatus> ProbeAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var connection = OpenConnection();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT value FROM metadata WHERE key = 'schema_version' LIMIT 1;";
+            var schema = (await command.ExecuteScalarAsync(cancellationToken))?.ToString() ?? "unknown";
+
+            await using var writeProbe = connection.CreateCommand();
+            writeProbe.CommandText = """
+                INSERT INTO metadata(key, value)
+                VALUES ('last_probe_at', $value)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+                """;
+            writeProbe.Parameters.AddWithValue("$value", DateTimeOffset.UtcNow.ToString("O"));
+            await writeProbe.ExecuteNonQueryAsync(cancellationToken);
+
+            return new StateDatabaseStatus(
+                true,
+                schema,
+                Path.GetFileName(DatabasePath),
+                Revision,
+                null);
+        }
+        catch (Exception error)
+        {
+            return new StateDatabaseStatus(
+                false,
+                "unknown",
+                Path.GetFileName(DatabasePath),
+                Revision,
+                error.GetType().Name);
+        }
+    }
+
     private void InitializeSchema()
     {
         using var connection = OpenConnection();
@@ -151,3 +187,11 @@ public sealed class StateDatabase
         return long.TryParse(raw, out var revision) ? revision : 0L;
     }
 }
+
+
+public sealed record StateDatabaseStatus(
+    bool Ready,
+    string SchemaVersion,
+    string DatabaseFile,
+    long Revision,
+    string? Error);
