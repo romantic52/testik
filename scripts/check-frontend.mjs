@@ -31,6 +31,7 @@ const requiredIds = [
   "reports",
   "audit",
   "events",
+  "services",
   "messages",
   "processRows",
   "networkConnectionRows",
