@@ -1,4 +1,6 @@
 using System.Net;
+using Aegis.Agent.Configuration;
+using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -8,14 +10,13 @@ namespace Aegis.Agent.Services;
 
 public sealed class AetherRelayProxyService
 {
-    private static readonly HttpClient Client = new(new HttpClientHandler
+    private readonly HttpClient _client;
+
+    public AetherRelayProxyService(HttpClient client, IOptions<AgentOptions> options)
     {
-        AllowAutoRedirect = false,
-        AutomaticDecompression = DecompressionMethods.All
-    })
-    {
-        Timeout = TimeSpan.FromSeconds(25)
-    };
+        _client = client;
+        _client.Timeout = TimeSpan.FromSeconds(options.Value.SafeAetherTimeoutSeconds);
+    }
 
     private static readonly Regex UserPath =
         new(@"^/users/[A-Za-z0-9_]{2,64}/(?:devices|profile)$", RegexOptions.Compiled);
@@ -49,7 +50,7 @@ public sealed class AetherRelayProxyService
             message.Content = new StringContent(body, Encoding.UTF8, "application/json");
         }
 
-        using var response = await Client.SendAsync(
+        using var response = await _client.SendAsync(
             message,
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
