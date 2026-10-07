@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.IO.Compression;
 using Aegis.Agent.Services;
 
 namespace Aegis.Agent.Services;
@@ -104,6 +105,42 @@ public sealed class ReportService
         }
 
         return builder.ToString();
+    }
+
+    public async Task<byte[]> BuildSupportBundleAsync(CancellationToken cancellationToken = default)
+    {
+        var json = await BuildJsonAsync(cancellationToken);
+        var csv = await BuildCsvAsync(cancellationToken);
+
+        await using var output = new MemoryStream();
+        using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            await WriteEntryAsync(archive, "report.json", json, cancellationToken);
+            await WriteEntryAsync(archive, "incidents.csv", csv, cancellationToken);
+            await WriteEntryAsync(
+                archive,
+                "README.txt",
+                "AEGIS support bundle\r\n" +
+                $"Generated: {DateTimeOffset.UtcNow:O}\r\n" +
+                "Contains local monitoring/report data only. AETHER password and Ratchet state are not included.\r\n",
+                cancellationToken);
+        }
+
+        return output.ToArray();
+    }
+
+    private static async Task WriteEntryAsync(
+        ZipArchive archive,
+        string name,
+        string content,
+        CancellationToken cancellationToken)
+    {
+        var entry = archive.CreateEntry(name, CompressionLevel.Optimal);
+        await using var stream = entry.Open();
+        await using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        cancellationToken.ThrowIfCancellationRequested();
+        await writer.WriteAsync(content);
+        await writer.FlushAsync();
     }
 
     private static string Csv(string? value)
