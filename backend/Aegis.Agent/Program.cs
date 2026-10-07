@@ -23,9 +23,11 @@ builder.Services.AddSingleton<HardwareMonitorService>();
 builder.Services.AddSingleton<ProcessMonitorService>();
 builder.Services.AddSingleton<NetworkMonitorService>();
 builder.Services.AddSingleton<IncidentStoreService>();
+builder.Services.AddSingleton<AlertSettingsService>();
 builder.Services.AddSingleton<ReportService>();
 builder.Services.AddSingleton<TelemetrySamplerService>();
 builder.Services.AddHostedService(provider => provider.GetRequiredService<TelemetrySamplerService>());
+builder.Services.AddHostedService<AlertEngineService>();
 
 builder.Services
     .AddHttpClient<AetherRelayProxyService>()
