@@ -562,6 +562,14 @@ function fmtPercent(v){
 function fmtTemp(v){
   return Number.isFinite(Number(v))?Number(v).toFixed(1)+" °C":"—";
 }
+function formatFileSize(v){
+  const n=Number(v);
+  if(!Number.isFinite(n))return "—";
+  if(n>=1024*1024*1024)return (n/1024/1024/1024).toFixed(2)+" GB";
+  if(n>=1024*1024)return (n/1024/1024).toFixed(1)+" MB";
+  if(n>=1024)return (n/1024).toFixed(1)+" KB";
+  return Math.round(n)+" B";
+}
 function fmtBytes(v){
   const n=Number(v);
   if(!Number.isFinite(n))return "—";
@@ -634,6 +642,19 @@ function renderProcesses(processes){
   ).join(""):'<div class="empty-process">Нет данных. Запусти локальный агент.</div>';
   qa(".process-click").forEach(row=>row.addEventListener("click",()=>openProcessDetails(Number(row.dataset.pid))));
 }
+async function loadNetworkConnections(){
+  const box=q("#networkConnectionRows");if(!box)return;
+  try{
+    const rows=await apiJson("/api/network/connections?limit=100");
+    box.innerHTML=rows.length?rows.map(item=>
+      '<div class="connection-row"><span>'+escapeHtml(item.localAddress+":"+item.localPort)+'</span><span>'+escapeHtml(item.remoteAddress+":"+item.remotePort)+'</span><b>'+escapeHtml(item.state)+'</b></div>'
+    ).join(""):'<div class="empty-process">Активных TCP соединений нет.</div>';
+  }catch(error){
+    box.innerHTML='<div class="empty-process">Connections API: '+escapeHtml(error.message)+'</div>';
+  }
+}
+q("#refreshConnections")?.addEventListener("click",loadNetworkConnections);
+
 async function openProcessDetails(pid){
   openModal("processModal");q("#processDetailBody").innerHTML='<p class="muted">Загрузка…</p>';
   try{
@@ -647,7 +668,12 @@ async function openProcessDetails(pid){
       ["Threads",p.threads??"—"],
       ["Handles",p.handles??"—"],
       ["Priority",p.priority||"—"],
-      ["Responding",p.responding==null?"—":(p.responding?"Да":"Нет")]
+      ["Responding",p.responding==null?"—":(p.responding?"Да":"Нет")],
+      ["File size",p.fileSizeBytes==null?"—":formatFileSize(p.fileSizeBytes)],
+      ["File version",p.fileVersion||"—"],
+      ["Product",p.productName||"—"],
+      ["Company",p.companyName||"—"],
+      ["SHA-256",p.sha256||"Недоступен"]
     ];
     q("#processDetailBody").innerHTML='<div class="process-detail-grid">'+rows.map(x=>'<div><span>'+escapeHtml(x[0])+'</span><b>'+escapeHtml(x[1])+'</b></div>').join("")+'</div><button class="secondary process-create-incident" id="processIncidentButton">Создать инцидент по процессу</button>';
     q("#processIncidentButton").onclick=()=>{
@@ -685,7 +711,7 @@ function connectAgent(){
     const ws=new WebSocket(AGENT_WS);
     agentSocket=ws;
 
-    ws.onopen=()=>{setAgentState(true,"AGENT ONLINE");markAgentOnlineForAlerts()};
+    ws.onopen=()=>{setAgentState(true,"AGENT ONLINE");markAgentOnlineForAlerts();loadNetworkConnections()};
     ws.onmessage=event=>{
       try{handleTelemetryMessage(JSON.parse(event.data))}catch(error){console.error("AEGIS telemetry parse error",error)}
     };
@@ -724,4 +750,4 @@ async function startFakeCrash(){
   },260);
 }
 
-function tick(){q("#clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour12:false})}tick();setInterval(tick,1000);bindAutomationUi();renderIncidents();updateOverview();loadPersistentIncidents();connectAgent();
+function tick(){q("#clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour12:false})}tick();setInterval(tick,1000);setInterval(()=>{if(agentSocket?.readyState===WebSocket.OPEN)loadNetworkConnections()},5000);bindAutomationUi();renderIncidents();updateOverview();loadPersistentIncidents();connectAgent();
