@@ -23,6 +23,9 @@ jobs:
         run: |
           node --check app.js
           node --check aether.js
+          for file in frontend/*.js; do
+            node --check "$file"
+          done
 
       - name: Check frontend structure
         run: node scripts/check-frontend.mjs
