@@ -33,6 +33,15 @@ jobs:
           -p:PublishSingleFile=false
           -o dist/AEGIS
 
+      - name: Package service scripts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path ./dist/AEGIS/scripts | Out-Null
+          Copy-Item ./scripts/install-service.ps1 ./dist/AEGIS/scripts/install-service.ps1
+          Copy-Item ./scripts/uninstall-service.ps1 ./dist/AEGIS/scripts/uninstall-service.ps1
+          Copy-Item ./install-service.bat ./dist/AEGIS/install-service.bat
+          Copy-Item ./uninstall-service.bat ./dist/AEGIS/uninstall-service.bat
+
       - name: Smoke packaged executable
         shell: pwsh
         run: ./scripts/smoke-agent.ps1 -Executable ./dist/AEGIS/Aegis.Agent.exe
