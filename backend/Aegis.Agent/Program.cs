@@ -20,7 +20,7 @@ builder.WebHost.UseUrls(startupOptions.ListenUrl);
 builder.Services
     .AddOptions<AgentOptions>()
     .Bind(builder.Configuration.GetSection(AgentOptions.SectionName))
-    .Validate(AgentOptions.IsLoopbackListenUrl, "Agent:ListenUrl must be an HTTP(S) loopback URL")
+    .Validate(options => AgentOptions.IsLoopbackListenUrl(options.ListenUrl), "Agent:ListenUrl must be an HTTP(S) loopback URL")
     .Validate(options => options.SampleIntervalMs >= 500, "Agent:SampleIntervalMs must be at least 500")
     .ValidateOnStart();
 
