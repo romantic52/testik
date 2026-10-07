@@ -21,6 +21,7 @@
       <button class="nav" data-view="monitoring"><span>07</span>Мониторинг</button>
       <button class="nav" data-view="audit"><span>08</span>Аудит</button>
       <button class="nav" data-view="events"><span>09</span>События Windows</button>
+      <button class="nav" data-view="services"><span>10</span>Службы Windows</button>
     </nav>
     <div class="side-bottom">
       <button class="crash-button" id="crashButton">⚠ CRASH SYSTEM</button>
@@ -234,6 +235,21 @@
         <div class="list-tools compact"><input id="eventSearch" type="search" placeholder="Provider, Event ID или текст…"></div>
         <p class="muted">Read-only выборка Critical / Error / Warning. Если журнал недоступен текущему пользователю, AEGIS честно покажет пустой результат.</p>
         <div class="windows-event-list" id="windowsEventList"><p class="muted">Открой раздел для загрузки событий.</p></div>
+      </article>
+    </section>
+
+    <section class="view" id="services">
+      <article class="card tall">
+        <div class="card-head">
+          <div><small>WINDOWS SERVICES</small><h2>Службы системы</h2></div>
+          <button class="primary" id="refreshWindowsServices">Обновить</button>
+        </div>
+        <div class="list-tools">
+          <input id="serviceSearch" type="search" placeholder="Service name или Display name…">
+          <select id="serviceStatusFilter"><option value="">Все статусы</option><option value="Running">Running</option><option value="Stopped">Stopped</option><option value="Paused">Paused</option><option value="StartPending">StartPending</option><option value="StopPending">StopPending</option></select>
+        </div>
+        <p class="muted">Read-only inventory. AEGIS не выполняет Start/Stop/Restart служб.</p>
+        <div class="windows-service-list" id="windowsServiceList"><p class="muted">Открой раздел для загрузки служб.</p></div>
       </article>
     </section>
 
