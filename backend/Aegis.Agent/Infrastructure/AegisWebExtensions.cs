@@ -17,6 +17,29 @@ public static class AegisWebExtensions
                 return;
             }
 
+            var protectedSurface =
+                context.Request.Path.StartsWithSegments("/api")
+                || context.Request.Path.StartsWithSegments("/ws");
+
+            if (protectedSurface)
+            {
+                var fetchSite = context.Request.Headers["Sec-Fetch-Site"].ToString();
+                if (fetchSite.Equals("cross-site", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    await context.Response.WriteAsJsonAsync(new { detail = "Cross-site requests are not allowed" });
+                    return;
+                }
+
+                var origin = context.Request.Headers.Origin.ToString();
+                if (!string.IsNullOrWhiteSpace(origin) && !IsAllowedBrowserOrigin(origin))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    await context.Response.WriteAsJsonAsync(new { detail = "Browser origin is not allowed" });
+                    return;
+                }
+            }
+
             context.Response.Headers["X-Content-Type-Options"] = "nosniff";
             context.Response.Headers["X-Frame-Options"] = "DENY";
             context.Response.Headers["Referrer-Policy"] = "no-referrer";
@@ -37,6 +60,16 @@ public static class AegisWebExtensions
         });
 
         return app;
+    }
+
+    private static bool IsAllowedBrowserOrigin(string origin)
+    {
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+            return false;
+
+        return uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+            || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+            || uri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase);
     }
 
     public static WebApplication UseAegisFrontend(this WebApplication app)
