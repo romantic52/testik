@@ -21,18 +21,59 @@ public static class AegisEndpoints
         {
             var latest = telemetry.Latest;
             var value = options.Value;
+            var now = DateTimeOffset.UtcNow;
+            var staleAfter = TimeSpan.FromMilliseconds(Math.Max(10_000, value.SafeSampleIntervalMs * 3));
+            var statusName = latest is null
+                ? "warming_up"
+                : now - latest.Timestamp > staleAfter
+                    ? "degraded"
+                    : "ok";
             var status = new AgentStatus(
-                latest is null ? "warming_up" : "ok",
+                statusName,
                 "AEGIS Agent",
                 typeof(AegisEndpoints).Assembly.GetName().Version?.ToString() ?? "dev",
                 Environment.MachineName,
-                DateTimeOffset.UtcNow,
+                now,
                 latest?.Timestamp,
                 value.SafeSampleIntervalMs,
                 telemetry.GetHistory(TimeSpan.FromMinutes(value.SafeHistoryMinutes)).Count,
                 incidents.DataDirectory);
 
             return Results.Ok(status);
+        });
+
+        api.MapGet("/health/live", () =>
+            Results.Ok(new { status = "ok", timestamp = DateTimeOffset.UtcNow }));
+
+        api.MapGet("/health/ready", (
+            TelemetrySamplerService telemetry,
+            IOptions<AgentOptions> options) =>
+        {
+            var latest = telemetry.Latest;
+            if (latest is null)
+                return Results.Json(
+                    new { status = "warming_up" },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+
+            var staleAfter = TimeSpan.FromMilliseconds(
+                Math.Max(10_000, options.Value.SafeSampleIntervalMs * 3));
+            var age = DateTimeOffset.UtcNow - latest.Timestamp;
+
+            return age <= staleAfter
+                ? Results.Ok(new
+                {
+                    status = "ready",
+                    lastSampleAt = latest.Timestamp,
+                    sampleAgeSeconds = age.TotalSeconds
+                })
+                : Results.Json(
+                    new
+                    {
+                        status = "stale",
+                        lastSampleAt = latest.Timestamp,
+                        sampleAgeSeconds = age.TotalSeconds
+                    },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
         });
 
         api.MapGet("/diagnostics", (AgentDiagnosticsService diagnostics) =>
