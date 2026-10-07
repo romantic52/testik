@@ -22,6 +22,7 @@ builder.Services
 builder.Services.AddSingleton<HardwareMonitorService>();
 builder.Services.AddSingleton<ProcessMonitorService>();
 builder.Services.AddSingleton<NetworkMonitorService>();
+builder.Services.AddSingleton<WindowsEventLogService>();
 builder.Services.AddSingleton<IncidentStoreService>();
 builder.Services.AddSingleton<AlertSettingsService>();
 builder.Services.AddSingleton<ReportService>();
