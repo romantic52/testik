@@ -22,6 +22,24 @@ GET /api/health
 - number of history points;
 - persistence directory.
 
+## Agent diagnostics
+
+GET /api/diagnostics
+
+Возвращает self-observability AEGIS Agent:
+- version/runtime;
+- PID;
+- console vs Windows Service mode;
+- uptime;
+- working/private/managed/GC memory;
+- thread/handle counts;
+- GC collections;
+- last sample age;
+- history points;
+- incident revision;
+- active data directory;
+- effective sampling configuration.
+
 ## Telemetry
 
 GET /api/system
