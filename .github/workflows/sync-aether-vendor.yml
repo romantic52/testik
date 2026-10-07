@@ -1,0 +1,38 @@
+name: Sync AETHER crypto vendor
+
+on:
+  push:
+    paths:
+      - '.github/workflows/sync-aether-vendor.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout AEGIS
+        uses: actions/checkout@v4
+
+      - name: Fetch canonical AETHER Ratchet WASM
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p vendor/ratchet
+          curl --fail --location --retry 3             https://raw.githubusercontent.com/romantic52/AETHER.chat/main/web/vendor/ratchet/aether_ratchet_wasm_bg.wasm             --output vendor/ratchet/aether_ratchet_wasm_bg.wasm
+          test -s vendor/ratchet/aether_ratchet_wasm_bg.wasm
+
+      - name: Commit vendor binary
+        shell: bash
+        run: |
+          if git diff --quiet -- vendor/ratchet/aether_ratchet_wasm_bg.wasm && git ls-files --error-unmatch vendor/ratchet/aether_ratchet_wasm_bg.wasm >/dev/null 2>&1; then
+            echo "Ratchet WASM is already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vendor/ratchet/aether_ratchet_wasm_bg.wasm
+          git commit -m "chore: sync canonical AETHER Ratchet WASM"
+          git push
