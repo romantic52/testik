@@ -27,12 +27,16 @@ var app = builder.Build();
 app.UseCors();
 app.UseWebSockets();
 
-var repoRoot = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", ".."));
-var indexPath = Path.Combine(repoRoot, "index.html");
+var publishedWebRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+var sourceWebRoot = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", ".."));
+var webRoot = File.Exists(Path.Combine(publishedWebRoot, "index.html"))
+    ? publishedWebRoot
+    : sourceWebRoot;
+var indexPath = Path.Combine(webRoot, "index.html");
 
 if (File.Exists(indexPath))
 {
-    var provider = new PhysicalFileProvider(repoRoot);
+    var provider = new PhysicalFileProvider(webRoot);
     var defaultFiles = new DefaultFilesOptions { FileProvider = provider };
     defaultFiles.DefaultFileNames.Clear();
     defaultFiles.DefaultFileNames.Add("index.html");
