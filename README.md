@@ -30,6 +30,7 @@ Current pipeline verifies:
 - process detail: start time, private memory, handles, priority and responding state;
 - executable file metadata and on-demand SHA-256;
 - active TCP connections and UDP listeners;
+- read-only Windows Event Log investigation for System/Application warnings, errors and critical events;
 - WebSocket live telemetry;
 - bounded telemetry history for real charts.
 
@@ -222,6 +223,7 @@ GET    /api/hardware
 GET    /api/network
 GET    /api/network/connections?limit=200
 GET    /api/network/udp?limit=200
+GET    /api/windows/events?log=System&limit=100
 GET    /api/processes?limit=50
 GET    /api/processes/{pid}
 GET    /api/history?seconds=900
