@@ -9,15 +9,18 @@ public sealed class ReportService
     private readonly TelemetrySamplerService _telemetry;
     private readonly IncidentStoreService _incidents;
     private readonly AlertSettingsService _alerts;
+    private readonly NetworkMonitorService _network;
 
     public ReportService(
         TelemetrySamplerService telemetry,
         IncidentStoreService incidents,
-        AlertSettingsService alerts)
+        AlertSettingsService alerts,
+        NetworkMonitorService network)
     {
         _telemetry = telemetry;
         _incidents = incidents;
         _alerts = alerts;
+        _network = network;
     }
 
     public async Task<object> BuildAsync(CancellationToken cancellationToken = default)
@@ -29,6 +32,8 @@ public sealed class ReportService
         var audit = await _incidents.AuditAsync(250, cancellationToken);
         var alertSettings = await _alerts.GetAsync(cancellationToken);
         var history = _telemetry.GetHistory(TimeSpan.FromMinutes(15));
+        var tcpConnections = _network.GetTcpConnections(250);
+        var udpListeners = _network.GetUdpListeners(250);
 
         return new
         {
@@ -43,6 +48,11 @@ public sealed class ReportService
             system = frame.System,
             processes = frame.Processes,
             history,
+            networkConnections = new
+            {
+                tcp = tcpConnections,
+                udp = udpListeners
+            },
             alertSettings,
             incidents,
             audit
