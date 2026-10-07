@@ -20,6 +20,7 @@
       <button class="nav" data-view="reports"><span>06</span>Отчёты</button>
       <button class="nav" data-view="monitoring"><span>07</span>Мониторинг</button>
       <button class="nav" data-view="audit"><span>08</span>Аудит</button>
+      <button class="nav" data-view="events"><span>09</span>События Windows</button>
     </nav>
     <div class="side-bottom">
       <button class="crash-button" id="crashButton">⚠ CRASH SYSTEM</button>
@@ -212,6 +213,20 @@
         <div class="audit-list" id="auditList"><p class="muted">Нет данных.</p></div>
       </article>
     </section>
+    <section class="view" id="events">
+      <article class="card tall">
+        <div class="card-head">
+          <div><small>WINDOWS EVENT LOG</small><h2>Системные события</h2></div>
+          <div class="event-controls">
+            <select id="eventLogSelect"><option value="System">System</option><option value="Application">Application</option></select>
+            <button class="primary" id="refreshWindowsEvents">Обновить</button>
+          </div>
+        </div>
+        <p class="muted">Read-only выборка Critical / Error / Warning. Если журнал недоступен текущему пользователю, AEGIS честно покажет пустой результат.</p>
+        <div class="windows-event-list" id="windowsEventList"><p class="muted">Открой раздел для загрузки событий.</p></div>
+      </article>
+    </section>
+
   </main>
 
   <aside class="chat">
