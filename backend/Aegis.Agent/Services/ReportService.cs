@@ -76,6 +76,6 @@ public sealed class ReportService
     private static string Csv(string? value)
     {
         var text = value ?? "";
-        return """ + text.Replace(""", """") + """;
+        return "\"" + text.Replace("\"", "\"\"") + "\"";
     }
 }
