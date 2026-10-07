@@ -1,175 +1,234 @@
 # AEGIS SOC
 
-AEGIS — локальный Windows SOC/monitoring MVP для курсового проекта с реальным .NET-агентом, web-интерфейсом и E2E-интеграцией с [AETHER.chat](https://github.com/romantic52/AETHER.chat).
+AEGIS 0.3.0 — local-first Windows monitoring/SOC project with a .NET 8 Agent, real hardware/process/network telemetry, persistent incidents and audit, backend alert rules, reporting, and E2E integration with AETHER.chat.
 
-## Что реально работает
+## Status
 
-### Windows monitoring
-- CPU load и температура, если датчик доступен.
-- RAM: total / used / load.
-- GPU load и температура.
-- hardware temperatures.
-- Fan RPM, если контроллер/плата их предоставляет.
-- диски и заполнение.
-- сеть RX/TX.
-- процессы Windows: PID, CPU, RAM, threads и путь.
-- detail-карточка процесса: start time, private memory, handles, priority, responding.
-- live telemetry через WebSocket раз в секунду.
+This repository is no longer a static dashboard mockup.
+
+Current pipeline verifies:
+- frontend JavaScript syntax;
+- .NET Release build;
+- xUnit tests;
+- real Agent startup on Windows;
+- local API smoke checks;
+- self-contained Windows publish;
+- startup and API smoke checks of the published Aegis.Agent.exe.
+
+## Core capabilities
+
+### Monitoring
+
+- CPU load and temperature when the sensor is available;
+- RAM total / used / load;
+- GPU load and temperature;
+- hardware temperatures;
+- fan RPM when exposed by the controller;
+- disks and used/free space;
+- network adapters and RX/TX throughput;
+- process PID / CPU / RAM / threads / path;
+- process detail: start time, private memory, handles, priority and responding state;
+- WebSocket live telemetry;
+- bounded telemetry history for real charts.
+
+Telemetry is collected by one background TelemetrySamplerService. REST, reports and WebSocket read the same sample instead of independently changing process/network delta baselines.
 
 ### SOC
-- ручные инциденты;
-- автоматические инциденты из live telemetry;
-- sustain-порог и cooldown против спама;
-- закрытие и удаление инцидентов;
-- persistent incident store;
-- audit log;
-- JSON report со снимком системы, процессов, incidents и audit;
-- CSV export инцидентов.
 
-Данные SOC сохраняются в:
+- manual incidents;
+- automatic incidents from a backend rule engine;
+- persistent incidents;
+- close/delete workflows;
+- append-oriented JSONL audit;
+- persistent alert settings;
+- JSON operational report;
+- incident CSV export;
+- live incident revision over WebSocket.
 
-```text
-%LocalAppData%\AEGIS
-```
+The backend rule engine continues to work even when the browser is closed.
 
-### Автоматические правила
+### Automatic rules
 
-Из UI настраиваются пороги:
-
-- CPU load;
+Current rules cover:
+- stale telemetry;
+- sustained CPU load;
 - CPU temperature;
-- GPU temperature;
 - RAM load;
-- process CPU;
-- disk used;
-- sustain time;
-- cooldown.
+- GPU temperature;
+- disk usage;
+- high temperature + very low RPM when a real fan sensor exists;
+- sustained process CPU anomaly.
 
-Также есть detection потери AEGIS Agent и эвристика: высокая температура + доступный fan sensor с почти нулевым RPM.
+Thresholds, sustain time and cooldown are configured from the UI but stored and enforced by Aegis.Agent.
 
-AEGIS не объявляет процесс вредоносным только из-за высокой нагрузки — создаётся именно ресурсный/аномальный incident для проверки.
+A high-CPU process is treated as a resource anomaly requiring review, not automatically classified as malware.
 
 ### AETHER.chat
 
-Правая панель использует настоящий AETHER relay и текущий Double Ratchet из проекта `romantic52/AETHER.chat`.
+The right-side SOC channel uses the current Double Ratchet implementation from romantic52/AETHER.chat.
 
-- штатный `POST /users/login`;
+Implemented:
+- normal AETHER login;
 - TOTP/2FA;
-- отдельное устройство `soc-*`;
-- signed prekeys;
-- fallback key;
-- master/device key verification;
-- encrypted envelope отдельно на каждое устройство peer;
+- separate soc-* crypto device;
+- signed prekeys and fallback key;
+- device/master key verification;
+- per-device encrypted fanout;
 - inbox + ACK;
-- realtime через AETHER WebSocket;
+- AETHER WebSocket realtime notification;
 - polling fallback;
-- автоматическая отправка созданных AEGIS incidents.
+- queued automatic incident delivery.
 
-Relay получает ciphertext, а Ratchet работает на клиенте.
+E2E crypto remains client-side. Aegis.Agent does not own the user's chat Ratchet state.
 
-Canonical crypto vendor:
+## Honest connector state
 
-```text
-vendor/nacl.min.js
-vendor/ratchet/aether_ratchet_wasm.js
-vendor/ratchet/aether_ratchet_wasm_bg.wasm
-```
+AEGIS does not fake external enterprise systems.
 
-WASM синхронизируется workflow `.github/workflows/sync-aether-vendor.yml`.
+- local Windows inventory: real;
+- hardware/process/network monitoring: real;
+- AETHER integration: real;
+- Access Control / СКУД: NOT CONFIGURED until a real controller/API is connected;
+- Cameras/VMS: NOT CONFIGURED until a real RTSP/VMS integration is connected.
 
-## Архитектура
+The CRASH SYSTEM button is intentionally only a visual BSOD/offline simulation. It never shuts down Windows or performs destructive remediation.
 
-```text
-Windows
-  │
-  ├─ LibreHardwareMonitor
-  ├─ Process API
-  ├─ NetworkInterface
-  │
-  ▼
-Aegis.Agent (.NET 8)
-  │
-  ├─ REST API
-  ├─ WebSocket telemetry
-  ├─ incident store
-  ├─ audit log
-  ├─ report generation
-  └─ allow-listed AETHER relay bridge
-        │
-        ▼
-HTML / CSS / JS
-  │
-  ├─ monitoring dashboard
-  ├─ automatic rules
-  ├─ incidents / audit / reports
-  └─ AETHER Double Ratchet client
-```
+## Architecture
 
-Agent слушает только:
+~~~text
+Windows hardware / processes / network
+                 |
+                 v
+        TelemetrySamplerService
+                 |
+        +--------+--------+
+        |                 |
+        v                 v
+ REST / WebSocket    AlertEngineService
+        |                 |
+        |                 v
+        |          IncidentStoreService
+        |                 |
+        +--------+--------+
+                 |
+                 v
+             Browser UI
+                 |
+                 v
+        AETHER Double Ratchet
+                 |
+                 v
+            AETHER relay
+~~~
 
-```text
-http://127.0.0.1:8765
-```
+More detail:
+- docs/ARCHITECTURE.md
+- docs/API.md
+- docs/SECURITY.md
 
-и по умолчанию не публикует monitoring API в локальную сеть.
+## Repository layout
 
-## Быстрый запуск из исходников
+~~~text
+backend/
+  Aegis.Agent/
+    Configuration/
+    Endpoints/
+    Infrastructure/
+    Models/
+    Services/
+  Aegis.Agent.Tests/
 
-Нужен .NET 8 SDK.
+docs/
+scripts/
+vendor/
 
-```powershell
-winget install Microsoft.DotNet.SDK.8
-```
+index.html
+styles.css
+app.js
+aether.js
 
-После этого:
-
-```text
 run-agent.bat
-```
-
-Откроется:
-
-```text
-http://127.0.0.1:8765
-```
-
-## Windows release bundle
-
-Собрать self-contained Windows x64 пакет:
-
-```text
 build-release.bat
-```
+~~~
 
-Результат:
+## Data directory
 
-```text
+Default:
+
+~~~text
+%LocalAppData%\AEGIS\
+  incidents.json
+  audit.jsonl
+  alert-settings.json
+~~~
+
+The directory can be changed through Agent:DataDirectory.
+
+## Quick start from source
+
+Requirements:
+- Windows;
+- .NET 8 SDK.
+
+Install SDK if required:
+
+~~~powershell
+winget install Microsoft.DotNet.SDK.8
+~~~
+
+Then:
+
+~~~text
+run-agent.bat
+~~~
+
+Dashboard:
+
+~~~text
+http://127.0.0.1:8765
+~~~
+
+The Agent is loopback-only by default.
+
+## Build a verified Windows bundle
+
+~~~text
+build-release.bat
+~~~
+
+The script does not just publish files. It runs:
+
+1. restore;
+2. xUnit tests;
+3. self-contained win-x64 publish;
+4. smoke test of the packaged Aegis.Agent.exe.
+
+Output:
+
+~~~text
 dist\AEGIS\Aegis.Agent.exe
-```
+~~~
 
-После сборки `run-agent.bat` автоматически использует published executable вместо `dotnet run`.
+run-agent.bat uses the packaged executable when present, otherwise it falls back to dotnet run.
 
-Также есть workflow:
+## Main API
 
-```text
-.github/workflows/package.yml
-```
-
-который собирает artifact `AEGIS-windows-x64` вручную или при push тега `v*`.
-
-## API
-
-```text
+~~~text
 GET    /api/health
 GET    /api/system
 GET    /api/hardware
+GET    /api/network
 GET    /api/processes?limit=50
 GET    /api/processes/{pid}
-GET    /api/network
+GET    /api/history?seconds=900
+GET    /api/connectors
 
 GET    /api/incidents
 PUT    /api/incidents/{id}
 DELETE /api/incidents/{id}
+
+GET    /api/settings/alerts
+PUT    /api/settings/alerts
 
 GET    /api/audit?limit=200
 POST   /api/audit
@@ -180,37 +239,51 @@ GET    /api/reports/incidents.csv
 POST   /api/aether/relay
 
 WS     /ws/monitor
-```
+~~~
 
-## Безопасность AETHER bridge
+See docs/API.md for behavior and contracts.
 
-`/api/aether/relay` — не универсальный HTTP proxy. Backend разрешает только конкретные AETHER endpoints, необходимые клиенту.
+## Security
 
-Для удалённого relay требуется HTTPS. HTTP разрешён только для loopback/localhost.
+AEGIS is local-first and currently intentionally binds to:
 
-Пароль AETHER не сохраняется приложением. Он используется в памяти клиента для входа и расшифровки encrypted key backup.
+~~~text
+http://127.0.0.1:8765
+~~~
 
-## Hardware sensors
+The web layer includes:
+- loopback Host header validation;
+- CSP;
+- frame blocking;
+- no-referrer;
+- restrictive Permissions-Policy;
+- no-store API responses.
 
-Для датчиков используется `LibreHardwareMonitorLib`.
+The AETHER bridge is allow-listed and is not a generic HTTP proxy. Remote AETHER relay URLs require HTTPS and redirects are disabled.
 
-Не каждое железо отдаёт все sensors. Если motherboard, laptop EC или fan controller не предоставляет RPM/temperature через доступный интерфейс, AEGIS показывает отсутствие данных, а не подставляет фиктивное значение.
+WebAssembly execution is permitted only for the Ratchet WASM runtime; general unsafe-eval is not enabled.
 
-На части компьютеров запуск от администратора открывает больше hardware sensors.
+See docs/SECURITY.md.
 
-## Что в курсовом остаётся демонстрационным
+## Hardware limitations
 
-СКУД, камеры и корпоративная inventory-секция сейчас являются UI-модулями презентационного уровня: к реальным физическим контроллерам/камерам они не подключены.
+LibreHardwareMonitor is used for available hardware sensors.
 
-Кнопка `CRASH SYSTEM` — только безопасная визуальная демонстрация BSOD/offline screen. Она не завершает работу Windows и не выполняет destructive system actions.
+Not every motherboard, laptop EC, GPU driver or fan controller exposes every sensor. AEGIS returns unavailable/null instead of inventing values.
+
+Running the Agent elevated may expose more hardware sensors on some systems, but AEGIS does not bypass Windows process or device security boundaries.
 
 ## CI
 
-`.github/workflows/build.yml` проверяет:
+Build Windows Agent workflow verifies every main/PR change with:
+- app.js syntax;
+- aether.js syntax;
+- restore;
+- Release build;
+- xUnit tests;
+- source runtime smoke;
+- on main push: self-contained win-x64 publish + packaged EXE smoke.
 
-- syntax `app.js`;
-- syntax `aether.js`;
-- restore .NET dependencies;
-- Release build Windows agent.
+Package Windows Release provides an artifact-oriented workflow for tags/manual release builds.
 
-Главная ветка должна оставаться buildable после каждого изменения.
+Canonical AETHER Ratchet WASM is synchronized by the dedicated vendor workflow.
