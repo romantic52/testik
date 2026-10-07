@@ -8,13 +8,16 @@ public sealed class ReportService
 {
     private readonly TelemetrySamplerService _telemetry;
     private readonly IncidentStoreService _incidents;
+    private readonly AlertSettingsService _alerts;
 
     public ReportService(
         TelemetrySamplerService telemetry,
-        IncidentStoreService incidents)
+        IncidentStoreService incidents,
+        AlertSettingsService alerts)
     {
         _telemetry = telemetry;
         _incidents = incidents;
+        _alerts = alerts;
     }
 
     public async Task<object> BuildAsync(CancellationToken cancellationToken = default)
@@ -24,6 +27,8 @@ public sealed class ReportService
 
         var incidents = await _incidents.ListAsync(cancellationToken);
         var audit = await _incidents.AuditAsync(250, cancellationToken);
+        var alertSettings = await _alerts.GetAsync(cancellationToken);
+        var history = _telemetry.GetHistory(TimeSpan.FromMinutes(15));
 
         return new
         {
@@ -37,6 +42,8 @@ public sealed class ReportService
             },
             system = frame.System,
             processes = frame.Processes,
+            history,
+            alertSettings,
             incidents,
             audit
         };
