@@ -94,6 +94,12 @@ const runtimeSource = runtimeFiles
   .join("\n");
 
 const referencedIds = new Set();
+const dynamicallyCreatedIds = new Set([
+  "shareIncident",
+  "closeIncident",
+  "deleteIncident",
+  "processIncidentButton"
+]);
 for (const pattern of [
   /\bq\("#([^"]+)"\)/g,
   /\bq\('#([^']+)'\)/g,
@@ -106,7 +112,7 @@ for (const pattern of [
 }
 
 for (const id of referencedIds) {
-  if (!idSet.has(id)) {
+  if (!idSet.has(id) && !dynamicallyCreatedIds.has(id)) {
     fail("runtime references missing element #" + id);
   }
 }
