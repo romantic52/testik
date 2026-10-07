@@ -50,6 +50,11 @@ public static class AegisEndpoints
         api.MapGet("/network/udp", (int? limit, NetworkMonitorService network) =>
             Results.Ok(network.GetUdpListeners(limit ?? 200)));
 
+        api.MapGet("/windows/services", (
+            int? limit,
+            WindowsServiceMonitorService services) =>
+            Results.Ok(services.GetServices(limit ?? 500)));
+
         api.MapGet("/windows/events", (
             string? log,
             int? limit,
