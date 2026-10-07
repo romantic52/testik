@@ -44,6 +44,12 @@ public static class AegisEndpoints
         api.MapGet("/network", (TelemetrySamplerService telemetry) =>
             LatestOrUnavailable(telemetry, frame => frame.System.Network));
 
+        api.MapGet("/network/connections", (int? limit, NetworkMonitorService network) =>
+            Results.Ok(network.GetTcpConnections(limit ?? 200)));
+
+        api.MapGet("/network/udp", (int? limit, NetworkMonitorService network) =>
+            Results.Ok(network.GetUdpListeners(limit ?? 200)));
+
         api.MapGet("/processes", (int? limit, TelemetrySamplerService telemetry) =>
             LatestOrUnavailable(
                 telemetry,
