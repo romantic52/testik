@@ -127,6 +127,8 @@ Agent:ProcessLimit
 Agent:HistoryMinutes
 Agent:DataDirectory
 Agent:AetherTimeoutSeconds
+Agent:AuditMaxMegabytes
+Agent:AuditRetentionFiles
 ~~~
 
 .NET configuration precedence allows command-line and environment overrides.
@@ -166,6 +168,17 @@ Returns:
 - runtime sampling configuration.
 
 This is also visible in the Monitoring UI and included in JSON reports.
+
+## Audit retention
+
+Defaults:
+
+~~~text
+Agent:AuditMaxMegabytes = 25
+Agent:AuditRetentionFiles = 5
+~~~
+
+When audit.jsonl reaches the configured size, AEGIS rotates it to audit.1.jsonl and retains bounded historical files. The audit API reads current + rotated files newest-first.
 
 ## Backups
 
