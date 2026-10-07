@@ -10,10 +10,12 @@ builder.WebHost.UseUrls("http://127.0.0.1:8765");
 builder.Services.AddSingleton<HardwareMonitorService>();
 builder.Services.AddSingleton<ProcessMonitorService>();
 builder.Services.AddSingleton<NetworkMonitorService>();
+builder.Services.AddSingleton<AetherRelayProxyService>();
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
-        policy.SetIsOriginAllowed(_ => true)
+        policy.WithOrigins("http://127.0.0.1:8765", "http://localhost:8765")
               .AllowAnyHeader()
               .AllowAnyMethod());
 });
@@ -56,6 +58,38 @@ app.MapGet("/api/processes", (int? limit, ProcessMonitorService processes) =>
 
 app.MapGet("/api/network", (NetworkMonitorService network) =>
     Results.Ok(network.GetSnapshot()));
+
+app.MapPost("/api/aether/relay", async (
+    AetherRelayRequest request,
+    AetherRelayProxyService proxy,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var result = await proxy.ForwardAsync(request, cancellationToken);
+        return Results.Content(
+            result.Content,
+            result.ContentType,
+            Encoding.UTF8,
+            result.StatusCode);
+    }
+    catch (ArgumentException error)
+    {
+        return Results.BadRequest(new { detail = error.Message });
+    }
+    catch (HttpRequestException)
+    {
+        return Results.Json(
+            new { detail = "AETHER relay is unreachable" },
+            statusCode: StatusCodes.Status502BadGateway);
+    }
+    catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+    {
+        return Results.Json(
+            new { detail = "AETHER relay request timed out" },
+            statusCode: StatusCodes.Status504GatewayTimeout);
+    }
+});
 
 app.Map("/ws/monitor", async context =>
 {
