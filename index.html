@@ -148,6 +148,24 @@
         <button class="primary" id="reconnectAgent">Переподключить</button>
       </div>
 
+      <article class="card agent-diagnostics-card">
+        <div class="card-head">
+          <div><small>AGENT SELF-DIAGNOSTICS</small><h2>Состояние AEGIS Agent</h2></div>
+          <b class="diag-mode" id="diagMode">—</b>
+        </div>
+        <div class="agent-diagnostics-grid" id="agentDiagnosticsGrid">
+          <div><span>Version</span><b id="diagVersion">—</b></div>
+          <div><span>Uptime</span><b id="diagUptime">—</b></div>
+          <div><span>PID</span><b id="diagPid">—</b></div>
+          <div><span>Working set</span><b id="diagWorkingSet">—</b></div>
+          <div><span>Managed / GC heap</span><b id="diagGcMemory">—</b></div>
+          <div><span>Threads / Handles</span><b id="diagThreads">—</b></div>
+          <div><span>Last sample</span><b id="diagSampleAge">—</b></div>
+          <div><span>History points</span><b id="diagHistory">—</b></div>
+          <div class="diag-data-dir"><span>Data directory</span><b id="diagDataDir">—</b></div>
+        </div>
+      </article>
+
       <div class="telemetry-grid">
         <article class="card telemetry-card"><span>CPU</span><strong id="cpuLoad">—</strong><div class="telemetry-bar"><i id="cpuBar"></i></div><small id="cpuTemp">Температура: —</small></article>
         <article class="card telemetry-card"><span>RAM</span><strong id="ramLoad">—</strong><div class="telemetry-bar"><i id="ramBar"></i></div><small id="ramMeta">—</small></article>
