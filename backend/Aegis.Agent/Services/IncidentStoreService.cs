@@ -102,8 +102,13 @@ public sealed class IncidentStoreService
                     normalized.Source),
                 cancellationToken);
 
-            await _database.IncrementRevisionAsync(connection, transaction, cancellationToken);
+            var nextRevision = await _database.StageRevisionIncrementAsync(
+                connection,
+                transaction,
+                cancellationToken);
+
             await transaction.CommitAsync(cancellationToken);
+            _database.PublishCommittedRevision(nextRevision);
 
             return normalized;
         }
@@ -161,8 +166,13 @@ public sealed class IncidentStoreService
                     null),
                 cancellationToken);
 
-            await _database.IncrementRevisionAsync(connection, transaction, cancellationToken);
+            var nextRevision = await _database.StageRevisionIncrementAsync(
+                connection,
+                transaction,
+                cancellationToken);
+
             await transaction.CommitAsync(cancellationToken);
+            _database.PublishCommittedRevision(nextRevision);
             return true;
         }
         finally
