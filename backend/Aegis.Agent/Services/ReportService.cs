@@ -12,6 +12,7 @@ public sealed class ReportService
     private readonly NetworkMonitorService _network;
     private readonly WindowsEventLogService _windowsEvents;
     private readonly WindowsServiceMonitorService _windowsServices;
+    private readonly AgentDiagnosticsService _diagnostics;
 
     public ReportService(
         TelemetrySamplerService telemetry,
@@ -19,7 +20,8 @@ public sealed class ReportService
         AlertSettingsService alerts,
         NetworkMonitorService network,
         WindowsEventLogService windowsEvents,
-        WindowsServiceMonitorService windowsServices)
+        WindowsServiceMonitorService windowsServices,
+        AgentDiagnosticsService diagnostics)
     {
         _telemetry = telemetry;
         _incidents = incidents;
@@ -27,6 +29,7 @@ public sealed class ReportService
         _network = network;
         _windowsEvents = windowsEvents;
         _windowsServices = windowsServices;
+        _diagnostics = diagnostics;
     }
 
     public async Task<object> BuildAsync(CancellationToken cancellationToken = default)
@@ -43,10 +46,12 @@ public sealed class ReportService
         var systemEvents = _windowsEvents.GetRecent("System", 100);
         var applicationEvents = _windowsEvents.GetRecent("Application", 100);
         var windowsServices = _windowsServices.GetServices(1_000);
+        var diagnostics = _diagnostics.Capture();
 
         return new
         {
             generatedAt = DateTimeOffset.UtcNow,
+            diagnostics,
             agent = new
             {
                 machine = Environment.MachineName,
