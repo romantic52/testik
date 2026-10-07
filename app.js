@@ -1,8 +1,4 @@
 const state={current:"",incidents:[]};
-try{
-  const savedAuto=JSON.parse(localStorage.getItem("aegis_auto_incidents")||"[]");
-  if(Array.isArray(savedAuto))state.incidents=[...savedAuto];
-}catch{}
 const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",audit:"Журнал аудита"};
 const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
 
@@ -424,8 +420,7 @@ function alertClock(){
   return new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
 }
 function persistAutoIncidents(){
-  const auto=state.incidents.filter(i=>i.auto).slice(0,50);
-  localStorage.setItem("aegis_auto_incidents",JSON.stringify(auto));
+  // Persistence is owned by Aegis.Agent; kept as a compatibility no-op for older UI call sites.
 }
 function updateAutoQueueState(){
   const pending=state.incidents.filter(i=>i.auto&&!i.aetherSent).length;
