@@ -160,7 +160,7 @@ function renderHistoryChart(){
 async function loadTelemetryHistory(){
   if(historyLoaded)return;
   try{
-    const points=await apiJson("/api/history?seconds=900");
+    const points=await apiJson("/api/v1/history?seconds=900");
     telemetryHistory=Array.isArray(points)?points:[];
     historyLoaded=true;renderHistoryChart();
   }catch(error){console.warn("History unavailable",error)}
@@ -194,7 +194,7 @@ function normalizeIncidentForApi(i){
 }
 async function saveIncidentApi(i){
   try{
-    await apiJson("/api/incidents/"+encodeURIComponent(i.id),{
+    await apiJson("/api/v1/incidents/"+encodeURIComponent(i.id),{
       method:"PUT",
       body:JSON.stringify(normalizeIncidentForApi(i))
     });
@@ -202,7 +202,7 @@ async function saveIncidentApi(i){
 }
 async function loadPersistentIncidents(){
   try{
-    const stored=await apiJson("/api/incidents");
+    const stored=await apiJson("/api/v1/incidents");
     if(Array.isArray(stored)&&stored.length){
       state.incidents=stored.map(i=>({...i,time:new Date(i.createdAt).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}));
       if(!state.incidents.some(i=>i.id===state.current))state.current=state.incidents[0]?.id||"";
@@ -222,7 +222,7 @@ async function loadPersistentIncidents(){
 }
 async function appendAudit(type,subject,detail,source="AEGIS UI"){
   try{
-    await apiJson("/api/audit",{method:"POST",body:JSON.stringify({
+    await apiJson("/api/v1/audit",{method:"POST",body:JSON.stringify({
       timestamp:new Date().toISOString(),type,subject,detail,source
     })});
   }catch(error){console.warn("Audit write failed",error)}
@@ -244,7 +244,7 @@ async function loadAudit(){
   const box=q("#auditList");if(!box)return;
   box.innerHTML='<p class="muted">Загрузка…</p>';
   try{
-    lastAuditItems=await apiJson("/api/audit?limit=300");
+    lastAuditItems=await apiJson("/api/v1/audit?limit=300");
     renderAuditItems();
   }catch(error){box.innerHTML='<p class="muted">Audit API недоступен: '+escapeHtml(error.message)+'</p>'}
 }
@@ -278,7 +278,7 @@ async function loadWindowsEvents(){
   const log=q("#eventLogSelect")?.value||"System";
   box.innerHTML='<p class="muted">Загрузка '+escapeHtml(log)+'…</p>';
   try{
-    lastWindowsEvents=await apiJson("/api/windows/events?log="+encodeURIComponent(log)+"&limit=150");
+    lastWindowsEvents=await apiJson("/api/v1/windows/events?log="+encodeURIComponent(log)+"&limit=150");
     renderWindowsEvents();
   }catch(error){
     box.innerHTML='<p class="muted">Event Log API: '+escapeHtml(error.message)+'</p>';
@@ -316,7 +316,7 @@ async function loadWindowsServices(){
   const box=q("#windowsServiceList");if(!box)return;
   box.innerHTML='<p class="muted">Загрузка служб…</p>';
   try{
-    lastWindowsServices=await apiJson("/api/windows/services?limit=1000");
+    lastWindowsServices=await apiJson("/api/v1/windows/services?limit=1000");
     renderWindowsServices();
   }catch(error){
     box.innerHTML='<p class="muted">Services API: '+escapeHtml(error.message)+'</p>';
@@ -330,7 +330,7 @@ async function loadReportSummary(){
   const box=q("#reportSummary");if(!box)return;
   box.innerHTML='<p class="muted">Формирование…</p>';
   try{
-    const data=await apiJson("/api/reports/current.json");
+    const data=await apiJson("/api/v1/reports/current.json");
     const s=data.system||{},g=(s.gpus||[])[0];
     box.innerHTML='<div class="report-grid">'+
       '<div><span>Компьютер</span><b>'+escapeHtml(data.agent?.machine||s.machineName||"—")+'</b></div>'+
@@ -385,7 +385,7 @@ function renderIncidents(){
   });
   updateOverview();
   q("#deleteIncident").onclick=async()=>{
-    try{await fetch("/api/incidents/"+encodeURIComponent(i.id),{method:"DELETE"});}catch{}
+    try{await fetch("/api/v1/incidents/"+encodeURIComponent(i.id),{method:"DELETE"});}catch{}
     state.incidents=state.incidents.filter(x=>x.id!==i.id);state.current=state.incidents[0]?.id||"";
     persistAutoIncidents();renderIncidents();toast("Инцидент удалён");
   };
@@ -561,7 +561,7 @@ function syncAutomationUi(){
 }
 async function loadAlertSettings(){
   try{
-    const value=await apiJson("/api/settings/alerts");
+    const value=await apiJson("/api/v1/settings/alerts");
     alertSettings={...ALERT_DEFAULTS,...value};
     syncAutomationUi();
     if(alertSettings.autoAether)flushAutoShares();
@@ -572,7 +572,7 @@ async function loadAlertSettings(){
 }
 async function saveAlertSettings(){
   try{
-    const saved=await apiJson("/api/settings/alerts",{
+    const saved=await apiJson("/api/v1/settings/alerts",{
       method:"PUT",
       body:JSON.stringify(alertSettings)
     });
@@ -785,7 +785,7 @@ function renderNetworkConnections(){
 async function loadNetworkConnections(){
   const box=q("#networkConnectionRows");if(!box)return;
   try{
-    lastConnections=await apiJson("/api/network/connections?limit=100");
+    lastConnections=await apiJson("/api/v1/network/connections?limit=100");
     renderNetworkConnections();
   }catch(error){
     box.innerHTML='<div class="empty-process">Connections API: '+escapeHtml(error.message)+'</div>';
@@ -797,7 +797,7 @@ q("#connectionSearch")?.addEventListener("input",renderNetworkConnections);
 async function openProcessDetails(pid){
   openModal("processModal");q("#processDetailBody").innerHTML='<p class="muted">Загрузка…</p>';
   try{
-    const p=await apiJson("/api/processes/"+pid);
+    const p=await apiJson("/api/v1/processes/"+pid);
     q("#processModalTitle").textContent=(p.name||"Process")+" • PID "+p.pid;
     const rows=[
       ["Path",p.path||"Недоступен"],
@@ -827,7 +827,7 @@ async function openProcessDetails(pid){
 async function loadAgentDiagnostics(){
   if(!q("#agentDiagnosticsGrid"))return;
   try{
-    const d=await apiJson("/api/diagnostics");
+    const d=await apiJson("/api/v1/diagnostics");
     q("#diagMode").textContent=d.runningAsWindowsService?"WINDOWS SERVICE":"CONSOLE";
     q("#diagVersion").textContent=d.version||"—";
     q("#diagUptime").textContent=formatDuration(d.uptimeSeconds);
@@ -849,7 +849,7 @@ async function loadAgentDiagnostics(){
 
 async function probeAgent(){
   try{
-    const response=await fetch(AGENT_HTTP+"/api/health",{cache:"no-store"});
+    const response=await fetch(AGENT_HTTP+"/api/v1/health",{cache:"no-store"});
     if(!response.ok)throw new Error("HTTP "+response.status);
     const health=await response.json();
     setAgentState(true,"AGENT ONLINE");markAgentOnlineForAlerts();
