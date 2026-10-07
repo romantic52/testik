@@ -12,15 +12,17 @@ public sealed class AgentOptions
     public int HistoryMinutes { get; init; } = 15;
     public string? DataDirectory { get; init; }
     public int AetherTimeoutSeconds { get; init; } = 25;
-    public int AuditMaxMegabytes { get; init; } = 25;
-    public int AuditRetentionFiles { get; init; } = 5;
+    public int AuditRetentionDays { get; init; } = 90;
+    public int AuditMaxRows { get; init; } = 100_000;
+    public int StateMaintenanceMinutes { get; init; } = 360;
 
     public int SafeSampleIntervalMs => Math.Clamp(SampleIntervalMs, 500, 10_000);
     public int SafeProcessLimit => Math.Clamp(ProcessLimit, 10, 200);
     public int SafeHistoryMinutes => Math.Clamp(HistoryMinutes, 1, 120);
     public int SafeAetherTimeoutSeconds => Math.Clamp(AetherTimeoutSeconds, 5, 60);
-    public int SafeAuditMaxMegabytes => Math.Clamp(AuditMaxMegabytes, 1, 512);
-    public int SafeAuditRetentionFiles => Math.Clamp(AuditRetentionFiles, 1, 20);
+    public int SafeAuditRetentionDays => Math.Clamp(AuditRetentionDays, 1, 3650);
+    public int SafeAuditMaxRows => Math.Clamp(AuditMaxRows, 100, 1_000_000);
+    public int SafeStateMaintenanceMinutes => Math.Clamp(StateMaintenanceMinutes, 5, 1440);
 
     public static bool IsLoopbackListenUrl(string? value)
     {
