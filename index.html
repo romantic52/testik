@@ -39,42 +39,63 @@
 
     <section class="view active" id="overview">
       <div class="metrics">
-        <article class="card metric"><div class="metric-top"><span>Риск инфраструктуры</span><em>низкий</em></div><strong>18<small>/100</small></strong><div class="bar"><i style="width:18%"></i></div><p>−7 пунктов за 24 часа</p></article>
-        <article class="card metric"><div class="metric-top"><span>Открытые инциденты</span><em class="bad">3 крит.</em></div><strong>12</strong><p>3 критических • 9 обычных</p></article>
-        <article class="card metric"><div class="metric-top"><span>Активы под контролем</span><em>99.1%</em></div><strong>248</strong><p>246 online • 2 offline</p></article>
-        <article class="card metric"><div class="metric-top"><span>События сегодня</span><em>+8%</em></div><strong>1 284</strong><p>13 требуют внимания</p></article>
+        <article class="card metric">
+          <div class="metric-top"><span>Риск системы</span><em id="riskLabel">ожидание</em></div>
+          <strong><span id="riskValue">—</span><small>/100</small></strong>
+          <div class="bar"><i id="riskBar" style="width:0%"></i></div>
+          <p id="riskMeta">Расчёт из live telemetry и активных инцидентов</p>
+        </article>
+        <article class="card metric">
+          <div class="metric-top"><span>Активные инциденты</span><em class="bad" id="criticalIncidentMetric">0 крит.</em></div>
+          <strong id="openIncidentMetric">0</strong>
+          <p id="incidentMetricMeta">Загрузка из локального хранилища</p>
+        </article>
+        <article class="card metric">
+          <div class="metric-top"><span>Источники телеметрии</span><em id="telemetryHealthMetric">offline</em></div>
+          <strong id="telemetrySourceMetric">—</strong>
+          <p>Датчики, диски, GPU и сетевые интерфейсы</p>
+        </article>
+        <article class="card metric">
+          <div class="metric-top"><span>Процессы в snapshot</span><em id="processHealthMetric">—</em></div>
+          <strong id="processMetric">—</strong>
+          <p>Сортировка по CPU/RAM</p>
+        </article>
       </div>
 
       <div class="grid2">
         <article class="card">
-          <div class="card-head"><div><small>ПОСЛЕДНИЕ 24 ЧАСА</small><h2>Динамика угроз</h2></div><div class="legend"><span><i class="blue"></i>События</span><span><i class="red"></i>Критические</span></div></div>
-          <svg class="chart" viewBox="0 0 760 230" aria-label="График угроз">
-            <defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5f8fff" stop-opacity=".3"/><stop offset="1" stop-color="#5f8fff" stop-opacity="0"/></linearGradient></defs>
+          <div class="card-head">
+            <div><small>ПОСЛЕДНИЕ 15 МИНУТ</small><h2>История нагрузки</h2></div>
+            <div class="legend"><span><i class="blue"></i>CPU</span><span><i class="ram-dot"></i>RAM</span><span><i class="gpu-dot"></i>GPU</span></div>
+          </div>
+          <svg class="chart" viewBox="0 0 760 230" aria-label="История нагрузки CPU RAM GPU">
+            <defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5f8fff" stop-opacity=".25"/><stop offset="1" stop-color="#5f8fff" stop-opacity="0"/></linearGradient></defs>
             <g class="gridlines"><line x1="20" y1="35" x2="740" y2="35"/><line x1="20" y1="85" x2="740" y2="85"/><line x1="20" y1="135" x2="740" y2="135"/><line x1="20" y1="185" x2="740" y2="185"/></g>
-            <path class="area" d="M20 171 C90 157 115 118 170 135 S260 161 310 110 S400 85 455 112 S555 159 610 101 S680 62 740 70 L740 210 L20 210Z"/>
-            <path class="line" d="M20 171 C90 157 115 118 170 135 S260 161 310 110 S400 85 455 112 S555 159 610 101 S680 62 740 70"/>
-            <g class="labels"><text x="20" y="226">00:00</text><text x="195" y="226">06:00</text><text x="375" y="226">12:00</text><text x="555" y="226">18:00</text><text x="700" y="226">Сейчас</text></g>
+            <path class="area" id="cpuHistoryArea" d=""/>
+            <path class="line" id="cpuHistoryLine" d=""/>
+            <path class="history-line ram-history" id="ramHistoryLine" d=""/>
+            <path class="history-line gpu-history" id="gpuHistoryLine" d=""/>
+            <g class="labels"><text x="20" y="226">−15m</text><text x="250" y="226">−10m</text><text x="480" y="226">−5m</text><text x="700" y="226">Сейчас</text></g>
           </svg>
         </article>
         <article class="card">
-          <div class="card-head"><div><small>ИНФРАСТРУКТУРА</small><h2>Состояние систем</h2></div><b class="ok">Стабильно</b></div>
+          <div class="card-head"><div><small>LOCAL STACK</small><h2>Состояние подсистем</h2></div><b class="ok" id="systemOverallStatus">Ожидание</b></div>
           <div class="services">
-            <div><span><i></i>Firewall cluster</span><b>100%</b></div>
-            <div><span><i></i>EDR agents</span><b>99.2%</b></div>
-            <div><span><i></i>Access control</span><b>100%</b></div>
-            <div class="warn"><span><i></i>Camera network</span><b>96.8%</b></div>
-            <div><span><i></i>AETHER relay</span><b>100%</b></div>
+            <div id="serviceAgentRow"><span><i></i>AEGIS Agent</span><b id="serviceAgentStatus">offline</b></div>
+            <div id="serviceHardwareRow"><span><i></i>Hardware sensors</span><b id="serviceHardwareStatus">—</b></div>
+            <div id="serviceProcessRow"><span><i></i>Process monitor</span><b id="serviceProcessStatus">—</b></div>
+            <div id="serviceNetworkRow"><span><i></i>Network monitor</span><b id="serviceNetworkStatus">—</b></div>
+            <div id="serviceStoreRow"><span><i></i>Incident store</span><b id="serviceStoreStatus">—</b></div>
+            <div id="serviceAetherRow"><span><i></i>AETHER relay</span><b id="serviceAetherStatus">offline</b></div>
           </div>
         </article>
       </div>
 
       <article class="card incidents-card">
-        <div class="card-head"><div><small>ТРЕБУЮТ ВНИМАНИЯ</small><h2>Последние инциденты</h2></div><button class="link" data-go="incidents">Все инциденты →</button></div>
+        <div class="card-head"><div><small>LIVE QUEUE</small><h2>Последние инциденты</h2></div><button class="link" data-go="incidents">Все инциденты →</button></div>
         <div class="table">
           <div class="row head"><span>ID</span><span>Событие</span><span>Источник</span><span>Время</span><span>Статус</span></div>
-          <button class="row incident-jump" data-id="INC-2401"><span>#2401</span><span><i class="sev critical"></i>Подозрительная авторизация</span><span>VPN-GW-02</span><span>02:13</span><span class="pill danger">Критический</span></button>
-          <button class="row incident-jump" data-id="INC-2398"><span>#2398</span><span><i class="sev medium"></i>Аномальный исходящий трафик</span><span>WS-FIN-14</span><span>01:47</span><span class="pill work">В работе</span></button>
-          <button class="row incident-jump" data-id="INC-2394"><span>#2394</span><span><i class="sev low"></i>Повторный отказ доступа</span><span>Door B-17</span><span>00:58</span><span class="pill">Проверка</span></button>
+          <div id="overviewIncidentRows"></div>
         </div>
       </article>
     </section>
