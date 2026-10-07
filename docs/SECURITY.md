@@ -130,3 +130,12 @@ AEGIS allow-lists only:
 The Security log and arbitrary log paths are not exposed by the API.
 
 If Windows denies access or event descriptions cannot be resolved, AEGIS returns unavailable/empty data rather than attempting privilege escalation.
+
+
+## Windows Services
+
+Service integration is inventory-only.
+
+AEGIS reads service name/display name/status/type and capability flags. It exposes no Start, Stop, Pause, Restart or configuration endpoint.
+
+An operator may create an incident from a suspicious or unexpected service state, but remediation is intentionally outside the current Agent.
