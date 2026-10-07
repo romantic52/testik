@@ -33,7 +33,8 @@ jobs:
           $files = @(
             "./scripts/smoke-agent.ps1",
             "./scripts/install-service.ps1",
-            "./scripts/uninstall-service.ps1"
+            "./scripts/uninstall-service.ps1",
+            "./scripts/smoke-service.ps1"
           )
           foreach ($file in $files) {
             $tokens = $null
@@ -81,3 +82,8 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: ./scripts/smoke-agent.ps1 -Executable ./dist/AEGIS/Aegis.Agent.exe
+
+      - name: Windows Service smoke
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: ./scripts/smoke-service.ps1 -Executable ./dist/AEGIS/Aegis.Agent.exe
