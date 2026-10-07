@@ -27,6 +27,28 @@ jobs:
       - name: Check frontend structure
         run: node scripts/check-frontend.mjs
 
+      - name: Check PowerShell syntax
+        shell: pwsh
+        run: |
+          $files = @(
+            "./scripts/smoke-agent.ps1",
+            "./scripts/install-service.ps1",
+            "./scripts/uninstall-service.ps1"
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file),
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$file: $($_.Message)" }
+              throw "PowerShell syntax validation failed: $file"
+            }
+          }
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
