@@ -13,6 +13,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check frontend syntax
+        shell: bash
+        run: |
+          node --check app.js
+          node --check aether.js
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
