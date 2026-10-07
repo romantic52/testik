@@ -10,17 +10,20 @@ public sealed class ReportService
     private readonly IncidentStoreService _incidents;
     private readonly AlertSettingsService _alerts;
     private readonly NetworkMonitorService _network;
+    private readonly WindowsEventLogService _windowsEvents;
 
     public ReportService(
         TelemetrySamplerService telemetry,
         IncidentStoreService incidents,
         AlertSettingsService alerts,
-        NetworkMonitorService network)
+        NetworkMonitorService network,
+        WindowsEventLogService windowsEvents)
     {
         _telemetry = telemetry;
         _incidents = incidents;
         _alerts = alerts;
         _network = network;
+        _windowsEvents = windowsEvents;
     }
 
     public async Task<object> BuildAsync(CancellationToken cancellationToken = default)
@@ -34,6 +37,8 @@ public sealed class ReportService
         var history = _telemetry.GetHistory(TimeSpan.FromMinutes(15));
         var tcpConnections = _network.GetTcpConnections(250);
         var udpListeners = _network.GetUdpListeners(250);
+        var systemEvents = _windowsEvents.GetRecent("System", 100);
+        var applicationEvents = _windowsEvents.GetRecent("Application", 100);
 
         return new
         {
@@ -52,6 +57,11 @@ public sealed class ReportService
             {
                 tcp = tcpConnections,
                 udp = udpListeners
+            },
+            windowsEvents = new
+            {
+                system = systemEvents,
+                application = applicationEvents
             },
             alertSettings,
             incidents,
