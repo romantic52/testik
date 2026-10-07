@@ -35,6 +35,9 @@ public static class AegisEndpoints
             return Results.Ok(status);
         });
 
+        api.MapGet("/diagnostics", (AgentDiagnosticsService diagnostics) =>
+            Results.Ok(diagnostics.Capture()));
+
         api.MapGet("/system", (TelemetrySamplerService telemetry) =>
             LatestOrUnavailable(telemetry, frame => frame.System));
 
