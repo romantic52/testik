@@ -15,6 +15,10 @@ public sealed class IncidentStoreService
     {
         WriteIndented = true
     };
+    private readonly JsonSerializerOptions _jsonLine = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = false
+    };
 
     public IncidentStoreService(IOptions<AgentOptions> options)
     {
@@ -196,7 +200,7 @@ public sealed class IncidentStoreService
 
     private async Task AppendAuditUnsafeAsync(AuditRecord record, CancellationToken cancellationToken)
     {
-        var line = JsonSerializer.Serialize(record, _json) + Environment.NewLine;
+        var line = JsonSerializer.Serialize(record, _jsonLine) + Environment.NewLine;
         await File.AppendAllTextAsync(_auditFile, line, cancellationToken);
     }
 }
