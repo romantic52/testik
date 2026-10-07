@@ -226,41 +226,66 @@ async function appendAudit(type,subject,detail,source="AEGIS UI"){
     })});
   }catch(error){console.warn("Audit write failed",error)}
 }
+function renderAuditItems(){
+  const box=q("#auditList");if(!box)return;
+  const search=(q("#auditSearch")?.value||"").trim().toLowerCase();
+  const visible=search?lastAuditItems.filter(item=>
+    [item.type,item.subject,item.detail,item.source,item.timestamp]
+      .some(value=>String(value??"").toLowerCase().includes(search))
+  ):lastAuditItems;
+
+  box.innerHTML=visible.length?visible.map(x=>{
+    const dt=new Date(x.timestamp);
+    return '<div class="audit-row"><time>'+escapeHtml(dt.toLocaleString("ru-RU"))+'</time><b>'+escapeHtml(x.type)+'</b><span>'+escapeHtml(x.subject||"—")+'</span><p>'+escapeHtml(x.detail||"")+'</p><em>'+escapeHtml(x.source||"")+'</em></div>';
+  }).join(""):'<p class="muted">Audit-записи не найдены.</p>';
+}
 async function loadAudit(){
   const box=q("#auditList");if(!box)return;
   box.innerHTML='<p class="muted">Загрузка…</p>';
   try{
-    const items=await apiJson("/api/audit?limit=300");
-    box.innerHTML=items.length?items.map(x=>{
-      const dt=new Date(x.timestamp);
-      return '<div class="audit-row"><time>'+escapeHtml(dt.toLocaleString("ru-RU"))+'</time><b>'+escapeHtml(x.type)+'</b><span>'+escapeHtml(x.subject||"—")+'</span><p>'+escapeHtml(x.detail||"")+'</p><em>'+escapeHtml(x.source||"")+'</em></div>';
-    }).join(""):'<p class="muted">Журнал пока пуст.</p>';
+    lastAuditItems=await apiJson("/api/audit?limit=300");
+    renderAuditItems();
   }catch(error){box.innerHTML='<p class="muted">Audit API недоступен: '+escapeHtml(error.message)+'</p>'}
+}
+q("#auditSearch")?.addEventListener("input",renderAuditItems);
+function renderWindowsEvents(){
+  const box=q("#windowsEventList");if(!box)return;
+  const search=(q("#eventSearch")?.value||"").trim().toLowerCase();
+  const visible=search?lastWindowsEvents.filter(item=>
+    [item.eventId,item.levelName,item.provider,item.message,item.machineName]
+      .some(value=>String(value??"").toLowerCase().includes(search))
+  ):lastWindowsEvents;
+
+  box.innerHTML=visible.length?visible.map(item=>{
+    const originalIndex=lastWindowsEvents.indexOf(item);
+    const time=item.timeCreated?new Date(item.timeCreated).toLocaleString("ru-RU"):"—";
+    return '<button class="windows-event-row" data-event-index="'+originalIndex+'"><div><b>'+escapeHtml(item.levelName||("Level "+(item.level??"—")))+'</b><span>'+escapeHtml(time)+'</span></div><strong>'+escapeHtml((item.provider||"Unknown")+" • Event "+item.eventId)+'</strong><p>'+escapeHtml(item.message||"Описание события недоступно.")+'</p></button>';
+  }).join(""):'<p class="muted">События не найдены.</p>';
+
+  qa(".windows-event-row").forEach(row=>row.addEventListener("click",()=>{
+    const item=lastWindowsEvents[Number(row.dataset.eventIndex)];
+    const log=q("#eventLogSelect")?.value||"System";
+    q("#incidentTitleInput").value="Windows Event "+item.eventId+" • "+(item.provider||log);
+    q("#incidentSourceInput").value=log+" Event Log";
+    q("#incidentSeverityInput").value=(String(item.levelName||"").toLowerCase().includes("critical")||String(item.levelName||"").toLowerCase().includes("крит"))?"Критический":"Средний";
+    q("#incidentDescriptionInput").value=(item.message||"Описание недоступно.")+"\nProvider: "+(item.provider||"—")+"\nEvent ID: "+item.eventId;
+    openModal("incidentModal");
+  }));
 }
 async function loadWindowsEvents(){
   const box=q("#windowsEventList");if(!box)return;
   const log=q("#eventLogSelect")?.value||"System";
   box.innerHTML='<p class="muted">Загрузка '+escapeHtml(log)+'…</p>';
   try{
-    const items=await apiJson("/api/windows/events?log="+encodeURIComponent(log)+"&limit=150");
-    box.innerHTML=items.length?items.map((item,index)=>{
-      const time=item.timeCreated?new Date(item.timeCreated).toLocaleString("ru-RU"):"—";
-      return '<button class="windows-event-row" data-event-index="'+index+'"><div><b>'+escapeHtml(item.levelName||("Level "+(item.level??"—")))+'</b><span>'+escapeHtml(time)+'</span></div><strong>'+escapeHtml((item.provider||"Unknown")+" • Event "+item.eventId)+'</strong><p>'+escapeHtml(item.message||"Описание события недоступно.")+'</p></button>';
-    }).join(""):'<p class="muted">Подходящих событий нет или журнал недоступен.</p>';
-    qa(".windows-event-row").forEach(row=>row.addEventListener("click",()=>{
-      const item=items[Number(row.dataset.eventIndex)];
-      q("#incidentTitleInput").value="Windows Event "+item.eventId+" • "+(item.provider||log);
-      q("#incidentSourceInput").value=log+" Event Log";
-      q("#incidentSeverityInput").value=(String(item.levelName||"").toLowerCase().includes("critical")||String(item.levelName||"").toLowerCase().includes("крит"))?"Критический":"Средний";
-      q("#incidentDescriptionInput").value=(item.message||"Описание недоступно.")+"\nProvider: "+(item.provider||"—")+"\nEvent ID: "+item.eventId;
-      openModal("incidentModal");
-    }));
+    lastWindowsEvents=await apiJson("/api/windows/events?log="+encodeURIComponent(log)+"&limit=150");
+    renderWindowsEvents();
   }catch(error){
     box.innerHTML='<p class="muted">Event Log API: '+escapeHtml(error.message)+'</p>';
   }
 }
 q("#refreshWindowsEvents")?.addEventListener("click",loadWindowsEvents);
 q("#eventLogSelect")?.addEventListener("change",loadWindowsEvents);
+q("#eventSearch")?.addEventListener("input",renderWindowsEvents);
 
 async function loadReportSummary(){
   const box=q("#reportSummary");if(!box)return;
