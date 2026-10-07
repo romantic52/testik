@@ -37,6 +37,7 @@ try {
     $null = Invoke-RestMethod "$baseUrl/api/settings/alerts" -TimeoutSec 5
     $null = Invoke-RestMethod "$baseUrl/api/history?seconds=10" -TimeoutSec 5
     $null = Invoke-RestMethod "$baseUrl/api/network/connections?limit=5" -TimeoutSec 5
+    $null = Invoke-RestMethod "$baseUrl/api/windows/events?log=System&limit=5" -TimeoutSec 5
 
     Write-Host "AEGIS smoke test passed. Status=$($health.status) Machine=$($health.machine)"
 }
