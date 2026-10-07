@@ -39,6 +39,7 @@ builder.Services.AddHostedService(provider => provider.GetRequiredService<Teleme
 builder.Services.AddHostedService<AlertEngineService>();
 builder.Services.AddHostedService<WindowsEventAlertService>();
 builder.Services.AddHostedService<AgentLifecycleService>();
+builder.Services.AddHostedService<StateMaintenanceService>();
 
 builder.Services
     .AddHttpClient<AetherRelayProxyService>()
