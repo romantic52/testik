@@ -39,7 +39,7 @@ public sealed class HardwareMonitorService : IDisposable
         }
     }
 
-    public SystemSnapshot GetSystemSnapshot(NetworkSnapshot network)
+    public HardwareCapture Capture(NetworkSnapshot network)
     {
         var sensors = GetSensors();
 
@@ -73,7 +73,7 @@ public sealed class HardwareMonitorService : IDisposable
             .OrderByDescending(t => t.Celsius)
             .ToList();
 
-        return new SystemSnapshot(
+        var system = new SystemSnapshot(
             DateTimeOffset.UtcNow,
             Environment.MachineName,
             Environment.OSVersion.VersionString,
@@ -86,7 +86,11 @@ public sealed class HardwareMonitorService : IDisposable
             temperatures,
             ReadDisks(),
             network);
+
+        return new HardwareCapture(system, sensors);
     }
+
+    public SystemSnapshot GetSystemSnapshot(NetworkSnapshot network) => Capture(network).System;
 
     private static double? Pick(
         IReadOnlyList<SensorReading> sensors,
@@ -268,3 +272,8 @@ public sealed record SystemSnapshot(
     IReadOnlyList<TemperatureSnapshot> Temperatures,
     IReadOnlyList<DiskSnapshot> Disks,
     NetworkSnapshot Network);
+
+
+public sealed record HardwareCapture(
+    SystemSnapshot System,
+    IReadOnlyList<SensorReading> Sensors);
