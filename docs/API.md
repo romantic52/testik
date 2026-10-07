@@ -42,6 +42,9 @@ GET /api/network/udp?limit=200
 GET /api/windows/events?log=System&limit=100
 : read-only Critical / Error / Warning events from allow-listed System or Application logs.
 
+GET /api/windows/services?limit=500
+: read-only Windows service inventory: name, display name, status, service type and capability flags.
+
 GET /api/processes?limit=50
 : sampled processes. limit ограничен 1..200.
 
