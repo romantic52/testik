@@ -85,3 +85,37 @@ WS  ws://127.0.0.1:8765/ws/monitor
 ## AETHER.chat
 
 `aether.js` сейчас является adapter boundary. Следующий этап реальной интеграции: подключить relay/API из `romantic52/AETHER.chat`, затем перенести E2E crypto в клиентскую часть до отправки ciphertext relay.
+
+
+## Реальная интеграция AETHER.chat
+
+Правая панель SOC теперь работает с настоящим AETHER relay и текущим Double Ratchet из `romantic52/AETHER.chat`.
+
+Что происходит при подключении:
+
+1. AEGIS логинится через штатный `POST /users/login`.
+2. Пароль остаётся только в памяти браузера и используется для расшифровки backup ключа.
+3. SOC создаёт отдельное crypto-device вида `soc-xxxxxxxx`, не перезаписывая primary/телефон.
+4. Клиент публикует signed prekeys + fallback key и подписывает device master-key аккаунта.
+5. Перед отправкой AEGIS получает список устройств peer и делает fanout: отдельный Ratchet-конверт на каждое устройство.
+6. Relay получает только ciphertext.
+7. Inbox читается адресно для SOC-device, сообщения расшифровываются локально и только потом ACK'аются.
+8. WebSocket `/ws` используется для realtime-сигнала `new_message`, polling остаётся fallback.
+
+Для обхода CORS self-hosted relay используется локальный whitelist-прокси:
+
+```text
+POST /api/aether/relay
+```
+
+Он разрешает только нужные AETHER endpoints и запрещает произвольный proxy-доступ. Удалённые relay разрешены только через HTTPS; HTTP допускается только для localhost.
+
+Канонические crypto-артефакты берутся из AETHER.chat:
+
+```text
+vendor/nacl.min.js
+vendor/ratchet/aether_ratchet_wasm.js
+vendor/ratchet/aether_ratchet_wasm_bg.wasm
+```
+
+WASM синхронизируется workflow `.github/workflows/sync-aether-vendor.yml`.
