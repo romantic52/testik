@@ -18,7 +18,15 @@ function Assert-Administrator {
 Assert-Administrator
 
 if (-not $Executable) {
-    $Executable = Join-Path $PSScriptRoot "..\dist\AEGIS\Aegis.Agent.exe"
+    $bundleCandidate = Join-Path $PSScriptRoot "..\Aegis.Agent.exe"
+    $repoCandidate = Join-Path $PSScriptRoot "..\dist\AEGIS\Aegis.Agent.exe"
+
+    if (Test-Path -LiteralPath $bundleCandidate -PathType Leaf) {
+        $Executable = $bundleCandidate
+    }
+    else {
+        $Executable = $repoCandidate
+    }
 }
 
 $Executable = [IO.Path]::GetFullPath($Executable)
