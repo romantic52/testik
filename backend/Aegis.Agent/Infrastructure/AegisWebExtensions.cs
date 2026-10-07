@@ -32,7 +32,10 @@ public static class AegisWebExtensions
                 }
 
                 var origin = context.Request.Headers.Origin.ToString();
-                if (!string.IsNullOrWhiteSpace(origin) && !IsAllowedBrowserOrigin(origin))
+                var expectedPort = context.Request.Host.Port
+                    ?? (context.Request.IsHttps ? 443 : 80);
+                if (!string.IsNullOrWhiteSpace(origin)
+                    && !IsAllowedBrowserOrigin(origin, expectedPort))
                 {
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
                     await context.Response.WriteAsJsonAsync(new { detail = "Browser origin is not allowed" });
@@ -62,14 +65,21 @@ public static class AegisWebExtensions
         return app;
     }
 
-    private static bool IsAllowedBrowserOrigin(string origin)
+    public static bool IsAllowedBrowserOrigin(string origin, int expectedPort)
     {
         if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
             return false;
 
-        return uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+        if (!uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+            && !uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var loopbackHost =
+            uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
             || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
             || uri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase);
+
+        return loopbackHost && uri.Port == expectedPort;
     }
 
     public static WebApplication UseAegisFrontend(this WebApplication app)
