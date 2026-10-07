@@ -1,5 +1,5 @@
 const state={current:"",incidents:[]};
-const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",audit:"Журнал аудита"};
+const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",audit:"Журнал аудита",events:"События Windows"};
 const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
 
 let lastTelemetryPayload=null;
@@ -233,6 +233,31 @@ async function loadAudit(){
     }).join(""):'<p class="muted">Журнал пока пуст.</p>';
   }catch(error){box.innerHTML='<p class="muted">Audit API недоступен: '+escapeHtml(error.message)+'</p>'}
 }
+async function loadWindowsEvents(){
+  const box=q("#windowsEventList");if(!box)return;
+  const log=q("#eventLogSelect")?.value||"System";
+  box.innerHTML='<p class="muted">Загрузка '+escapeHtml(log)+'…</p>';
+  try{
+    const items=await apiJson("/api/windows/events?log="+encodeURIComponent(log)+"&limit=150");
+    box.innerHTML=items.length?items.map((item,index)=>{
+      const time=item.timeCreated?new Date(item.timeCreated).toLocaleString("ru-RU"):"—";
+      return '<button class="windows-event-row" data-event-index="'+index+'"><div><b>'+escapeHtml(item.levelName||("Level "+(item.level??"—")))+'</b><span>'+escapeHtml(time)+'</span></div><strong>'+escapeHtml((item.provider||"Unknown")+" • Event "+item.eventId)+'</strong><p>'+escapeHtml(item.message||"Описание события недоступно.")+'</p></button>';
+    }).join(""):'<p class="muted">Подходящих событий нет или журнал недоступен.</p>';
+    qa(".windows-event-row").forEach(row=>row.addEventListener("click",()=>{
+      const item=items[Number(row.dataset.eventIndex)];
+      q("#incidentTitleInput").value="Windows Event "+item.eventId+" • "+(item.provider||log);
+      q("#incidentSourceInput").value=log+" Event Log";
+      q("#incidentSeverityInput").value=(String(item.levelName||"").toLowerCase().includes("critical")||String(item.levelName||"").toLowerCase().includes("крит"))?"Критический":"Средний";
+      q("#incidentDescriptionInput").value=(item.message||"Описание недоступно.")+"\nProvider: "+(item.provider||"—")+"\nEvent ID: "+item.eventId;
+      openModal("incidentModal");
+    }));
+  }catch(error){
+    box.innerHTML='<p class="muted">Event Log API: '+escapeHtml(error.message)+'</p>';
+  }
+}
+q("#refreshWindowsEvents")?.addEventListener("click",loadWindowsEvents);
+q("#eventLogSelect")?.addEventListener("change",loadWindowsEvents);
+
 async function loadReportSummary(){
   const box=q("#reportSummary");if(!box)return;
   box.innerHTML='<p class="muted">Формирование…</p>';
@@ -258,7 +283,7 @@ q("#refreshAudit")?.addEventListener("click",loadAudit);
 q("#refreshReport")?.addEventListener("click",loadReportSummary);
 
 function toast(t){const e=q("#toast");e.textContent=t;e.classList.add("show");clearTimeout(window.tt);window.tt=setTimeout(()=>e.classList.remove("show"),1800)}
-function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent();if(id==="audit")loadAudit();if(id==="reports")loadReportSummary()}
+function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent();if(id==="audit")loadAudit();if(id==="reports")loadReportSummary();if(id==="events")loadWindowsEvents()}
 qa(".nav").forEach(b=>b.onclick=()=>view(b.dataset.view));qa("[data-go]").forEach(b=>b.onclick=()=>view(b.dataset.go));
 function renderIncidents(){
   const badge=q("#incidentBadge");if(badge)badge.textContent=String(state.incidents.filter(i=>i.status!=="Закрыт").length);
