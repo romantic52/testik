@@ -10,23 +10,38 @@ if errorlevel 1 (
   exit /b 1
 )
 
+echo [AEGIS] Restoring dependencies...
+dotnet restore "%~dp0backend\Aegis.Agent.Tests\Aegis.Agent.Tests.csproj"
+if errorlevel 1 goto :fail
+
+echo [AEGIS] Running tests...
+dotnet test "%~dp0backend\Aegis.Agent.Tests\Aegis.Agent.Tests.csproj" -c Release --no-restore
+if errorlevel 1 goto :fail
+
 if exist "%~dp0dist\AEGIS" rmdir /s /q "%~dp0dist\AEGIS"
 
-echo [AEGIS] Publishing Windows x64 bundle...
+echo [AEGIS] Publishing Windows x64 self-contained bundle...
 dotnet publish "%~dp0backend\Aegis.Agent\Aegis.Agent.csproj" ^
   -c Release ^
   -r win-x64 ^
   --self-contained true ^
   -p:PublishSingleFile=false ^
   -o "%~dp0dist\AEGIS"
+if errorlevel 1 goto :fail
 
-if errorlevel 1 (
-  echo [AEGIS] Build failed.
-  pause
-  exit /b 1
-)
+echo [AEGIS] Running packaged smoke test...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\smoke-agent.ps1" -Executable "%~dp0dist\AEGIS\Aegis.Agent.exe"
+if errorlevel 1 goto :fail
 
 echo.
-echo [AEGIS] Done: dist\AEGIS\Aegis.Agent.exe
-echo You can now run run-agent.bat.
+echo [AEGIS] Release verified successfully.
+echo [AEGIS] Output: dist\AEGIS\Aegis.Agent.exe
+echo [AEGIS] Start it with run-agent.bat.
 pause
+exit /b 0
+
+:fail
+echo.
+echo [AEGIS] Release verification failed. dist was not accepted as a valid build.
+pause
+exit /b 1
