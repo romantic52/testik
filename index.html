@@ -99,7 +99,13 @@
     </section>
 
     <section class="view" id="incidents"><div class="incident-layout">
-      <article class="card"><div class="card-head"><div><small>ОЧЕРЕДЬ SOC</small><h2>Активные инциденты</h2></div><button class="primary" id="newIncident">+ Инцидент</button></div><div id="incidentList" class="incident-list"></div></article>
+      <article class="card"><div class="card-head"><div><small>ОЧЕРЕДЬ SOC</small><h2>Активные инциденты</h2></div><button class="primary" id="newIncident">+ Инцидент</button></div>
+        <div class="list-tools">
+          <input id="incidentSearch" type="search" placeholder="Поиск по ID, названию, источнику…">
+          <select id="incidentStatusFilter"><option value="">Все статусы</option><option>Новый</option><option>Авто</option><option>Расследование</option><option>В работе</option><option>Закрыт</option></select>
+          <select id="incidentSeverityFilter"><option value="">Все приоритеты</option><option>Критический</option><option>Высокий</option><option>Средний</option><option>Низкий</option></select>
+        </div>
+        <div id="incidentList" class="incident-list"></div></article>
       <article class="card"><small>КАРТОЧКА РАССЛЕДОВАНИЯ</small><div id="incidentDetail"></div></article>
     </div></section>
 
@@ -169,6 +175,7 @@
       <div class="monitor-layout">
         <article class="card">
           <div class="card-head"><div><small>LIVE SNAPSHOT</small><h2>Процессы Windows</h2></div><span class="muted" id="processCount">0 процессов</span></div>
+          <div class="list-tools compact"><input id="processSearch" type="search" placeholder="Фильтр процессов…"></div>
           <div class="process-table"><div class="process-row process-head"><span>PID</span><span>Процесс</span><span>CPU</span><span>RAM</span><span>Threads</span></div><div id="processRows"></div></div>
         </article>
         <div class="sensor-column">
@@ -183,6 +190,7 @@
           <div><small>NETWORK INVESTIGATION</small><h2>Активные TCP-соединения</h2></div>
           <button class="secondary" id="refreshConnections">Обновить</button>
         </div>
+        <div class="list-tools compact"><input id="connectionSearch" type="search" placeholder="IP, порт или state…"></div>
         <p class="muted">On-demand снимок активных TCP endpoints Windows. Для точной привязки socket → PID потребуется отдельный Windows-native mapping layer.</p>
         <div class="connection-table">
           <div class="connection-row connection-head"><span>Local</span><span>Remote</span><span>State</span></div>
@@ -209,6 +217,7 @@
     <section class="view" id="audit">
       <article class="card tall">
         <div class="card-head"><div><small>IMMUTABLE-LIKE LOCAL LOG</small><h2>Журнал аудита</h2></div><button class="primary" id="refreshAudit">Обновить</button></div>
+        <div class="list-tools compact"><input id="auditSearch" type="search" placeholder="Фильтр audit…"></div>
         <p class="muted">Локальный журнал действий AEGIS: создание, изменение и удаление инцидентов, системные события и операторские действия.</p>
         <div class="audit-list" id="auditList"><p class="muted">Нет данных.</p></div>
       </article>
@@ -222,6 +231,7 @@
             <button class="primary" id="refreshWindowsEvents">Обновить</button>
           </div>
         </div>
+        <div class="list-tools compact"><input id="eventSearch" type="search" placeholder="Provider, Event ID или текст…"></div>
         <p class="muted">Read-only выборка Critical / Error / Warning. Если журнал недоступен текущему пользователю, AEGIS честно покажет пустой результат.</p>
         <div class="windows-event-list" id="windowsEventList"><p class="muted">Открой раздел для загрузки событий.</p></div>
       </article>
