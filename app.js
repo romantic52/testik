@@ -1,6 +1,10 @@
 const state={current:"",incidents:[]};
 const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",audit:"Журнал аудита",events:"События Windows"};
 const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
+let lastProcesses=[];
+let lastConnections=[];
+let lastAuditItems=[];
+let lastWindowsEvents=[];
 
 let lastTelemetryPayload=null;
 let telemetryHistory=[];
@@ -284,15 +288,30 @@ q("#refreshReport")?.addEventListener("click",loadReportSummary);
 
 function toast(t){const e=q("#toast");e.textContent=t;e.classList.add("show");clearTimeout(window.tt);window.tt=setTimeout(()=>e.classList.remove("show"),1800)}
 function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent();if(id==="audit")loadAudit();if(id==="reports")loadReportSummary();if(id==="events")loadWindowsEvents()}
-qa(".nav").forEach(b=>b.onclick=()=>view(b.dataset.view));qa("[data-go]").forEach(b=>b.onclick=()=>view(b.dataset.go));
+qa(".nav").forEach(b=>b.onclick=()=>view(b.dataset.view));
+q("#incidentSeverityFilter")?.addEventListener("change",renderIncidents);
+q("#incidentStatusFilter")?.addEventListener("change",renderIncidents);
+q("#incidentSearch")?.addEventListener("input",renderIncidents);qa("[data-go]").forEach(b=>b.onclick=()=>view(b.dataset.go));
 function renderIncidents(){
   const badge=q("#incidentBadge");if(badge)badge.textContent=String(state.incidents.filter(i=>i.status!=="Закрыт").length);
-  const list=q("#incidentList");
-  if(!list)return;
-  list.innerHTML=state.incidents.map(i=>`<div class="incident-item ${i.id===state.current?"active":""}" data-id="${escapeHtml(i.id)}"><div><span>${escapeHtml(i.id)}</span><span>${escapeHtml(i.time||"")}</span></div><h3>${escapeHtml(i.title)}</h3><p>${escapeHtml(i.source)} • ${escapeHtml(i.severity)} • ${escapeHtml(i.status)}</p></div>`).join("");
+  const list=q("#incidentList");if(!list)return;
+
+  const search=(q("#incidentSearch")?.value||"").trim().toLowerCase();
+  const status=q("#incidentStatusFilter")?.value||"";
+  const severity=q("#incidentSeverityFilter")?.value||"";
+  const visible=state.incidents.filter(i=>{
+    if(status&&i.status!==status)return false;
+    if(severity&&i.severity!==severity)return false;
+    if(!search)return true;
+    return [i.id,i.title,i.source,i.description,i.status,i.severity]
+      .some(value=>String(value||"").toLowerCase().includes(search));
+  });
+
+  list.innerHTML=visible.length?visible.map(i=>`<div class="incident-item ${i.id===state.current?"active":""}" data-id="${escapeHtml(i.id)}"><div><span>${escapeHtml(i.id)}</span><span>${escapeHtml(i.time||"")}</span></div><h3>${escapeHtml(i.title)}</h3><p>${escapeHtml(i.source)} • ${escapeHtml(i.severity)} • ${escapeHtml(i.status)}</p></div>`).join(""):'<div class="empty-process">Ничего не найдено.</div>';
   qa(".incident-item").forEach(x=>x.onclick=()=>{state.current=x.dataset.id;renderIncidents()});
-  const i=state.incidents.find(x=>x.id===state.current)||state.incidents[0];
-  const detail=q("#incidentDetail");if(!i){if(detail)detail.innerHTML='<p class="muted">Инцидентов нет.</p>';return}
+
+  const i=state.incidents.find(x=>x.id===state.current)||visible[0]||state.incidents[0];
+  const detail=q("#incidentDetail");if(!i){if(detail)detail.innerHTML='<p class="muted">Инцидентов нет.</p>';updateOverview();return}
   detail.innerHTML=`<h3 class="detail-title">${escapeHtml(i.title)}</h3><div class="detail-meta"><span>${escapeHtml(i.id)}</span><span>${escapeHtml(i.source)}</span><span>${escapeHtml(i.severity)}</span><span>${escapeHtml(i.status)}</span></div><p class="muted">${escapeHtml(i.description)}</p><div class="timeline">${(i.events||[]).map(e=>{const p=String(e).split(" — ");return `<div class="event"><b>${escapeHtml(p[0]||"")}</b><p>${escapeHtml(p.slice(1).join(" — "))}</p></div>`}).join("")}</div><div class="incident-actions"><button class="primary" id="shareIncident">Отправить в AETHER.chat</button>${i.status!=="Закрыт"?'<button class="secondary" id="closeIncident">Закрыть</button>':""}<button class="danger-mini" id="deleteIncident">Удалить</button></div>`;
   q("#shareIncident").onclick=()=>shareIncident(i);
   q("#closeIncident")?.addEventListener("click",async()=>{
@@ -661,24 +680,44 @@ function renderTelemetry(payload){
 }
 
 function renderProcesses(processes){
-  q("#processCount").textContent=processes.length+" процессов";
-  q("#processRows").innerHTML=processes.length?processes.map(p=>
+  lastProcesses=Array.isArray(processes)?processes:lastProcesses;
+  const search=(q("#processSearch")?.value||"").trim().toLowerCase();
+  const visible=search?lastProcesses.filter(p=>
+    String(p.pid).includes(search)||
+    String(p.name||"").toLowerCase().includes(search)||
+    String(p.path||"").toLowerCase().includes(search)
+  ):lastProcesses;
+
+  q("#processCount").textContent=visible.length+" / "+lastProcesses.length+" процессов";
+  q("#processRows").innerHTML=visible.length?visible.map(p=>
     '<button class="process-row process-click" data-pid="'+p.pid+'"><span>'+p.pid+'</span><span class="process-name" title="'+escapeHtml(p.path||"")+'">'+escapeHtml(p.name)+'</span><span>'+fmtPercent(p.cpuPercent)+'</span><span>'+Number(p.memoryMb).toFixed(1)+' MB</span><span>'+(p.threads??"—")+'</span></button>'
-  ).join(""):'<div class="empty-process">Нет данных. Запусти локальный агент.</div>';
+  ).join(""):'<div class="empty-process">Процессы не найдены.</div>';
   qa(".process-click").forEach(row=>row.addEventListener("click",()=>openProcessDetails(Number(row.dataset.pid))));
+}
+q("#processSearch")?.addEventListener("input",()=>renderProcesses(lastProcesses));
+function renderNetworkConnections(){
+  const box=q("#networkConnectionRows");if(!box)return;
+  const search=(q("#connectionSearch")?.value||"").trim().toLowerCase();
+  const visible=search?lastConnections.filter(item=>
+    [item.localAddress,item.localPort,item.remoteAddress,item.remotePort,item.state]
+      .some(value=>String(value??"").toLowerCase().includes(search))
+  ):lastConnections;
+
+  box.innerHTML=visible.length?visible.map(item=>
+    '<div class="connection-row"><span>'+escapeHtml(item.localAddress+":"+item.localPort)+'</span><span>'+escapeHtml(item.remoteAddress+":"+item.remotePort)+'</span><b>'+escapeHtml(item.state)+'</b></div>'
+  ).join(""):'<div class="empty-process">Соединения не найдены.</div>';
 }
 async function loadNetworkConnections(){
   const box=q("#networkConnectionRows");if(!box)return;
   try{
-    const rows=await apiJson("/api/network/connections?limit=100");
-    box.innerHTML=rows.length?rows.map(item=>
-      '<div class="connection-row"><span>'+escapeHtml(item.localAddress+":"+item.localPort)+'</span><span>'+escapeHtml(item.remoteAddress+":"+item.remotePort)+'</span><b>'+escapeHtml(item.state)+'</b></div>'
-    ).join(""):'<div class="empty-process">Активных TCP соединений нет.</div>';
+    lastConnections=await apiJson("/api/network/connections?limit=100");
+    renderNetworkConnections();
   }catch(error){
     box.innerHTML='<div class="empty-process">Connections API: '+escapeHtml(error.message)+'</div>';
   }
 }
 q("#refreshConnections")?.addEventListener("click",loadNetworkConnections);
+q("#connectionSearch")?.addEventListener("input",renderNetworkConnections);
 
 async function openProcessDetails(pid){
   openModal("processModal");q("#processDetailBody").innerHTML='<p class="muted">Загрузка…</p>';
