@@ -1,4 +1,7 @@
+using System.Diagnostics;
+using System.Net;
 using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
 
 namespace Aegis.Agent.Services;
 
@@ -31,12 +34,19 @@ public sealed class NetworkMonitorService
                         var seconds = (now - previous.Timestamp).TotalSeconds;
                         if (seconds > 0)
                         {
-                            rxPerSecond = Math.Max(0, stats.BytesReceived - previous.BytesReceived) / seconds;
-                            txPerSecond = Math.Max(0, stats.BytesSent - previous.BytesSent) / seconds;
+                            rxPerSecond = Math.Max(
+                                0,
+                                stats.BytesReceived - previous.BytesReceived) / seconds;
+                            txPerSecond = Math.Max(
+                                0,
+                                stats.BytesSent - previous.BytesSent) / seconds;
                         }
                     }
 
-                    _previous[nic.Id] = new NetworkSample(stats.BytesReceived, stats.BytesSent, now);
+                    _previous[nic.Id] = new NetworkSample(
+                        stats.BytesReceived,
+                        stats.BytesSent,
+                        now);
 
                     adapters.Add(new NetworkAdapterSnapshot(
                         nic.Name,
@@ -68,6 +78,28 @@ public sealed class NetworkMonitorService
 
         try
         {
+            var owned = GetOwnedTcp4Connections();
+            if (owned.Count > 0)
+            {
+                return owned
+                    .OrderByDescending(connection =>
+                        connection.State.Equals(
+                            TcpState.Established.ToString(),
+                            StringComparison.OrdinalIgnoreCase))
+                    .ThenBy(connection => connection.State)
+                    .ThenBy(connection => connection.ProcessName)
+                    .ThenBy(connection => connection.RemoteAddress)
+                    .Take(limit)
+                    .ToList();
+            }
+        }
+        catch
+        {
+            // Fall through to the portable snapshot when owner PID lookup fails.
+        }
+
+        try
+        {
             return IPGlobalProperties.GetIPGlobalProperties()
                 .GetActiveTcpConnections()
                 .OrderByDescending(connection => connection.State == TcpState.Established)
@@ -79,7 +111,9 @@ public sealed class NetworkMonitorService
                     connection.LocalEndPoint.Port,
                     connection.RemoteEndPoint.Address.ToString(),
                     connection.RemoteEndPoint.Port,
-                    connection.State.ToString()))
+                    connection.State.ToString(),
+                    null,
+                    null))
                 .ToList();
         }
         catch
@@ -110,7 +144,124 @@ public sealed class NetworkMonitorService
         }
     }
 
-    private sealed record NetworkSample(long BytesReceived, long BytesSent, DateTimeOffset Timestamp);
+    private static IReadOnlyList<TcpConnectionSnapshot> GetOwnedTcp4Connections()
+    {
+        const int afInet = 2;
+        var size = 0;
+
+        var result = GetExtendedTcpTable(
+            IntPtr.Zero,
+            ref size,
+            true,
+            afInet,
+            TcpTableClass.OwnerPidAll,
+            0);
+
+        if (result != ErrorInsufficientBuffer || size <= sizeof(int))
+            return Array.Empty<TcpConnectionSnapshot>();
+
+        var buffer = Marshal.AllocHGlobal(size);
+        try
+        {
+            result = GetExtendedTcpTable(
+                buffer,
+                ref size,
+                true,
+                afInet,
+                TcpTableClass.OwnerPidAll,
+                0);
+
+            if (result != ErrorSuccess)
+                return Array.Empty<TcpConnectionSnapshot>();
+
+            var count = Marshal.ReadInt32(buffer);
+            var rowPointer = IntPtr.Add(buffer, sizeof(int));
+            var rowSize = Marshal.SizeOf<MibTcpRowOwnerPid>();
+            var connections = new List<TcpConnectionSnapshot>(count);
+
+            for (var index = 0; index < count; index++)
+            {
+                var row = Marshal.PtrToStructure<MibTcpRowOwnerPid>(
+                    IntPtr.Add(rowPointer, index * rowSize));
+
+                var pid = unchecked((int)row.OwningPid);
+                connections.Add(new TcpConnectionSnapshot(
+                    new IPAddress(row.LocalAddress).ToString(),
+                    DecodePort(row.LocalPort),
+                    new IPAddress(row.RemoteAddress).ToString(),
+                    DecodePort(row.RemotePort),
+                    ((TcpState)row.State).ToString(),
+                    pid,
+                    GetProcessName(pid)));
+            }
+
+            return connections;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(buffer);
+        }
+    }
+
+    private static int DecodePort(uint raw)
+    {
+        var bytes = BitConverter.GetBytes(raw);
+        return (bytes[0] << 8) + bytes[1];
+    }
+
+    private static string? GetProcessName(int pid)
+    {
+        if (pid <= 0)
+            return null;
+
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            return process.ProcessName;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private const uint ErrorSuccess = 0;
+    private const uint ErrorInsufficientBuffer = 122;
+
+    [DllImport("iphlpapi.dll", SetLastError = true)]
+    private static extern uint GetExtendedTcpTable(
+        IntPtr tcpTable,
+        ref int outBufferLength,
+        bool order,
+        int ipVersion,
+        TcpTableClass tableClass,
+        uint reserved);
+
+    private enum TcpTableClass
+    {
+        BasicListener,
+        BasicConnections,
+        BasicAll,
+        OwnerPidListener,
+        OwnerPidConnections,
+        OwnerPidAll
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MibTcpRowOwnerPid
+    {
+        public uint State;
+        public uint LocalAddress;
+        public uint LocalPort;
+        public uint RemoteAddress;
+        public uint RemotePort;
+        public uint OwningPid;
+    }
+
+    private sealed record NetworkSample(
+        long BytesReceived,
+        long BytesSent,
+        DateTimeOffset Timestamp);
 }
 
 public sealed record NetworkAdapterSnapshot(
@@ -134,7 +285,9 @@ public sealed record TcpConnectionSnapshot(
     int LocalPort,
     string RemoteAddress,
     int RemotePort,
-    string State);
+    string State,
+    int? ProcessId,
+    string? ProcessName);
 
 public sealed record UdpListenerSnapshot(
     string LocalAddress,
