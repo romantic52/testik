@@ -1,5 +1,6 @@
 using Aegis.Agent.Configuration;
 using Microsoft.Extensions.Options;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -14,6 +15,8 @@ public sealed class IncidentStoreService
     private readonly string _dataDirectory;
     private readonly string _incidentFile;
     private readonly string _auditFile;
+    private readonly long _auditMaxBytes;
+    private readonly int _auditRetentionFiles;
     private long _revision;
     private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web)
     {
@@ -35,6 +38,8 @@ public sealed class IncidentStoreService
         Directory.CreateDirectory(_dataDirectory);
         _incidentFile = Path.Combine(_dataDirectory, "incidents.json");
         _auditFile = Path.Combine(_dataDirectory, "audit.jsonl");
+        _auditMaxBytes = options.Value.SafeAuditMaxMegabytes * 1024L * 1024L;
+        _auditRetentionFiles = options.Value.SafeAuditRetentionFiles;
     }
 
     public async Task<IReadOnlyList<IncidentRecord>> ListAsync(CancellationToken cancellationToken = default)
@@ -156,23 +161,39 @@ public sealed class IncidentStoreService
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            if (!File.Exists(_auditFile))
+            var files = new List<string>();
+            if (File.Exists(_auditFile))
+                files.Add(_auditFile);
+
+            for (var index = 1; index <= _auditRetentionFiles; index++)
+            {
+                var rotated = RotatedAuditPath(index);
+                if (File.Exists(rotated))
+                    files.Add(rotated);
+            }
+
+            if (files.Count == 0)
                 return Array.Empty<AuditRecord>();
 
-            var lines = await File.ReadAllLinesAsync(_auditFile, cancellationToken);
-            var result = new List<AuditRecord>();
-
-            for (var i = lines.Length - 1; i >= 0 && result.Count < limit; i--)
+            var result = new List<AuditRecord>(limit);
+            foreach (var file in files)
             {
-                try
+                var lines = await File.ReadAllLinesAsync(file, cancellationToken);
+                for (var i = lines.Length - 1; i >= 0 && result.Count < limit; i--)
                 {
-                    var item = JsonSerializer.Deserialize<AuditRecord>(lines[i], _json);
-                    if (item is not null) result.Add(item);
+                    try
+                    {
+                        var item = JsonSerializer.Deserialize<AuditRecord>(lines[i], _jsonLine);
+                        if (item is not null) result.Add(item);
+                    }
+                    catch
+                    {
+                        // One malformed historical line must not break the audit view.
+                    }
                 }
-                catch
-                {
-                    // Keep a malformed historical line from breaking the entire audit view.
-                }
+
+                if (result.Count >= limit)
+                    break;
             }
 
             return result;
@@ -250,8 +271,33 @@ public sealed class IncidentStoreService
     private async Task AppendAuditUnsafeAsync(AuditRecord record, CancellationToken cancellationToken)
     {
         var line = JsonSerializer.Serialize(record, _jsonLine) + Environment.NewLine;
+        RotateAuditIfNeededUnsafe(Encoding.UTF8.GetByteCount(line));
         await File.AppendAllTextAsync(_auditFile, line, cancellationToken);
     }
+
+    private void RotateAuditIfNeededUnsafe(int incomingBytes)
+    {
+        if (!File.Exists(_auditFile))
+            return;
+
+        var size = new FileInfo(_auditFile).Length;
+        if (size + incomingBytes <= _auditMaxBytes)
+            return;
+
+        for (var index = _auditRetentionFiles; index >= 2; index--)
+        {
+            var source = RotatedAuditPath(index - 1);
+            var destination = RotatedAuditPath(index);
+
+            if (File.Exists(source))
+                File.Move(source, destination, overwrite: true);
+        }
+
+        File.Move(_auditFile, RotatedAuditPath(1), overwrite: true);
+    }
+
+    private string RotatedAuditPath(int index) =>
+        Path.Combine(_dataDirectory, $"audit.{index}.jsonl");
 }
 
 public sealed record IncidentRecord(
