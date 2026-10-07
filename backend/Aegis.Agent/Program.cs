@@ -6,6 +6,11 @@ using Aegis.Agent.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Host.UseWindowsService(options =>
+{
+    options.ServiceName = "AEGIS Agent";
+});
+
 var startupOptions = builder.Configuration
     .GetSection(AgentOptions.SectionName)
     .Get<AgentOptions>() ?? new AgentOptions();
@@ -24,6 +29,7 @@ builder.Services.AddSingleton<ProcessMonitorService>();
 builder.Services.AddSingleton<NetworkMonitorService>();
 builder.Services.AddSingleton<WindowsEventLogService>();
 builder.Services.AddSingleton<WindowsServiceMonitorService>();
+builder.Services.AddSingleton<AgentDiagnosticsService>();
 builder.Services.AddSingleton<IncidentStoreService>();
 builder.Services.AddSingleton<AlertSettingsService>();
 builder.Services.AddSingleton<ReportService>();
