@@ -113,6 +113,32 @@ public sealed class IncidentStoreServiceTests : IDisposable
         Assert.Single(Directory.GetFiles(_directory, "incidents.corrupt-*.json"));
     }
 
+    [Fact]
+    public async Task Audit_rotates_when_size_limit_is_reached()
+    {
+        Directory.CreateDirectory(_directory);
+        var auditPath = Path.Combine(_directory, "audit.jsonl");
+        await File.WriteAllTextAsync(auditPath, new string('x', 1024 * 1024));
+
+        var store = new IncidentStoreService(Options.Create(new AgentOptions
+        {
+            DataDirectory = _directory,
+            AuditMaxMegabytes = 1,
+            AuditRetentionFiles = 2
+        }));
+
+        await store.AppendAuditAsync(new AuditRecord(
+            DateTimeOffset.UtcNow,
+            "rotation.test",
+            "audit",
+            "valid record after rotation",
+            "unit-test"));
+
+        Assert.True(File.Exists(Path.Combine(_directory, "audit.1.jsonl")));
+        var audit = await store.AuditAsync(10);
+        Assert.Contains(audit, item => item.Type == "rotation.test");
+    }
+
     private IncidentStoreService CreateStore() =>
         new(Options.Create(new AgentOptions { DataDirectory = _directory }));
 
