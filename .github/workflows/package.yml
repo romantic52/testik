@@ -37,6 +37,10 @@ jobs:
         shell: pwsh
         run: ./scripts/smoke-agent.ps1 -Executable ./dist/AEGIS/Aegis.Agent.exe
 
+      - name: Windows Service smoke
+        shell: pwsh
+        run: ./scripts/smoke-service.ps1 -Executable ./dist/AEGIS/Aegis.Agent.exe
+
       - name: Upload AEGIS bundle
         uses: actions/upload-artifact@v4
         with:
