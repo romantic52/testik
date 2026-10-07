@@ -1,32 +1,27 @@
 using System.Text;
 using System.Text.Json;
+using Aegis.Agent.Services;
 
 namespace Aegis.Agent.Services;
 
 public sealed class ReportService
 {
-    private readonly HardwareMonitorService _hardware;
-    private readonly NetworkMonitorService _network;
-    private readonly ProcessMonitorService _processes;
+    private readonly TelemetrySamplerService _telemetry;
     private readonly IncidentStoreService _incidents;
 
     public ReportService(
-        HardwareMonitorService hardware,
-        NetworkMonitorService network,
-        ProcessMonitorService processes,
+        TelemetrySamplerService telemetry,
         IncidentStoreService incidents)
     {
-        _hardware = hardware;
-        _network = network;
-        _processes = processes;
+        _telemetry = telemetry;
         _incidents = incidents;
     }
 
     public async Task<object> BuildAsync(CancellationToken cancellationToken = default)
     {
-        var network = _network.GetSnapshot();
-        var system = _hardware.GetSystemSnapshot(network);
-        var processes = _processes.GetProcesses(50);
+        var frame = _telemetry.Latest
+            ?? throw new InvalidOperationException("Telemetry is still warming up");
+
         var incidents = await _incidents.ListAsync(cancellationToken);
         var audit = await _incidents.AuditAsync(250, cancellationToken);
 
@@ -37,10 +32,11 @@ public sealed class ReportService
             {
                 machine = Environment.MachineName,
                 version = typeof(ReportService).Assembly.GetName().Version?.ToString() ?? "dev",
-                dataDirectory = _incidents.DataDirectory
+                dataDirectory = _incidents.DataDirectory,
+                lastSampleAt = frame.Timestamp
             },
-            system,
-            processes,
+            system = frame.System,
+            processes = frame.Processes,
             incidents,
             audit
         };
@@ -76,6 +72,6 @@ public sealed class ReportService
     private static string Csv(string? value)
     {
         var text = value ?? "";
-        return "\"" + text.Replace("\"", "\"\"") + "\"";
+        return """ + text.Replace(""", """") + """;
     }
 }
