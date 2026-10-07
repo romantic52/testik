@@ -33,11 +33,17 @@ GET /api/hardware
 GET /api/network
 : network snapshot из того же sample.
 
+GET /api/network/connections?limit=200
+: on-demand active TCP endpoints и TCP state.
+
+GET /api/network/udp?limit=200
+: on-demand active UDP listeners.
+
 GET /api/processes?limit=50
 : sampled processes. limit ограничен 1..200.
 
 GET /api/processes/{pid}
-: on-demand detail процесса, если Windows разрешает чтение.
+: on-demand detail процесса, если Windows разрешает чтение. Включает file size, version/product/company metadata и SHA-256 исполняемого файла, когда путь доступен и файл не превышает safety limit.
 
 GET /api/history?seconds=900
 : bounded telemetry history. Window ограничен configured history retention.
