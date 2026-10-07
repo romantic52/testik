@@ -56,7 +56,7 @@ public sealed class IncidentStoreService
         try
         {
             await using var connection = _database.OpenConnection();
-            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await using var transaction = connection.BeginTransaction();
 
             var exists = await ExistsAsync(connection, transaction, normalized.Id, cancellationToken);
             var now = DateTimeOffset.UtcNow;
@@ -125,7 +125,7 @@ public sealed class IncidentStoreService
         try
         {
             await using var connection = _database.OpenConnection();
-            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await using var transaction = connection.BeginTransaction();
 
             string? title = null;
             await using (var lookup = connection.CreateCommand())
@@ -179,7 +179,7 @@ public sealed class IncidentStoreService
         try
         {
             await using var connection = _database.OpenConnection();
-            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await using var transaction = connection.BeginTransaction();
 
             await InsertAuditAsync(
                 connection,
