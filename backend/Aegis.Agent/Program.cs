@@ -30,6 +30,7 @@ builder.Services.AddSingleton<NetworkMonitorService>();
 builder.Services.AddSingleton<WindowsEventLogService>();
 builder.Services.AddSingleton<WindowsServiceMonitorService>();
 builder.Services.AddSingleton<AgentDiagnosticsService>();
+builder.Services.AddSingleton<StateDatabase>();
 builder.Services.AddSingleton<IncidentStoreService>();
 builder.Services.AddSingleton<AlertSettingsService>();
 builder.Services.AddSingleton<ReportService>();
