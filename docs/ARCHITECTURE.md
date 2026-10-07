@@ -216,3 +216,16 @@ Package workflow:
 2. self-contained publish;
 3. smoke test published Aegis.Agent.exe;
 4. artifact upload.
+
+
+## Windows Service hosting
+
+The same Aegis.Agent executable supports both console and Windows Service execution.
+
+Microsoft.Extensions.Hosting.WindowsServices is context-aware: UseWindowsService activates WindowsServiceLifetime only when SCM hosts the process.
+
+The install script points SCM at the verified published executable and gives service-mode persistence an explicit %ProgramData%\AEGIS directory.
+
+AgentDiagnosticsService reports whether the current process is actually hosted by Windows Service Control Manager.
+
+Automatic monitoring and AlertEngineService are backend hosted services, so they continue with no browser open. AETHER E2E delivery remains browser-owned and pending incidents are sent when an operator client connects.
