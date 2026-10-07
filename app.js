@@ -664,6 +664,17 @@ function setAgentState(online,text){
   el.innerHTML="<i></i> "+(text||(online?"AGENT ONLINE":"AGENT OFFLINE"));
 }
 
+function formatDuration(seconds){
+  const total=Math.max(0,Math.floor(Number(seconds)||0));
+  const days=Math.floor(total/86400);
+  const hours=Math.floor((total%86400)/3600);
+  const minutes=Math.floor((total%3600)/60);
+  const secs=total%60;
+  if(days)return days+"d "+hours+"h "+minutes+"m";
+  if(hours)return hours+"h "+minutes+"m";
+  if(minutes)return minutes+"m "+secs+"s";
+  return secs+"s";
+}
 function fmtPercent(v){
   return Number.isFinite(Number(v))?Number(v).toFixed(1)+"%":"—";
 }
@@ -813,6 +824,29 @@ async function openProcessDetails(pid){
   }catch(error){q("#processDetailBody").innerHTML='<p class="muted">Не удалось получить процесс: '+escapeHtml(error.message)+'</p>'}
 }
 
+async function loadAgentDiagnostics(){
+  if(!q("#agentDiagnosticsGrid"))return;
+  try{
+    const d=await apiJson("/api/diagnostics");
+    q("#diagMode").textContent=d.runningAsWindowsService?"WINDOWS SERVICE":"CONSOLE";
+    q("#diagVersion").textContent=d.version||"—";
+    q("#diagUptime").textContent=formatDuration(d.uptimeSeconds);
+    q("#diagPid").textContent=String(d.processId??"—");
+    q("#diagWorkingSet").textContent=Number.isFinite(Number(d.workingSetMb))?Number(d.workingSetMb).toFixed(1)+" MB":"—";
+    q("#diagGcMemory").textContent=(Number.isFinite(Number(d.managedMemoryMb))?Number(d.managedMemoryMb).toFixed(1):"—")+" / "+(Number.isFinite(Number(d.gcHeapSizeMb))?Number(d.gcHeapSizeMb).toFixed(1):"—")+" MB";
+    q("#diagThreads").textContent=(d.threadCount??"—")+" / "+(d.handleCount??"—");
+    q("#diagSampleAge").textContent=d.lastSampleAgeSeconds==null?"—":Number(d.lastSampleAgeSeconds).toFixed(1)+"s";
+    q("#diagHistory").textContent=String(d.historyPoints??"—");
+    q("#diagDataDir").textContent=d.dataDirectory||"—";
+    const meta=q("#machineMeta");
+    if(meta&&lastTelemetryPayload?.system){
+      meta.textContent=(lastTelemetryPayload.system.os||"Windows")+" • "+(lastTelemetryPayload.system.logicalProcessors||"?")+" logical CPU • Agent "+(d.version||"dev");
+    }
+  }catch(error){
+    console.warn("Diagnostics unavailable",error);
+  }
+}
+
 async function probeAgent(){
   try{
     const response=await fetch(AGENT_HTTP+"/api/health",{cache:"no-store"});
@@ -820,6 +854,7 @@ async function probeAgent(){
     const health=await response.json();
     setAgentState(true,"AGENT ONLINE");markAgentOnlineForAlerts();
     loadTelemetryHistory();
+    loadAgentDiagnostics();
     return health;
   }catch{
     setAgentState(false,"AGENT OFFLINE");
@@ -839,7 +874,7 @@ function connectAgent(){
     const ws=new WebSocket(AGENT_WS);
     agentSocket=ws;
 
-    ws.onopen=()=>{setAgentState(true,"AGENT ONLINE");markAgentOnlineForAlerts();loadNetworkConnections()};
+    ws.onopen=()=>{setAgentState(true,"AGENT ONLINE");markAgentOnlineForAlerts();loadNetworkConnections();loadAgentDiagnostics()};
     ws.onmessage=event=>{
       try{handleTelemetryMessage(JSON.parse(event.data))}catch(error){console.error("AEGIS telemetry parse error",error)}
     };
@@ -878,4 +913,4 @@ async function startFakeCrash(){
   },260);
 }
 
-function tick(){q("#clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour12:false})}tick();setInterval(tick,1000);setInterval(()=>{if(agentSocket?.readyState===WebSocket.OPEN)loadNetworkConnections()},5000);bindAutomationUi();renderIncidents();updateOverview();loadPersistentIncidents();connectAgent();
+function tick(){q("#clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour12:false})}tick();setInterval(tick,1000);setInterval(()=>{if(agentSocket?.readyState===WebSocket.OPEN)loadNetworkConnections()},5000);setInterval(()=>{if(agentSocket?.readyState===WebSocket.OPEN)loadAgentDiagnostics()},10000);bindAutomationUi();renderIncidents();updateOverview();loadPersistentIncidents();connectAgent();
