@@ -1,10 +1,11 @@
 const state={current:"",incidents:[]};
-const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",audit:"Журнал аудита",events:"События Windows"};
+const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",audit:"Журнал аудита",events:"События Windows",services:"Службы Windows"};
 const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
 let lastProcesses=[];
 let lastConnections=[];
 let lastAuditItems=[];
 let lastWindowsEvents=[];
+let lastWindowsServices=[];
 
 let lastTelemetryPayload=null;
 let telemetryHistory=[];
@@ -287,6 +288,44 @@ q("#refreshWindowsEvents")?.addEventListener("click",loadWindowsEvents);
 q("#eventLogSelect")?.addEventListener("change",loadWindowsEvents);
 q("#eventSearch")?.addEventListener("input",renderWindowsEvents);
 
+function renderWindowsServices(){
+  const box=q("#windowsServiceList");if(!box)return;
+  const search=(q("#serviceSearch")?.value||"").trim().toLowerCase();
+  const status=q("#serviceStatusFilter")?.value||"";
+  const visible=lastWindowsServices.filter(item=>{
+    if(status&&item.status!==status)return false;
+    if(!search)return true;
+    return [item.name,item.displayName,item.status,item.serviceType]
+      .some(value=>String(value??"").toLowerCase().includes(search));
+  });
+
+  box.innerHTML=visible.length?visible.map((item,index)=>{
+    const originalIndex=lastWindowsServices.indexOf(item);
+    return '<button class="windows-service-row" data-service-index="'+originalIndex+'"><div><b>'+escapeHtml(item.displayName||item.name)+'</b><span class="service-status '+escapeHtml(String(item.status||"").toLowerCase())+'">'+escapeHtml(item.status||"Unknown")+'</span></div><strong>'+escapeHtml(item.name)+'</strong><p>'+escapeHtml(item.serviceType||"Service")+(item.canStop===true?" • can stop":"")+'</p></button>';
+  }).join(""):'<p class="muted">Службы не найдены.</p>';
+
+  qa(".windows-service-row").forEach(row=>row.addEventListener("click",()=>{
+    const item=lastWindowsServices[Number(row.dataset.serviceIndex)];
+    q("#incidentTitleInput").value="Проверка службы "+(item.displayName||item.name);
+    q("#incidentSourceInput").value="Windows Service: "+item.name;
+    q("#incidentDescriptionInput").value="Status: "+(item.status||"Unknown")+"\nService type: "+(item.serviceType||"—")+"\nCan stop: "+(item.canStop===true?"yes":"no/unknown");
+    openModal("incidentModal");
+  }));
+}
+async function loadWindowsServices(){
+  const box=q("#windowsServiceList");if(!box)return;
+  box.innerHTML='<p class="muted">Загрузка служб…</p>';
+  try{
+    lastWindowsServices=await apiJson("/api/windows/services?limit=1000");
+    renderWindowsServices();
+  }catch(error){
+    box.innerHTML='<p class="muted">Services API: '+escapeHtml(error.message)+'</p>';
+  }
+}
+q("#refreshWindowsServices")?.addEventListener("click",loadWindowsServices);
+q("#serviceSearch")?.addEventListener("input",renderWindowsServices);
+q("#serviceStatusFilter")?.addEventListener("change",renderWindowsServices);
+
 async function loadReportSummary(){
   const box=q("#reportSummary");if(!box)return;
   box.innerHTML='<p class="muted">Формирование…</p>';
@@ -312,7 +351,7 @@ q("#refreshAudit")?.addEventListener("click",loadAudit);
 q("#refreshReport")?.addEventListener("click",loadReportSummary);
 
 function toast(t){const e=q("#toast");e.textContent=t;e.classList.add("show");clearTimeout(window.tt);window.tt=setTimeout(()=>e.classList.remove("show"),1800)}
-function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent();if(id==="audit")loadAudit();if(id==="reports")loadReportSummary();if(id==="events")loadWindowsEvents()}
+function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent();if(id==="audit")loadAudit();if(id==="reports")loadReportSummary();if(id==="events")loadWindowsEvents();if(id==="services")loadWindowsServices()}
 qa(".nav").forEach(b=>b.onclick=()=>view(b.dataset.view));
 q("#incidentSeverityFilter")?.addEventListener("change",renderIncidents);
 q("#incidentStatusFilter")?.addEventListener("change",renderIncidents);
