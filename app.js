@@ -774,12 +774,12 @@ function renderNetworkConnections(){
   const box=q("#networkConnectionRows");if(!box)return;
   const search=(q("#connectionSearch")?.value||"").trim().toLowerCase();
   const visible=search?lastConnections.filter(item=>
-    [item.localAddress,item.localPort,item.remoteAddress,item.remotePort,item.state]
+    [item.localAddress,item.localPort,item.remoteAddress,item.remotePort,item.state,item.processId,item.processName]
       .some(value=>String(value??"").toLowerCase().includes(search))
   ):lastConnections;
 
   box.innerHTML=visible.length?visible.map(item=>
-    '<div class="connection-row"><span>'+escapeHtml(item.localAddress+":"+item.localPort)+'</span><span>'+escapeHtml(item.remoteAddress+":"+item.remotePort)+'</span><b>'+escapeHtml(item.state)+'</b></div>'
+    '<div class="connection-row"><span>'+escapeHtml(item.localAddress+":"+item.localPort)+'</span><span>'+escapeHtml(item.remoteAddress+":"+item.remotePort)+'</span><b>'+escapeHtml(item.state)+'</b><span class="connection-process">'+escapeHtml(item.processName?item.processName+" • PID "+item.processId:(item.processId?"PID "+item.processId:"—"))+'</span></div>'
   ).join(""):'<div class="empty-process">Соединения не найдены.</div>';
 }
 async function loadNetworkConnections(){
@@ -812,13 +812,17 @@ async function openProcessDetails(pid){
       ["File version",p.fileVersion||"—"],
       ["Product",p.productName||"—"],
       ["Company",p.companyName||"—"],
-      ["SHA-256",p.sha256||"Недоступен"]
+      ["SHA-256",p.sha256||"Недоступен"],
+      ["Embedded signature",p.embeddedSignaturePresent==null?"Не удалось проверить":(p.embeddedSignaturePresent?"Есть":"Нет")],
+      ["Signer",p.signerSubject||"—"],
+      ["Signer thumbprint",p.signerThumbprint||"—"],
+      ["Signer validity",p.signerNotBefore&&p.signerNotAfter?(new Date(p.signerNotBefore).toLocaleDateString("ru-RU")+" — "+new Date(p.signerNotAfter).toLocaleDateString("ru-RU")):"—"]
     ];
     q("#processDetailBody").innerHTML='<div class="process-detail-grid">'+rows.map(x=>'<div><span>'+escapeHtml(x[0])+'</span><b>'+escapeHtml(x[1])+'</b></div>').join("")+'</div><button class="secondary process-create-incident" id="processIncidentButton">Создать инцидент по процессу</button>';
     q("#processIncidentButton").onclick=()=>{
       q("#incidentTitleInput").value="Проверка процесса "+(p.name||pid);
       q("#incidentSourceInput").value=(p.name||"process")+" (PID "+p.pid+")";
-      q("#incidentDescriptionInput").value="Path: "+(p.path||"недоступен")+"\nRAM: "+Number(p.memoryMb||0).toFixed(1)+" MB";
+      q("#incidentDescriptionInput").value="Path: "+(p.path||"недоступен")+"\nRAM: "+Number(p.memoryMb||0).toFixed(1)+" MB\nSHA-256: "+(p.sha256||"недоступен")+"\nSigner: "+(p.signerSubject||"нет/неизвестен");
       closeModal("processModal");openModal("incidentModal");
     };
   }catch(error){q("#processDetailBody").innerHTML='<p class="muted">Не удалось получить процесс: '+escapeHtml(error.message)+'</p>'}
@@ -828,19 +832,21 @@ async function loadAgentDiagnostics(){
   if(!q("#agentDiagnosticsGrid"))return;
   try{
     const d=await apiJson("/api/v1/diagnostics");
-    q("#diagMode").textContent=d.runningAsWindowsService?"WINDOWS SERVICE":"CONSOLE";
-    q("#diagVersion").textContent=d.version||"—";
-    q("#diagUptime").textContent=formatDuration(d.uptimeSeconds);
-    q("#diagPid").textContent=String(d.processId??"—");
-    q("#diagWorkingSet").textContent=Number.isFinite(Number(d.workingSetMb))?Number(d.workingSetMb).toFixed(1)+" MB":"—";
-    q("#diagGcMemory").textContent=(Number.isFinite(Number(d.managedMemoryMb))?Number(d.managedMemoryMb).toFixed(1):"—")+" / "+(Number.isFinite(Number(d.gcHeapSizeMb))?Number(d.gcHeapSizeMb).toFixed(1):"—")+" MB";
-    q("#diagThreads").textContent=(d.threadCount??"—")+" / "+(d.handleCount??"—");
-    q("#diagSampleAge").textContent=d.lastSampleAgeSeconds==null?"—":Number(d.lastSampleAgeSeconds).toFixed(1)+"s";
-    q("#diagHistory").textContent=String(d.historyPoints??"—");
-    q("#diagDataDir").textContent=d.dataDirectory||"—";
+    const agent=d.agent||d;
+    const persistence=d.persistence||{};
+    q("#diagMode").textContent=agent.runningAsWindowsService?"WINDOWS SERVICE":"CONSOLE";
+    q("#diagVersion").textContent=agent.version||"—";
+    q("#diagUptime").textContent=formatDuration(agent.uptimeSeconds);
+    q("#diagPid").textContent=String(agent.processId??"—");
+    q("#diagWorkingSet").textContent=Number.isFinite(Number(agent.workingSetMb))?Number(agent.workingSetMb).toFixed(1)+" MB":"—";
+    q("#diagGcMemory").textContent=(Number.isFinite(Number(agent.managedMemoryMb))?Number(agent.managedMemoryMb).toFixed(1):"—")+" / "+(Number.isFinite(Number(agent.gcHeapSizeMb))?Number(agent.gcHeapSizeMb).toFixed(1):"—")+" MB";
+    q("#diagThreads").textContent=(agent.threadCount??"—")+" / "+(agent.handleCount??"—");
+    q("#diagSampleAge").textContent=agent.lastSampleAgeSeconds==null?"—":Number(agent.lastSampleAgeSeconds).toFixed(1)+"s";
+    q("#diagHistory").textContent=String(agent.historyPoints??"—");
+    q("#diagDataDir").textContent=(agent.dataDirectory||"—")+(persistence.provider?" • "+persistence.provider+" r"+(persistence.revision??0):"");
     const meta=q("#machineMeta");
     if(meta&&lastTelemetryPayload?.system){
-      meta.textContent=(lastTelemetryPayload.system.os||"Windows")+" • "+(lastTelemetryPayload.system.logicalProcessors||"?")+" logical CPU • Agent "+(d.version||"dev");
+      meta.textContent=(lastTelemetryPayload.system.os||"Windows")+" • "+(lastTelemetryPayload.system.logicalProcessors||"?")+" logical CPU • Agent "+(agent.version||"dev");
     }
   }catch(error){
     console.warn("Diagnostics unavailable",error);
