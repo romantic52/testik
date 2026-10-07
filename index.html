@@ -89,17 +89,38 @@
   </main>
 
   <aside class="chat">
-    <div class="chat-head"><div><small>AETHER.CHAT</small><h2># Смена-42 <span>4 online</span></h2></div><b>E2E</b></div>
-    <div class="secure"><b>◆</b><div><strong>Защищённый канал</strong><span>Шифрование выполняется на клиентах. Relay получает ciphertext.</span></div></div>
-    <div class="messages" id="messages">
-      <div class="message incoming"><div><b>Анна / L2</b><span>01:49</span></div><p>Вижу всплеск на FIN-14. Проверяю EDR и сетевые соединения.</p></div>
-      <div class="message incoming"><div><b>Илья / SOC</b><span>02:05</span></div><p>VPN-GW-02: 6 неуспешных попыток, потом успешный вход с нового ASN.</p></div>
-      <div class="share"><small>INC-2401</small><b>Подозрительная авторизация</b><span>Критический • VPN-GW-02</span><button data-open="INC-2401">Открыть карточку →</button></div>
-      <div class="message outgoing"><div><b>Вы</b><span>02:11</span></div><p>Принял. Связываю события и поднимаю приоритет.</p></div>
+    <div class="chat-head">
+      <div><small>AETHER.CHAT</small><h2 id="aetherPeerLabel">SOC secure channel <span id="aetherUserLabel">offline</span></h2></div>
+      <div class="chat-head-actions"><button id="aetherSetupToggle" title="Настройки AETHER">⚙</button><b id="aetherE2eBadge">E2E</b></div>
     </div>
+
+    <div class="secure" id="aetherSecureState">
+      <b>◆</b>
+      <div><strong id="aetherSecureTitle">AETHER не подключён</strong><span id="aetherSecureText">Войди в аккаунт и выбери peer. Plaintext не передаётся relay.</span></div>
+    </div>
+
+    <form class="aether-config open" id="aetherConfig">
+      <label><span>Relay URL</span><input id="aetherServer" type="url" placeholder="https://aether.example.com" autocomplete="url"></label>
+      <div class="aether-two">
+        <label><span>Аккаунт</span><input id="aetherUser" type="text" placeholder="username" autocomplete="username"></label>
+        <label><span>Peer</span><input id="aetherPeer" type="text" placeholder="teammate" autocomplete="off"></label>
+      </div>
+      <label><span>Пароль</span><input id="aetherPassword" type="password" placeholder="••••••••" autocomplete="current-password"></label>
+      <label class="totp-field" id="aetherTotpField"><span>2FA код</span><input id="aetherTotp" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code"></label>
+      <div class="aether-config-actions">
+        <button class="aether-disconnect" id="aetherDisconnect" type="button">Выйти</button>
+        <button class="aether-connect" id="aetherConnect" type="submit">Подключить AETHER</button>
+      </div>
+      <p id="aetherLoginStatus">SOC создаст отдельное crypto-device <code>soc-*</code>. Пароль не сохраняется.</p>
+    </form>
+
+    <div class="messages" id="messages">
+      <div class="message incoming system-message"><div><b>AEGIS</b><span>system</span></div><p>Подключи AETHER.chat выше. После входа здесь появятся реальные E2E-сообщения.</p></div>
+    </div>
+
     <div class="quick"><button data-text="Передаю инцидент L2">Передать L2</button><button data-text="Нужна проверка доступа">Проверить доступ</button><button data-text="Изолировать хост FIN-14">Изолировать хост</button></div>
-    <form id="chatForm"><textarea id="chatInput" rows="1" placeholder="Сообщение в защищённый канал…"></textarea><button>↑</button></form>
-    <footer><span><i></i> Relay connected</span><span>Double Ratchet / demo adapter</span></footer>
+    <form id="chatForm"><textarea id="chatInput" rows="1" placeholder="Сообщение в AETHER.chat…"></textarea><button>↑</button></form>
+    <footer><span id="aetherRelayState" class="relay-offline"><i></i> Relay offline</span><span id="aetherCryptoState">Double Ratchet</span></footer>
   </aside>
 </div>
 
@@ -128,7 +149,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="aether.js"></script>
+<script src="vendor/nacl.min.js"></script>\n<script src="aether.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
