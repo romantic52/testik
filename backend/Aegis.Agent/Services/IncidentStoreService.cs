@@ -1,11 +1,15 @@
 using Aegis.Agent.Configuration;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Aegis.Agent.Services;
 
 public sealed class IncidentStoreService
 {
+    private static readonly Regex IncidentIdPattern =
+        new(@"^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$", RegexOptions.Compiled);
+
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly string _dataDirectory;
     private readonly string _incidentFile;
@@ -51,18 +55,30 @@ public sealed class IncidentStoreService
 
     public async Task<IncidentRecord> UpsertAsync(IncidentRecord incident, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(incident.Id))
-            throw new ArgumentException("Incident id is required");
+        var id = (incident.Id ?? "").Trim();
+        if (!IncidentIdPattern.IsMatch(id))
+            throw new ArgumentException("Incident id contains unsupported characters or is too long");
 
         var normalized = incident with
         {
-            Id = incident.Id.Trim(),
-            Title = (incident.Title ?? "").Trim(),
-            Source = (incident.Source ?? "").Trim(),
-            Severity = string.IsNullOrWhiteSpace(incident.Severity) ? "Средний" : incident.Severity.Trim(),
-            Status = string.IsNullOrWhiteSpace(incident.Status) ? "Новый" : incident.Status.Trim(),
+            Id = id,
+            Title = RequiredText(incident.Title, 160, "Incident title is required"),
+            Source = LimitText(incident.Source, 160),
+            Severity = string.IsNullOrWhiteSpace(incident.Severity)
+                ? "Средний"
+                : LimitText(incident.Severity, 32),
+            Status = string.IsNullOrWhiteSpace(incident.Status)
+                ? "Новый"
+                : LimitText(incident.Status, 32),
+            Description = LimitText(incident.Description, 4_000),
             CreatedAt = incident.CreatedAt == default ? DateTimeOffset.UtcNow : incident.CreatedAt,
-            Events = incident.Events ?? Array.Empty<string>()
+            Events = (incident.Events ?? Array.Empty<string>())
+                .Take(200)
+                .Select(value => LimitText(value, 1_000))
+                .ToArray(),
+            RuleKey = string.IsNullOrWhiteSpace(incident.RuleKey)
+                ? null
+                : LimitText(incident.RuleKey, 160)
         };
 
         await _gate.WaitAsync(cancellationToken);
@@ -183,8 +199,41 @@ public sealed class IncidentStoreService
         }
         catch (JsonException)
         {
+            PreserveCorruptIncidentFile();
             return new List<IncidentRecord>();
         }
+    }
+
+    private void PreserveCorruptIncidentFile()
+    {
+        try
+        {
+            if (!File.Exists(_incidentFile))
+                return;
+
+            var backup = Path.Combine(
+                _dataDirectory,
+                $"incidents.corrupt-{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}.json");
+            File.Move(_incidentFile, backup, false);
+        }
+        catch
+        {
+            // A corrupt file should never prevent Agent startup.
+        }
+    }
+
+    private static string RequiredText(string? value, int maxLength, string error)
+    {
+        var normalized = LimitText(value, maxLength);
+        if (string.IsNullOrWhiteSpace(normalized))
+            throw new ArgumentException(error);
+        return normalized;
+    }
+
+    private static string LimitText(string? value, int maxLength)
+    {
+        var normalized = (value ?? "").Trim();
+        return normalized.Length <= maxLength ? normalized : normalized[..maxLength];
     }
 
     private async Task WriteUnsafeAsync(List<IncidentRecord> incidents, CancellationToken cancellationToken)
