@@ -1,37 +1,50 @@
 using System.Text.Json;
+using Aegis.Agent.Infrastructure;
 
 namespace Aegis.Agent.Services;
 
 public sealed class AlertSettingsService
 {
+    private const string SettingsKey = "alerts";
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private readonly string _path;
-    private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true
-    };
+    private readonly StateDatabase _database;
+    private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
     private AlertSettings? _cached;
 
-    public AlertSettingsService(IncidentStoreService incidents)
+    public AlertSettingsService(StateDatabase database)
     {
-        _path = Path.Combine(incidents.DataDirectory, "alert-settings.json");
+        _database = database;
+        MigrateLegacySettings();
     }
 
     public async Task<AlertSettings> GetAsync(CancellationToken cancellationToken = default)
     {
+        if (_cached is not null)
+            return _cached;
+
         await _gate.WaitAsync(cancellationToken);
         try
         {
             if (_cached is not null)
                 return _cached;
 
-            if (!File.Exists(_path))
+            await using var connection = _database.OpenConnection();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT value_json
+                FROM settings
+                WHERE key = $key
+                LIMIT 1;
+                """;
+            command.Parameters.AddWithValue("$key", SettingsKey);
+
+            var raw = (await command.ExecuteScalarAsync(cancellationToken))?.ToString();
+            if (string.IsNullOrWhiteSpace(raw))
                 return _cached = AlertSettings.Default;
 
             try
             {
-                await using var stream = File.OpenRead(_path);
-                var value = await JsonSerializer.DeserializeAsync<AlertSettings>(stream, _json, cancellationToken);
+                var value = JsonSerializer.Deserialize<AlertSettings>(raw, _json);
                 return _cached = Normalize(value ?? AlertSettings.Default);
             }
             catch (JsonException)
@@ -45,23 +58,104 @@ public sealed class AlertSettingsService
         }
     }
 
-    public async Task<AlertSettings> SaveAsync(AlertSettings settings, CancellationToken cancellationToken = default)
+    public async Task<AlertSettings> SaveAsync(
+        AlertSettings settings,
+        CancellationToken cancellationToken = default)
     {
         var normalized = Normalize(settings);
+
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            var temp = _path + ".tmp";
-            await using (var stream = File.Create(temp))
-                await JsonSerializer.SerializeAsync(stream, normalized, _json, cancellationToken);
+            await using var connection = _database.OpenConnection();
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
-            File.Move(temp, _path, true);
+            await using (var command = connection.CreateCommand())
+            {
+                command.Transaction = transaction;
+                command.CommandText = """
+                    INSERT INTO settings(key, value_json, updated_at)
+                    VALUES ($key, $value, $updatedAt)
+                    ON CONFLICT(key) DO UPDATE SET
+                        value_json = excluded.value_json,
+                        updated_at = excluded.updated_at;
+                    """;
+                command.Parameters.AddWithValue("$key", SettingsKey);
+                command.Parameters.AddWithValue("$value", JsonSerializer.Serialize(normalized, _json));
+                command.Parameters.AddWithValue("$updatedAt", DateTimeOffset.UtcNow.ToString("O"));
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
             _cached = normalized;
             return normalized;
         }
         finally
         {
             _gate.Release();
+        }
+    }
+
+    private void MigrateLegacySettings()
+    {
+        var legacyPath = Path.Combine(_database.DataDirectory, "alert-settings.json");
+        if (!File.Exists(legacyPath))
+            return;
+
+        try
+        {
+            using var connection = _database.OpenConnection();
+
+            using var exists = connection.CreateCommand();
+            exists.CommandText = "SELECT 1 FROM settings WHERE key = $key LIMIT 1;";
+            exists.Parameters.AddWithValue("$key", SettingsKey);
+
+            if (exists.ExecuteScalar() is not null)
+            {
+                MoveLegacy(legacyPath, ".migrated");
+                return;
+            }
+
+            var parsed = JsonSerializer.Deserialize<AlertSettings>(
+                File.ReadAllText(legacyPath),
+                _json);
+
+            var normalized = Normalize(parsed ?? AlertSettings.Default);
+
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                INSERT INTO settings(key, value_json, updated_at)
+                VALUES ($key, $value, $updatedAt)
+                ON CONFLICT(key) DO NOTHING;
+                """;
+            command.Parameters.AddWithValue("$key", SettingsKey);
+            command.Parameters.AddWithValue("$value", JsonSerializer.Serialize(normalized, _json));
+            command.Parameters.AddWithValue("$updatedAt", DateTimeOffset.UtcNow.ToString("O"));
+            command.ExecuteNonQuery();
+
+            MoveLegacy(legacyPath, ".migrated");
+        }
+        catch (JsonException)
+        {
+            MoveLegacy(
+                legacyPath,
+                $".corrupt-{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}");
+        }
+    }
+
+    private static void MoveLegacy(string path, string suffix)
+    {
+        try
+        {
+            var destination = path + suffix;
+            if (File.Exists(destination))
+                destination += "-" + DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff");
+
+            File.Move(path, destination);
+        }
+        catch
+        {
+            // State already lives in SQLite; a legacy rename failure is non-fatal.
         }
     }
 
