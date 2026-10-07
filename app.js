@@ -7,19 +7,124 @@ try{
   const savedAuto=JSON.parse(localStorage.getItem("aegis_auto_incidents")||"[]");
   if(Array.isArray(savedAuto))state.incidents=[...savedAuto,...state.incidents];
 }catch{}
-const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера"};
+const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",audit:"Журнал аудита"};
 const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
+
+async function apiJson(path,options={}){
+  const response=await fetch(path,{cache:"no-store",...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
+  if(!response.ok){
+    let detail="HTTP "+response.status;
+    try{const body=await response.json();detail=body.detail||detail}catch{}
+    throw new Error(detail);
+  }
+  if(response.status===204)return null;
+  return response.json();
+}
+function normalizeIncidentForApi(i){
+  return {
+    id:i.id,
+    title:i.title||"",
+    source:i.source||"",
+    severity:i.severity||"Средний",
+    status:i.status||"Новый",
+    description:i.description||"",
+    events:Array.isArray(i.events)?i.events:[],
+    auto:!!i.auto,
+    aetherSent:!!i.aetherSent,
+    ruleKey:i.ruleKey||null,
+    createdAt:i.createdAt||new Date().toISOString()
+  };
+}
+async function saveIncidentApi(i){
+  try{
+    await apiJson("/api/incidents/"+encodeURIComponent(i.id),{
+      method:"PUT",
+      body:JSON.stringify(normalizeIncidentForApi(i))
+    });
+  }catch(error){console.warn("Incident persistence failed",error)}
+}
+async function loadPersistentIncidents(){
+  try{
+    const stored=await apiJson("/api/incidents");
+    if(Array.isArray(stored)&&stored.length){
+      state.incidents=stored.map(i=>({...i,time:new Date(i.createdAt).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}));
+      if(!state.incidents.some(i=>i.id===state.current))state.current=state.incidents[0]?.id||"";
+    }else{
+      for(const i of state.incidents){
+        if(!i.createdAt)i.createdAt=new Date().toISOString();
+        await saveIncidentApi(i);
+      }
+    }
+    renderIncidents();updateAutoQueueState();
+  }catch(error){
+    console.warn("Persistent incidents unavailable; local fallback remains",error);
+  }
+}
+async function appendAudit(type,subject,detail,source="AEGIS UI"){
+  try{
+    await apiJson("/api/audit",{method:"POST",body:JSON.stringify({
+      timestamp:new Date().toISOString(),type,subject,detail,source
+    })});
+  }catch(error){console.warn("Audit write failed",error)}
+}
+async function loadAudit(){
+  const box=q("#auditList");if(!box)return;
+  box.innerHTML='<p class="muted">Загрузка…</p>';
+  try{
+    const items=await apiJson("/api/audit?limit=300");
+    box.innerHTML=items.length?items.map(x=>{
+      const dt=new Date(x.timestamp);
+      return '<div class="audit-row"><time>'+escapeHtml(dt.toLocaleString("ru-RU"))+'</time><b>'+escapeHtml(x.type)+'</b><span>'+escapeHtml(x.subject||"—")+'</span><p>'+escapeHtml(x.detail||"")+'</p><em>'+escapeHtml(x.source||"")+'</em></div>';
+    }).join(""):'<p class="muted">Журнал пока пуст.</p>';
+  }catch(error){box.innerHTML='<p class="muted">Audit API недоступен: '+escapeHtml(error.message)+'</p>'}
+}
+async function loadReportSummary(){
+  const box=q("#reportSummary");if(!box)return;
+  box.innerHTML='<p class="muted">Формирование…</p>';
+  try{
+    const data=await apiJson("/api/reports/current.json");
+    const s=data.system||{},g=(s.gpus||[])[0];
+    box.innerHTML='<div class="report-grid">'+
+      '<div><span>Компьютер</span><b>'+escapeHtml(data.agent?.machine||s.machineName||"—")+'</b></div>'+
+      '<div><span>CPU</span><b>'+fmtPercent(s.cpuLoadPercent)+' / '+fmtTemp(s.cpuTemperatureC)+'</b></div>'+
+      '<div><span>RAM</span><b>'+fmtPercent(s.memory?.loadPercent)+'</b></div>'+
+      '<div><span>GPU</span><b>'+(g?fmtPercent(g.loadPercent)+" / "+fmtTemp(g.temperatureC):"—")+'</b></div>'+
+      '<div><span>Процессы</span><b>'+Number(data.processes?.length||0)+'</b></div>'+
+      '<div><span>Инциденты</span><b>'+Number(data.incidents?.length||0)+'</b></div>'+
+      '<div><span>Audit events</span><b>'+Number(data.audit?.length||0)+'</b></div>'+
+      '<div><span>Сформирован</span><b>'+escapeHtml(new Date(data.generatedAt).toLocaleString("ru-RU"))+'</b></div>'+
+      '</div>';
+  }catch(error){box.innerHTML='<p class="muted">Report API недоступен: '+escapeHtml(error.message)+'</p>'}
+}
+function openModal(id){const el=q("#"+id);if(el){el.classList.add("show");el.setAttribute("aria-hidden","false")}}
+function closeModal(id){const el=q("#"+id);if(el){el.classList.remove("show");el.setAttribute("aria-hidden","true")}}
+qa("[data-close-modal]").forEach(b=>b.addEventListener("click",()=>closeModal(b.dataset.closeModal)));
+q("#refreshAudit")?.addEventListener("click",loadAudit);
+q("#refreshReport")?.addEventListener("click",loadReportSummary);
+
 function toast(t){const e=q("#toast");e.textContent=t;e.classList.add("show");clearTimeout(window.tt);window.tt=setTimeout(()=>e.classList.remove("show"),1800)}
-function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent()}
+function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent();if(id==="audit")loadAudit();if(id==="reports")loadReportSummary()}
 qa(".nav").forEach(b=>b.onclick=()=>view(b.dataset.view));qa("[data-go]").forEach(b=>b.onclick=()=>view(b.dataset.go));
 function renderIncidents(){
-  const badge=q("#incidentBadge");if(badge)badge.textContent=String(state.incidents.length);
+  const badge=q("#incidentBadge");if(badge)badge.textContent=String(state.incidents.filter(i=>i.status!=="Закрыт").length);
   const list=q("#incidentList");
-  list.innerHTML=state.incidents.map(i=>`<div class="incident-item ${i.id===state.current?"active":""}" data-id="${escapeHtml(i.id)}"><div><span>${escapeHtml(i.id)}</span><span>${escapeHtml(i.time)}</span></div><h3>${escapeHtml(i.title)}</h3><p>${escapeHtml(i.source)} • ${escapeHtml(i.severity)} • ${escapeHtml(i.status)}</p></div>`).join("");
+  if(!list)return;
+  list.innerHTML=state.incidents.map(i=>`<div class="incident-item ${i.id===state.current?"active":""}" data-id="${escapeHtml(i.id)}"><div><span>${escapeHtml(i.id)}</span><span>${escapeHtml(i.time||"")}</span></div><h3>${escapeHtml(i.title)}</h3><p>${escapeHtml(i.source)} • ${escapeHtml(i.severity)} • ${escapeHtml(i.status)}</p></div>`).join("");
   qa(".incident-item").forEach(x=>x.onclick=()=>{state.current=x.dataset.id;renderIncidents()});
-  const i=state.incidents.find(x=>x.id===state.current)||state.incidents[0];if(!i)return;
-  q("#incidentDetail").innerHTML=`<h3 class="detail-title">${escapeHtml(i.title)}</h3><div class="detail-meta"><span>${escapeHtml(i.id)}</span><span>${escapeHtml(i.source)}</span><span>${escapeHtml(i.severity)}</span><span>${escapeHtml(i.status)}</span></div><p class="muted">${escapeHtml(i.description)}</p><div class="timeline">${(i.events||[]).map(e=>{const p=String(e).split(" — ");return `<div class="event"><b>${escapeHtml(p[0]||"")}</b><p>${escapeHtml(p.slice(1).join(" — "))}</p></div>`}).join("")}</div><button class="primary" id="shareIncident">Отправить в AETHER.chat</button>`;
+  const i=state.incidents.find(x=>x.id===state.current)||state.incidents[0];
+  const detail=q("#incidentDetail");if(!i){if(detail)detail.innerHTML='<p class="muted">Инцидентов нет.</p>';return}
+  detail.innerHTML=`<h3 class="detail-title">${escapeHtml(i.title)}</h3><div class="detail-meta"><span>${escapeHtml(i.id)}</span><span>${escapeHtml(i.source)}</span><span>${escapeHtml(i.severity)}</span><span>${escapeHtml(i.status)}</span></div><p class="muted">${escapeHtml(i.description)}</p><div class="timeline">${(i.events||[]).map(e=>{const p=String(e).split(" — ");return `<div class="event"><b>${escapeHtml(p[0]||"")}</b><p>${escapeHtml(p.slice(1).join(" — "))}</p></div>`}).join("")}</div><div class="incident-actions"><button class="primary" id="shareIncident">Отправить в AETHER.chat</button>${i.status!=="Закрыт"?'<button class="secondary" id="closeIncident">Закрыть</button>':""}<button class="danger-mini" id="deleteIncident">Удалить</button></div>`;
   q("#shareIncident").onclick=()=>shareIncident(i);
+  q("#closeIncident")?.addEventListener("click",async()=>{
+    i.status="Закрыт";i.events=[...(i.events||[]),alertClock()+" — инцидент закрыт оператором"];
+    await saveIncidentApi(i);await appendAudit("incident.closed",i.id,i.title);
+    renderIncidents();toast("Инцидент закрыт");
+  });
+  q("#deleteIncident").onclick=async()=>{
+    try{await fetch("/api/incidents/"+encodeURIComponent(i.id),{method:"DELETE"});}catch{}
+    state.incidents=state.incidents.filter(x=>x.id!==i.id);state.current=state.incidents[0]?.id||"";
+    persistAutoIncidents();renderIncidents();toast("Инцидент удалён");
+  };
 }
 function addMessage(text,type="outgoing",author="Вы",time=null){
   const box=q("#messages"),d=document.createElement("div");
@@ -34,7 +139,7 @@ function addMessage(text,type="outgoing",author="Вы",time=null){
 async function shareIncident(i){
   try{
     await window.aether.shareIncident(i);
-    if(i.auto){i.aetherSent=true;persistAutoIncidents();updateAutoQueueState();}
+    i.aetherSent=true;persistAutoIncidents();updateAutoQueueState();saveIncidentApi(i);appendAudit("incident.aether_sent",i.id,i.title);
     addMessage(i.id+" • "+i.title+" • "+i.source);
     toast("Инцидент отправлен в AETHER.chat");
   }catch(error){toast(error.message||"AETHER: ошибка отправки")}
@@ -114,7 +219,25 @@ window.addEventListener("aether-error",event=>{
   const message=event.detail?.message;if(message)toast("AETHER: "+message);
 });
 
-q("#newIncident").onclick=()=>toast("Создание инцидента — demo UI");q("#report").onclick=()=>toast("Отчёт SOC сформирован");q("#notify").onclick=()=>toast("3 уведомления высокого приоритета");
+q("#newIncident").onclick=()=>openModal("incidentModal");
+q("#incidentForm")?.addEventListener("submit",async e=>{
+  e.preventDefault();
+  const incident={
+    id:"INC-"+Date.now().toString(36).toUpperCase(),
+    title:q("#incidentTitleInput").value.trim(),
+    source:q("#incidentSourceInput").value.trim(),
+    severity:q("#incidentSeverityInput").value,
+    status:"Новый",
+    description:q("#incidentDescriptionInput").value.trim(),
+    events:[alertClock()+" — создан вручную оператором"],
+    auto:false,aetherSent:false,ruleKey:null,
+    createdAt:new Date().toISOString(),time:alertClock()
+  };
+  state.incidents.unshift(incident);state.current=incident.id;
+  await saveIncidentApi(incident);await appendAudit("incident.manual",incident.id,incident.title);
+  e.target.reset();closeModal("incidentModal");renderIncidents();toast("Инцидент создан");
+});
+q("#notify").onclick=()=>toast(state.incidents.filter(i=>i.status!=="Закрыт").length+" активных инцидентов");
 const access=[["02:12","Серверная A-02","Разрешён • Иван П."],["01:58","Door B-17","Отказ • Карта #1842"],["01:35","Главный вход","Разрешён • Анна К."],["00:49","Архив C-04","Разрешён • Сервисная карта"]];
 q("#accessLog").innerHTML=access.map(x=>`<div class="access-entry"><b>${x[0]}</b><span>${x[1]}</span><em>${x[2]}</em></div>`).join("");
 
@@ -230,7 +353,7 @@ function createAutoIncident(ruleKey,data){
   };
   state.incidents.unshift(incident);
   state.current=incident.id;
-  persistAutoIncidents();
+  persistAutoIncidents();saveIncidentApi(incident);appendAudit("incident.auto",incident.id,incident.title,incident.source);
   renderIncidents();
   updateAutoQueueState();
   toast("AEGIS создал "+incident.id+": "+incident.title);
@@ -256,7 +379,7 @@ async function flushAutoShares(){
         await window.aether.shareIncident(incident);
         incident.aetherSent=true;
         addMessage("AUTO • "+incident.id+" • "+incident.title);
-        persistAutoIncidents();updateAutoQueueState();
+        persistAutoIncidents();saveIncidentApi(incident);appendAudit("incident.aether_sent",incident.id,incident.title);updateAutoQueueState();
       }catch(error){
         console.warn("AEGIS auto AETHER send failed",incident.id,error);
         break;
@@ -453,8 +576,33 @@ function renderTelemetry(payload){
 function renderProcesses(processes){
   q("#processCount").textContent=processes.length+" процессов";
   q("#processRows").innerHTML=processes.length?processes.map(p=>
-    '<div class="process-row"><span>'+p.pid+'</span><span class="process-name" title="'+escapeHtml(p.path||"")+'">'+escapeHtml(p.name)+'</span><span>'+fmtPercent(p.cpuPercent)+'</span><span>'+Number(p.memoryMb).toFixed(1)+' MB</span><span>'+(p.threads??"—")+'</span></div>'
+    '<button class="process-row process-click" data-pid="'+p.pid+'"><span>'+p.pid+'</span><span class="process-name" title="'+escapeHtml(p.path||"")+'">'+escapeHtml(p.name)+'</span><span>'+fmtPercent(p.cpuPercent)+'</span><span>'+Number(p.memoryMb).toFixed(1)+' MB</span><span>'+(p.threads??"—")+'</span></button>'
   ).join(""):'<div class="empty-process">Нет данных. Запусти локальный агент.</div>';
+  qa(".process-click").forEach(row=>row.addEventListener("click",()=>openProcessDetails(Number(row.dataset.pid))));
+}
+async function openProcessDetails(pid){
+  openModal("processModal");q("#processDetailBody").innerHTML='<p class="muted">Загрузка…</p>';
+  try{
+    const p=await apiJson("/api/processes/"+pid);
+    q("#processModalTitle").textContent=(p.name||"Process")+" • PID "+p.pid;
+    const rows=[
+      ["Path",p.path||"Недоступен"],
+      ["Started",p.startedAt?new Date(p.startedAt).toLocaleString("ru-RU"):"Недоступно"],
+      ["Working set",Number(p.memoryMb||0).toFixed(1)+" MB"],
+      ["Private memory",Number(p.privateMemoryMb||0).toFixed(1)+" MB"],
+      ["Threads",p.threads??"—"],
+      ["Handles",p.handles??"—"],
+      ["Priority",p.priority||"—"],
+      ["Responding",p.responding==null?"—":(p.responding?"Да":"Нет")]
+    ];
+    q("#processDetailBody").innerHTML='<div class="process-detail-grid">'+rows.map(x=>'<div><span>'+escapeHtml(x[0])+'</span><b>'+escapeHtml(x[1])+'</b></div>').join("")+'</div><button class="secondary process-create-incident" id="processIncidentButton">Создать инцидент по процессу</button>';
+    q("#processIncidentButton").onclick=()=>{
+      q("#incidentTitleInput").value="Проверка процесса "+(p.name||pid);
+      q("#incidentSourceInput").value=(p.name||"process")+" (PID "+p.pid+")";
+      q("#incidentDescriptionInput").value="Path: "+(p.path||"недоступен")+"\nRAM: "+Number(p.memoryMb||0).toFixed(1)+" MB";
+      closeModal("processModal");openModal("incidentModal");
+    };
+  }catch(error){q("#processDetailBody").innerHTML='<p class="muted">Не удалось получить процесс: '+escapeHtml(error.message)+'</p>'}
 }
 
 async function probeAgent(){
@@ -521,4 +669,4 @@ async function startFakeCrash(){
   },260);
 }
 
-function tick(){q("#clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour12:false})}tick();setInterval(tick,1000);bindAutomationUi();renderIncidents();connectAgent();
+function tick(){q("#clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour12:false})}tick();setInterval(tick,1000);bindAutomationUi();renderIncidents();loadPersistentIncidents();connectAgent();
