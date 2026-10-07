@@ -48,24 +48,36 @@ public sealed class StateDatabase
         return connection;
     }
 
-    public async Task<long> IncrementRevisionAsync(
+    public async Task<long> StageRevisionIncrementAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
         CancellationToken cancellationToken)
     {
-        var next = Interlocked.Increment(ref _revision);
-
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
-            INSERT INTO metadata(key, value)
-            VALUES ('revision', $value)
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+            UPDATE metadata
+            SET value = CAST(value AS INTEGER) + 1
+            WHERE key = 'revision'
+            RETURNING value;
             """;
-        command.Parameters.AddWithValue("$value", next.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        await command.ExecuteNonQueryAsync(cancellationToken);
+
+        var raw = (await command.ExecuteScalarAsync(cancellationToken))?.ToString();
+        if (!long.TryParse(
+                raw,
+                System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var next))
+        {
+            throw new InvalidOperationException("SQLite incident revision could not be advanced");
+        }
 
         return next;
+    }
+
+    public void PublishCommittedRevision(long revision)
+    {
+        Interlocked.Exchange(ref _revision, revision);
     }
 
     public async Task<StateDatabaseStatus> ProbeAsync(CancellationToken cancellationToken = default)
