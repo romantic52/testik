@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const BRIDGE = "/api/aether/relay";
+  const BRIDGE = "/api/v1/aether/relay";
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   const MAX_SESSIONS_PER_DEVICE = 5;
