@@ -24,10 +24,10 @@ public static class AegisWebExtensions
             context.Response.Headers["Content-Security-Policy"] =
                 "default-src 'self'; " +
                 "script-src 'self'; " +
-                "style-src 'self' https://fonts.googleapis.com; " +
-                "font-src 'self' https://fonts.gstatic.com; " +
+                "style-src 'self'; " +
+                "font-src 'self'; " +
                 "img-src 'self' data:; " +
-                "connect-src 'self' http: https: ws: wss:; " +
+                "connect-src 'self' https: wss: http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*; " +
                 "object-src 'none'; base-uri 'self'; frame-ancestors 'none'";
 
             if (context.Request.Path.StartsWithSegments("/api"))
