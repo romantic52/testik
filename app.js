@@ -411,26 +411,17 @@ const ALERT_DEFAULTS={
   ram:95,
   processCpu:80,
   disk:95,
-  sustainSec:15,
-  cooldownMin:10
+  sustainSeconds:15,
+  cooldownMinutes:10
 };
 let alertSettings={...ALERT_DEFAULTS};
-try{alertSettings={...ALERT_DEFAULTS,...JSON.parse(localStorage.getItem("aegis_alert_settings")||"{}")}}catch{}
-let alertLastTriggers={};
-try{alertLastTriggers=JSON.parse(localStorage.getItem("aegis_alert_last")||"{}")||{}}catch{}
-const alertStarted=Object.create(null);
 let autoShareBusy=false;
 let agentEverOnline=false;
 let agentOfflineTimer=null;
+let lastIncidentRevision=null;
 
 function alertClock(){
   return new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
-}
-function persistAlertSettings(){
-  localStorage.setItem("aegis_alert_settings",JSON.stringify(alertSettings));
-}
-function persistAlertLast(){
-  localStorage.setItem("aegis_alert_last",JSON.stringify(alertLastTriggers));
 }
 function persistAutoIncidents(){
   const auto=state.incidents.filter(i=>i.auto).slice(0,50);
@@ -450,8 +441,8 @@ function syncAutomationUi(){
     ruleRam:["ram","value"],
     ruleProcessCpu:["processCpu","value"],
     ruleDisk:["disk","value"],
-    ruleSustain:["sustainSec","value"],
-    ruleCooldown:["cooldownMin","value"]
+    ruleSustain:["sustainSeconds","value"],
+    ruleCooldown:["cooldownMinutes","value"]
   };
   for(const [id,[key,prop]] of Object.entries(map)){
     const el=q("#"+id);if(!el)continue;
@@ -459,11 +450,34 @@ function syncAutomationUi(){
   }
   const stateEl=q("#autoEngineState");
   if(stateEl){
-    stateEl.textContent=alertSettings.enabled?"ARMED":"PAUSED";
+    stateEl.textContent=alertSettings.enabled?"ARMED / BACKEND":"PAUSED";
     stateEl.classList.toggle("auto-armed",alertSettings.enabled);
     stateEl.classList.toggle("auto-paused",!alertSettings.enabled);
   }
   updateAutoQueueState();
+}
+async function loadAlertSettings(){
+  try{
+    const value=await apiJson("/api/settings/alerts");
+    alertSettings={...ALERT_DEFAULTS,...value};
+    syncAutomationUi();
+    if(alertSettings.autoAether)flushAutoShares();
+  }catch(error){
+    console.warn("Backend alert settings unavailable",error);
+    syncAutomationUi();
+  }
+}
+async function saveAlertSettings(){
+  try{
+    const saved=await apiJson("/api/settings/alerts",{
+      method:"PUT",
+      body:JSON.stringify(alertSettings)
+    });
+    alertSettings={...ALERT_DEFAULTS,...saved};
+    syncAutomationUi();
+  }catch(error){
+    toast("Не удалось сохранить alert settings: "+error.message);
+  }
 }
 function bindAutomationUi(){
   const bindings={
@@ -475,58 +489,19 @@ function bindAutomationUi(){
     ruleRam:["ram","number"],
     ruleProcessCpu:["processCpu","number"],
     ruleDisk:["disk","number"],
-    ruleSustain:["sustainSec","number"],
-    ruleCooldown:["cooldownMin","number"]
+    ruleSustain:["sustainSeconds","number"],
+    ruleCooldown:["cooldownMinutes","number"]
   };
   for(const [id,[key,type]] of Object.entries(bindings)){
     const el=q("#"+id);if(!el)continue;
-    el.addEventListener("change",()=>{
+    el.addEventListener("change",async()=>{
       alertSettings[key]=type==="checked"?el.checked:Number(el.value);
-      persistAlertSettings();syncAutomationUi();
+      await saveAlertSettings();
       if(key==="autoAether"&&alertSettings.autoAether)flushAutoShares();
     });
   }
   syncAutomationUi();
-}
-function autoIncidentId(){
-  return "AUTO-"+Date.now().toString(36).toUpperCase();
-}
-function createAutoIncident(ruleKey,data){
-  const now=Date.now();
-  const cooldown=Math.max(1,Number(alertSettings.cooldownMin)||10)*60000;
-  if(now-(Number(alertLastTriggers[ruleKey])||0)<cooldown)return null;
-  alertLastTriggers[ruleKey]=now;persistAlertLast();
-  const incident={
-    id:autoIncidentId(),
-    title:data.title,
-    source:data.source,
-    severity:data.severity||"Высокий",
-    status:"Авто",
-    time:alertClock(),
-    description:data.description,
-    events:[alertClock()+" — правило "+ruleKey+" сработало",...(data.events||[])],
-    auto:true,
-    aetherSent:false,
-    ruleKey,
-    createdAt:new Date().toISOString()
-  };
-  state.incidents.unshift(incident);
-  state.current=incident.id;
-  persistAutoIncidents();saveIncidentApi(incident);appendAudit("incident.auto",incident.id,incident.title,incident.source);
-  renderIncidents();
-  updateAutoQueueState();
-  toast("AEGIS создал "+incident.id+": "+incident.title);
-  if(alertSettings.autoAether)flushAutoShares();
-  return incident;
-}
-function evaluateSustainedRule(key,condition,build,sustainMs){
-  if(!alertSettings.enabled){delete alertStarted[key];return;}
-  const now=Date.now();
-  if(!condition){delete alertStarted[key];return;}
-  if(!alertStarted[key])alertStarted[key]=now;
-  if(now-alertStarted[key]<(sustainMs??Math.max(5,Number(alertSettings.sustainSec)||15)*1000))return;
-  const created=createAutoIncident(key,build());
-  if(created)alertStarted[key]=now;
+  loadAlertSettings();
 }
 async function flushAutoShares(){
   if(autoShareBusy||!alertSettings.autoAether||!window.aether?.connected)return;
@@ -538,7 +513,10 @@ async function flushAutoShares(){
         await window.aether.shareIncident(incident);
         incident.aetherSent=true;
         addMessage("AUTO • "+incident.id+" • "+incident.title);
-        persistAutoIncidents();saveIncidentApi(incident);appendAudit("incident.aether_sent",incident.id,incident.title);updateAutoQueueState();
+        persistAutoIncidents();
+        await saveIncidentApi(incident);
+        await appendAudit("incident.aether_sent",incident.id,incident.title);
+        updateAutoQueueState();
       }catch(error){
         console.warn("AEGIS auto AETHER send failed",incident.id,error);
         break;
@@ -546,108 +524,27 @@ async function flushAutoShares(){
     }
   }finally{autoShareBusy=false}
 }
-function evaluateTelemetryAlerts(payload){
-  if(!alertSettings.enabled)return;
-  const system=payload?.system||{};
-  const machine=system.machineName||"Windows PC";
-  const sustain=Math.max(5,Number(alertSettings.sustainSec)||15)*1000;
-  const cpu=Number(system.cpuLoadPercent);
-  evaluateSustainedRule("cpu-load",Number.isFinite(cpu)&&cpu>=alertSettings.cpuLoad,()=>({
-    title:"Критическая нагрузка CPU",
-    source:machine,
-    severity:cpu>=99?"Критический":"Высокий",
-    description:"CPU удерживается на "+cpu.toFixed(1)+"%, порог "+alertSettings.cpuLoad+"%.",
-    events:[alertClock()+" — CPU "+cpu.toFixed(1)+"%"]
-  }),sustain);
-
-  const cpuTemp=Number(system.cpuTemperatureC);
-  evaluateSustainedRule("cpu-temp",Number.isFinite(cpuTemp)&&cpuTemp>=alertSettings.cpuTemp,()=>({
-    title:"Перегрев CPU",
-    source:machine,
-    severity:"Критический",
-    description:"Температура CPU "+cpuTemp.toFixed(1)+" °C, порог "+alertSettings.cpuTemp+" °C.",
-    events:[alertClock()+" — CPU package "+cpuTemp.toFixed(1)+" °C"]
-  }),Math.min(sustain,10000));
-
-  const ram=Number(system.memory?.loadPercent);
-  evaluateSustainedRule("ram-load",Number.isFinite(ram)&&ram>=alertSettings.ram,()=>({
-    title:"Критическая загрузка памяти",
-    source:machine,
-    severity:"Высокий",
-    description:"Использование RAM удерживается на "+ram.toFixed(1)+"%, порог "+alertSettings.ram+"%.",
-    events:[alertClock()+" — RAM "+ram.toFixed(1)+"%"]
-  }),sustain);
-
-  for(const gpu of system.gpus||[]){
-    const temp=Number(gpu.temperatureC);
-    const key="gpu-temp:"+String(gpu.name||"gpu");
-    evaluateSustainedRule(key,Number.isFinite(temp)&&temp>=alertSettings.gpuTemp,()=>({
-      title:"Перегрев GPU",
-      source:(gpu.name||"GPU")+" / "+machine,
-      severity:"Критический",
-      description:"Температура GPU "+temp.toFixed(1)+" °C, порог "+alertSettings.gpuTemp+" °C.",
-      events:[alertClock()+" — GPU "+temp.toFixed(1)+" °C"]
-    }),Math.min(sustain,10000));
-  }
-
-  for(const disk of system.disks||[]){
-    const used=Number(disk.usedPercent);
-    const key="disk:"+String(disk.name||"disk");
-    evaluateSustainedRule(key,Number.isFinite(used)&&used>=alertSettings.disk,()=>({
-      title:"Заканчивается место на диске",
-      source:(disk.name||"Disk")+" / "+machine,
-      severity:used>=99?"Критический":"Высокий",
-      description:"Диск заполнен на "+used.toFixed(1)+"%, порог "+alertSettings.disk+"%.",
-      events:[alertClock()+" — свободно "+Number(disk.freeGb||0).toFixed(1)+" GB"]
-    }),5000);
-  }
-
-  const hot=(system.temperatures||[]).reduce((max,t)=>Math.max(max,Number(t.celsius)||0),0);
-  const rpms=(system.fans||[]).map(f=>Number(f.rpm)).filter(Number.isFinite);
-  const maxRpm=rpms.length?Math.max(...rpms):null;
-  evaluateSustainedRule("fan-stall",hot>=85&&maxRpm!==null&&maxRpm<=100,()=>({
-    title:"Возможная остановка охлаждения",
-    source:machine,
-    severity:"Критический",
-    description:"Температура датчика достигла "+hot.toFixed(1)+" °C, при этом доступные вентиляторы показывают не более "+Math.round(maxRpm)+" RPM.",
-    events:[alertClock()+" — проверка RPM/температуры"]
-  }),10000);
-
-  const processes=payload?.processes||[];
-  const top=processes.find(p=>Number(p.cpuPercent)>=alertSettings.processCpu);
-  if(top){
-    const procCpu=Number(top.cpuPercent);
-    const key="process-cpu:"+String(top.name||top.pid);
-    evaluateSustainedRule(key,true,()=>({
-      title:"Аномальная нагрузка процесса",
-      source:(top.name||"process")+" (PID "+top.pid+")",
-      severity:procCpu>=95?"Высокий":"Средний",
-      description:"Процесс удерживает "+procCpu.toFixed(1)+"% CPU. Это ресурсная аномалия, а не автоматический вывод о вредоносности.",
-      events:[alertClock()+" — RAM "+Number(top.memoryMb||0).toFixed(1)+" MB"]
-    }),sustain);
-  }
-  for(const key of Object.keys(alertStarted)){
-    if(key.startsWith("process-cpu:")&&(!top||key!=="process-cpu:"+String(top.name||top.pid)))delete alertStarted[key];
-  }
-}
 function markAgentOnlineForAlerts(){
   agentEverOnline=true;
   if(agentOfflineTimer){clearTimeout(agentOfflineTimer);agentOfflineTimer=null}
 }
 function scheduleAgentOfflineAlert(){
-  if(!agentEverOnline||!alertSettings.enabled)return;
+  if(!agentEverOnline)return;
   if(agentOfflineTimer)clearTimeout(agentOfflineTimer);
   agentOfflineTimer=setTimeout(()=>{
-    if(!agentSocket||agentSocket.readyState!==WebSocket.OPEN){
-      createAutoIncident("agent-offline",{
-        title:"Потеря связи с AEGIS Agent",
-        source:"127.0.0.1:8765",
-        severity:"Высокий",
-        description:"Локальный агент мониторинга недоступен более 15 секунд.",
-        events:[alertClock()+" — WebSocket telemetry offline"]
-      });
-    }
+    if(!agentSocket||agentSocket.readyState!==WebSocket.OPEN)
+      toast("AEGIS Agent недоступен более 15 секунд");
   },15000);
+}
+function handleTelemetryMessage(payload){
+  renderTelemetry(payload);
+  const revision=Number(payload?.incidentRevision);
+  if(Number.isFinite(revision)&&revision!==lastIncidentRevision){
+    lastIncidentRevision=revision;
+    loadPersistentIncidents().then(()=>{
+      if(alertSettings.autoAether)flushAutoShares();
+    });
+  }
 }
 
 const AGENT_HTTP="http://127.0.0.1:8765";
@@ -733,7 +630,6 @@ function renderTelemetry(payload){
     :'<p class="muted">Диски не найдены.</p>';
 
   renderProcesses(payload.processes||[]);
-  evaluateTelemetryAlerts(payload);
 }
 
 function renderProcesses(processes){
@@ -796,7 +692,7 @@ function connectAgent(){
 
     ws.onopen=()=>{setAgentState(true,"AGENT ONLINE");markAgentOnlineForAlerts()};
     ws.onmessage=event=>{
-      try{renderTelemetry(JSON.parse(event.data))}catch(error){console.error("AEGIS telemetry parse error",error)}
+      try{handleTelemetryMessage(JSON.parse(event.data))}catch(error){console.error("AEGIS telemetry parse error",error)}
     };
     ws.onerror=()=>{setAgentState(false,"AGENT ERROR");scheduleAgentOfflineAlert()};
     ws.onclose=()=>{
