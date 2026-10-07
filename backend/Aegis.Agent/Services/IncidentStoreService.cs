@@ -1,3 +1,5 @@
+using Aegis.Agent.Configuration;
+using Microsoft.Extensions.Options;
 using System.Text.Json;
 
 namespace Aegis.Agent.Services;
@@ -13,12 +15,14 @@ public sealed class IncidentStoreService
         WriteIndented = true
     };
 
-    public IncidentStoreService()
+    public IncidentStoreService(IOptions<AgentOptions> options)
     {
-        _dataDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "AEGIS");
+        var configured = options.Value.DataDirectory;
+        _dataDirectory = string.IsNullOrWhiteSpace(configured)
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AEGIS")
+            : Environment.ExpandEnvironmentVariables(configured);
 
+        _dataDirectory = Path.GetFullPath(_dataDirectory);
         Directory.CreateDirectory(_dataDirectory);
         _incidentFile = Path.Combine(_dataDirectory, "incidents.json");
         _auditFile = Path.Combine(_dataDirectory, "audit.jsonl");
