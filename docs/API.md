@@ -39,6 +39,9 @@ GET /api/network/connections?limit=200
 GET /api/network/udp?limit=200
 : on-demand active UDP listeners.
 
+GET /api/windows/events?log=System&limit=100
+: read-only Critical / Error / Warning events from allow-listed System or Application logs.
+
 GET /api/processes?limit=50
 : sampled processes. limit ограничен 1..200.
 
