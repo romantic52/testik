@@ -50,6 +50,21 @@ public static class AegisEndpoints
         api.MapGet("/network/udp", (int? limit, NetworkMonitorService network) =>
             Results.Ok(network.GetUdpListeners(limit ?? 200)));
 
+        api.MapGet("/windows/events", (
+            string? log,
+            int? limit,
+            WindowsEventLogService events) =>
+        {
+            try
+            {
+                return Results.Ok(events.GetRecent(log ?? "System", limit ?? 100));
+            }
+            catch (ArgumentException error)
+            {
+                return Results.BadRequest(new { detail = error.Message });
+            }
+        });
+
         api.MapGet("/processes", (int? limit, TelemetrySamplerService telemetry) =>
             LatestOrUnavailable(
                 telemetry,
