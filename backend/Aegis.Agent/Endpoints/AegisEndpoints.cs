@@ -206,6 +206,26 @@ public static class AegisEndpoints
             var csv = await reports.BuildCsvAsync(cancellationToken);
             return Results.Text(csv, "text/csv; charset=utf-8", Encoding.UTF8);
         });
+
+        api.MapGet("/reports/bundle.zip", async (
+            ReportService reports,
+            CancellationToken cancellationToken) =>
+        {
+            try
+            {
+                var bundle = await reports.BuildSupportBundleAsync(cancellationToken);
+                return Results.File(
+                    bundle,
+                    "application/zip",
+                    $"aegis-support-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.zip");
+            }
+            catch (InvalidOperationException error)
+            {
+                return Results.Json(
+                    new { detail = error.Message },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+        });
     }
 
     private static void MapAetherEndpoints(RouteGroupBuilder api)
