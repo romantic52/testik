@@ -33,6 +33,8 @@ try {
     if (-not $health) { throw "AEGIS Agent did not become healthy within 35 seconds" }
     if ($health.status -notin @("ok", "warming_up")) { throw "Unexpected health status: $($health.status)" }
 
+    $null = Invoke-RestMethod "$baseUrl/api/health/live" -TimeoutSec 5
+    $null = Invoke-RestMethod "$baseUrl/api/health/ready" -TimeoutSec 5
     $null = Invoke-RestMethod "$baseUrl/api/incidents" -TimeoutSec 5
     $null = Invoke-RestMethod "$baseUrl/api/diagnostics" -TimeoutSec 5
     $null = Invoke-RestMethod "$baseUrl/api/settings/alerts" -TimeoutSec 5
