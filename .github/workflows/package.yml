@@ -18,6 +18,12 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Restore tests
+        run: dotnet restore backend/Aegis.Agent.Tests/Aegis.Agent.Tests.csproj
+
+      - name: Test
+        run: dotnet test backend/Aegis.Agent.Tests/Aegis.Agent.Tests.csproj -c Release --no-restore
+
       - name: Publish Windows x64
         run: >
           dotnet publish backend/Aegis.Agent/Aegis.Agent.csproj
@@ -26,6 +32,10 @@ jobs:
           --self-contained true
           -p:PublishSingleFile=false
           -o dist/AEGIS
+
+      - name: Smoke packaged executable
+        shell: pwsh
+        run: ./scripts/smoke-agent.ps1 -Executable ./dist/AEGIS/Aegis.Agent.exe
 
       - name: Upload AEGIS bundle
         uses: actions/upload-artifact@v4
