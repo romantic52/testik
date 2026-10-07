@@ -41,3 +41,18 @@ jobs:
       - name: Runtime smoke test
         shell: pwsh
         run: ./scripts/smoke-agent.ps1
+
+      - name: Publish verification bundle
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: >
+          dotnet publish backend/Aegis.Agent/Aegis.Agent.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=false
+          -o dist/AEGIS
+
+      - name: Smoke published executable
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: ./scripts/smoke-agent.ps1 -Executable ./dist/AEGIS/Aegis.Agent.exe
