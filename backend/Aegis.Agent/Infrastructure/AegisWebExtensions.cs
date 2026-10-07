@@ -23,7 +23,7 @@ public static class AegisWebExtensions
             context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
             context.Response.Headers["Content-Security-Policy"] =
                 "default-src 'self'; " +
-                "script-src 'self'; " +
+                "script-src 'self' 'wasm-unsafe-eval'; " +
                 "style-src 'self'; " +
                 "font-src 'self'; " +
                 "img-src 'self' data:; " +
