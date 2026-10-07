@@ -16,11 +16,12 @@
     <div class="brand"><div class="logo">A</div><div><b>AEGIS</b><span>SECURITY OPS</span></div></div>
     <nav>
       <button class="nav active" data-view="overview"><span>01</span>Обзор</button>
-      <button class="nav" data-view="incidents"><span>02</span>Инциденты <i>3</i></button>
+      <button class="nav" data-view="incidents"><span>02</span>Инциденты <i id="incidentBadge">3</i></button>
       <button class="nav" data-view="assets"><span>03</span>Активы</button>
       <button class="nav" data-view="access"><span>04</span>Доступ</button>
       <button class="nav" data-view="cameras"><span>05</span>Камеры</button>
-      <button class="nav" data-view="reports"><span>06</span>Отчёты</button>\n      <button class="nav" data-view="monitoring"><span>07</span>Мониторинг</button>
+      <button class="nav" data-view="reports"><span>06</span>Отчёты</button>
+      <button class="nav" data-view="monitoring"><span>07</span>Мониторинг</button>
     </nav>
     <div class="side-bottom">
       <button class="crash-button" id="crashButton">⚠ CRASH SYSTEM</button>
@@ -149,7 +150,8 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="vendor/nacl.min.js"></script>\n<script src="aether.js"></script>
+<script src="vendor/nacl.min.js"></script>
+<script src="aether.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
