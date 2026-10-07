@@ -22,6 +22,7 @@
       <button class="nav" data-view="cameras"><span>05</span>Камеры</button>
       <button class="nav" data-view="reports"><span>06</span>Отчёты</button>
       <button class="nav" data-view="monitoring"><span>07</span>Мониторинг</button>
+      <button class="nav" data-view="audit"><span>08</span>Аудит</button>
     </nav>
     <div class="side-bottom">
       <button class="crash-button" id="crashButton">⚠ CRASH SYSTEM</button>
@@ -86,7 +87,28 @@
     <section class="view" id="assets"><article class="card tall"><small>ИНВЕНТАРИЗАЦИЯ</small><h2>Активы предприятия</h2><div class="asset-grid"><div><b>112</b><span>Рабочие станции</span></div><div><b>34</b><span>Серверы</span></div><div><b>76</b><span>IoT / камеры</span></div><div><b>26</b><span>Сетевые устройства</span></div></div></article></section>
     <section class="view" id="access"><article class="card tall"><small>СКУД</small><h2>Контроль физического доступа</h2><div id="accessLog" class="access-log"></div></article></section>
     <section class="view" id="cameras"><article class="card tall"><small>ВИДЕОНАБЛЮДЕНИЕ</small><h2>Камеры</h2><div class="camera-grid"><div class="camera"><span>CAM-01 • Lobby</span><b>LIVE</b><i></i></div><div class="camera"><span>CAM-07 • Server room</span><b>LIVE</b><i></i></div><div class="camera"><span>CAM-12 • Parking</span><b>LIVE</b><i></i></div><div class="camera offline"><span>CAM-19 • Warehouse</span><b>OFFLINE</b></div></div></article></section>
-    <section class="view" id="reports"><article class="card tall"><small>АНАЛИТИКА</small><h2>Отчёты и соответствие</h2><p class="muted">Сводки по инцидентам, доступу, активам и действиям операторов.</p><button class="primary" id="report">Сформировать отчёт</button></article></section>
+    <section class="view" id="reports">
+      <article class="card report-card">
+        <div class="card-head">
+          <div><small>АНАЛИТИКА</small><h2>Отчёты и экспорт</h2></div>
+          <button class="primary" id="refreshReport">Обновить сводку</button>
+        </div>
+        <p class="muted">Отчёт формируется backend-агентом из текущей телеметрии, процессов, инцидентов и audit log.</p>
+        <div class="report-actions">
+          <a class="report-download" href="/api/reports/current.json" download="aegis-report.json">↓ Полный JSON</a>
+          <a class="report-download" href="/api/reports/incidents.csv" download="aegis-incidents.csv">↓ Инциденты CSV</a>
+        </div>
+        <div class="report-summary" id="reportSummary"><p class="muted">Нажми «Обновить сводку» или запусти агент.</p></div>
+      </article>
+    </section>
+
+    <section class="view" id="audit">
+      <article class="card tall">
+        <div class="card-head"><div><small>IMMUTABLE-LIKE LOCAL LOG</small><h2>Журнал аудита</h2></div><button class="primary" id="refreshAudit">Обновить</button></div>
+        <p class="muted">Локальный журнал действий AEGIS: создание, изменение и удаление инцидентов, системные события и операторские действия.</p>
+        <div class="audit-list" id="auditList"><p class="muted">Нет данных.</p></div>
+      </article>
+    </section>
   </main>
 
   <aside class="chat">
@@ -147,6 +169,24 @@
 
 <div class="fake-off" id="fakeOff" aria-hidden="true">
   <div><span>AEGIS</span><small>System offline simulation</small><button id="restoreSystem">Restore demo system</button></div>
+</div>
+
+
+<div class="modal-layer" id="incidentModal" aria-hidden="true">
+  <form class="modal-card" id="incidentForm">
+    <div class="modal-head"><div><small>MANUAL INCIDENT</small><h2>Новый инцидент</h2></div><button type="button" data-close-modal="incidentModal">×</button></div>
+    <label>Название<input id="incidentTitleInput" required maxlength="120" placeholder="Например: Неизвестный процесс"></label>
+    <div class="modal-two"><label>Источник<input id="incidentSourceInput" required maxlength="120" placeholder="WS-01 / process / sensor"></label><label>Приоритет<select id="incidentSeverityInput"><option>Средний</option><option>Высокий</option><option>Критический</option><option>Низкий</option></select></label></div>
+    <label>Описание<textarea id="incidentDescriptionInput" rows="4" maxlength="1000" placeholder="Что произошло"></textarea></label>
+    <div class="modal-actions"><button type="button" class="secondary" data-close-modal="incidentModal">Отмена</button><button class="primary" type="submit">Создать</button></div>
+  </form>
+</div>
+
+<div class="modal-layer" id="processModal" aria-hidden="true">
+  <div class="modal-card process-modal-card">
+    <div class="modal-head"><div><small>WINDOWS PROCESS</small><h2 id="processModalTitle">Процесс</h2></div><button type="button" data-close-modal="processModal">×</button></div>
+    <div id="processDetailBody"><p class="muted">Загрузка…</p></div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
