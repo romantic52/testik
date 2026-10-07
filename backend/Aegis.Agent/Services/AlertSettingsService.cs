@@ -68,7 +68,7 @@ public sealed class AlertSettingsService
         try
         {
             await using var connection = _database.OpenConnection();
-            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await using var transaction = connection.BeginTransaction();
 
             await using (var command = connection.CreateCommand())
             {
