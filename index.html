@@ -176,6 +176,18 @@
           <article class="card"><div class="card-head"><div><small>STORAGE</small><h2>Диски</h2></div></div><div class="sensor-list" id="diskList"><p class="muted">Нет данных.</p></div></article>
         </div>
       </div>
+
+      <article class="card network-connections-card">
+        <div class="card-head">
+          <div><small>NETWORK INVESTIGATION</small><h2>Активные TCP-соединения</h2></div>
+          <button class="secondary" id="refreshConnections">Обновить</button>
+        </div>
+        <p class="muted">On-demand снимок активных TCP endpoints Windows. Для точной привязки socket → PID потребуется отдельный Windows-native mapping layer.</p>
+        <div class="connection-table">
+          <div class="connection-row connection-head"><span>Local</span><span>Remote</span><span>State</span></div>
+          <div id="networkConnectionRows"><div class="empty-process">Нет данных.</div></div>
+        </div>
+      </article>
     </section>
 
     <section class="view" id="reports">
