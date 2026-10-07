@@ -11,6 +11,8 @@ builder.Services.AddSingleton<HardwareMonitorService>();
 builder.Services.AddSingleton<ProcessMonitorService>();
 builder.Services.AddSingleton<NetworkMonitorService>();
 builder.Services.AddSingleton<AetherRelayProxyService>();
+builder.Services.AddSingleton<IncidentStoreService>();
+builder.Services.AddSingleton<ReportService>();
 
 builder.Services.AddCors(options =>
 {
@@ -58,6 +60,68 @@ app.MapGet("/api/processes", (int? limit, ProcessMonitorService processes) =>
 
 app.MapGet("/api/network", (NetworkMonitorService network) =>
     Results.Ok(network.GetSnapshot()));
+
+app.MapGet("/api/processes/{pid:int}", (int pid) =>
+{
+    var details = ProcessDetailsReader.Read(pid);
+    return details is null ? Results.NotFound() : Results.Ok(details);
+});
+
+app.MapGet("/api/incidents", async (IncidentStoreService incidents, CancellationToken cancellationToken) =>
+    Results.Ok(await incidents.ListAsync(cancellationToken)));
+
+app.MapPut("/api/incidents/{id}", async (
+    string id,
+    IncidentRecord incident,
+    IncidentStoreService incidents,
+    CancellationToken cancellationToken) =>
+{
+    if (!id.Equals(incident.Id, StringComparison.OrdinalIgnoreCase))
+        return Results.BadRequest(new { detail = "Incident id mismatch" });
+
+    return Results.Ok(await incidents.UpsertAsync(incident, cancellationToken));
+});
+
+app.MapDelete("/api/incidents/{id}", async (
+    string id,
+    IncidentStoreService incidents,
+    CancellationToken cancellationToken) =>
+{
+    return await incidents.DeleteAsync(id, cancellationToken)
+        ? Results.NoContent()
+        : Results.NotFound();
+});
+
+app.MapGet("/api/audit", async (
+    int? limit,
+    IncidentStoreService incidents,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await incidents.AuditAsync(limit ?? 200, cancellationToken)));
+
+app.MapPost("/api/audit", async (
+    AuditRecord record,
+    IncidentStoreService incidents,
+    CancellationToken cancellationToken) =>
+{
+    await incidents.AppendAuditAsync(record, cancellationToken);
+    return Results.Accepted();
+});
+
+app.MapGet("/api/reports/current.json", async (
+    ReportService reports,
+    CancellationToken cancellationToken) =>
+{
+    var json = await reports.BuildJsonAsync(cancellationToken);
+    return Results.Text(json, "application/json", Encoding.UTF8);
+});
+
+app.MapGet("/api/reports/incidents.csv", async (
+    ReportService reports,
+    CancellationToken cancellationToken) =>
+{
+    var csv = await reports.BuildCsvAsync(cancellationToken);
+    return Results.Text(csv, "text/csv; charset=utf-8", Encoding.UTF8);
+});
 
 app.MapPost("/api/aether/relay", async (
     AetherRelayRequest request,
