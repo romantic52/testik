@@ -210,9 +210,9 @@
           <button class="secondary" id="refreshConnections">Обновить</button>
         </div>
         <div class="list-tools compact"><input id="connectionSearch" type="search" placeholder="IP, порт или state…"></div>
-        <p class="muted">On-demand снимок активных TCP endpoints Windows. Для точной привязки socket → PID потребуется отдельный Windows-native mapping layer.</p>
+        <p class="muted">On-demand снимок активных TCP endpoints Windows с owner PID/process через Windows IP Helper API.</p>
         <div class="connection-table">
-          <div class="connection-row connection-head"><span>Local</span><span>Remote</span><span>State</span></div>
+          <div class="connection-row connection-head"><span>Local</span><span>Remote</span><span>State</span><span>Process</span></div>
           <div id="networkConnectionRows"><div class="empty-process">Нет данных.</div></div>
         </div>
       </article>
