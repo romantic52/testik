@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Aegis.Agent.Services;
 
@@ -18,7 +19,12 @@ public sealed record ProcessDetailsSnapshot(
     string? FileVersion,
     string? ProductName,
     string? CompanyName,
-    string? Sha256);
+    string? Sha256,
+    bool? EmbeddedSignaturePresent,
+    string? SignerSubject,
+    string? SignerThumbprint,
+    DateTimeOffset? SignerNotBefore,
+    DateTimeOffset? SignerNotAfter);
 
 public static class ProcessDetailsReader
 {
@@ -47,7 +53,12 @@ public static class ProcessDetailsReader
                 metadata.FileVersion,
                 metadata.ProductName,
                 metadata.CompanyName,
-                metadata.Sha256);
+                metadata.Sha256,
+                metadata.EmbeddedSignaturePresent,
+                metadata.SignerSubject,
+                metadata.SignerThumbprint,
+                metadata.SignerNotBefore,
+                metadata.SignerNotAfter);
         }
         catch
         {
@@ -76,16 +87,47 @@ public static class ProcessDetailsReader
                 hash = Convert.ToHexString(SHA256.HashData(stream));
             }
 
+            var signature = ReadEmbeddedSigner(path);
+
             return new ProcessFileMetadata(
                 info.Exists ? info.Length : null,
                 EmptyToNull(version.FileVersion),
                 EmptyToNull(version.ProductName),
                 EmptyToNull(version.CompanyName),
-                hash);
+                hash,
+                signature.Present,
+                signature.Subject,
+                signature.Thumbprint,
+                signature.NotBefore,
+                signature.NotAfter);
         }
         catch
         {
             return ProcessFileMetadata.Empty;
+        }
+    }
+
+    private static EmbeddedSigner ReadEmbeddedSigner(string path)
+    {
+        try
+        {
+            using var certificate = new X509Certificate2(
+                X509Certificate.CreateFromSignedFile(path));
+
+            return new EmbeddedSigner(
+                true,
+                EmptyToNull(certificate.Subject),
+                EmptyToNull(certificate.Thumbprint),
+                new DateTimeOffset(certificate.NotBefore),
+                new DateTimeOffset(certificate.NotAfter));
+        }
+        catch (CryptographicException)
+        {
+            return EmbeddedSigner.None;
+        }
+        catch
+        {
+            return new EmbeddedSigner(null, null, null, null, null);
         }
     }
 
@@ -103,9 +145,35 @@ public static class ProcessDetailsReader
         string? FileVersion,
         string? ProductName,
         string? CompanyName,
-        string? Sha256)
+        string? Sha256,
+        bool? EmbeddedSignaturePresent,
+        string? SignerSubject,
+        string? SignerThumbprint,
+        DateTimeOffset? SignerNotBefore,
+        DateTimeOffset? SignerNotAfter)
     {
         public static ProcessFileMetadata Empty { get; } =
-            new(null, null, null, null, null);
+            new(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
+
+    private sealed record EmbeddedSigner(
+        bool? Present,
+        string? Subject,
+        string? Thumbprint,
+        DateTimeOffset? NotBefore,
+        DateTimeOffset? NotAfter)
+    {
+        public static EmbeddedSigner None { get; } =
+            new(false, null, null, null, null);
     }
 }
