@@ -1,3 +1,5 @@
+using System.Net;
+
 namespace Aegis.Agent.Configuration;
 
 public sealed class AgentOptions
@@ -19,4 +21,23 @@ public sealed class AgentOptions
     public int SafeAetherTimeoutSeconds => Math.Clamp(AetherTimeoutSeconds, 5, 60);
     public int SafeAuditMaxMegabytes => Math.Clamp(AuditMaxMegabytes, 1, 512);
     public int SafeAuditRetentionFiles => Math.Clamp(AuditRetentionFiles, 1, 20);
+
+    public static bool IsLoopbackListenUrl(string? value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
+            return false;
+
+        if (!uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+            && !uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (!string.IsNullOrEmpty(uri.UserInfo))
+            return false;
+
+        if (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return IPAddress.TryParse(uri.Host, out var address)
+            && IPAddress.IsLoopback(address);
+    }
 }
