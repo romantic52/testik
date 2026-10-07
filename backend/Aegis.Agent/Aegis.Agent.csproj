@@ -4,6 +4,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Aegis.Agent</RootNamespace>
+    <AssemblyName>Aegis.Agent</AssemblyName>
+    <Version>0.3.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
