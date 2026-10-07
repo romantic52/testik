@@ -147,6 +147,9 @@ GET /api/reports/current.json
 GET /api/reports/incidents.csv
 : CSV export incidents.
 
+GET /api/reports/bundle.zip
+: downloadable support bundle containing report.json, incidents.csv and a manifest. It does not contain AETHER password or browser Ratchet state.
+
 ## AETHER bridge
 
 POST /api/aether/relay
