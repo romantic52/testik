@@ -78,10 +78,28 @@ public sealed class NetworkMonitorService
 
         try
         {
-            var owned = GetOwnedTcp4Connections();
-            if (owned.Count > 0)
+            var owned = GetOwnedTcp4Connections().ToList();
+
+            var ipv6 = IPGlobalProperties.GetIPGlobalProperties()
+                .GetActiveTcpConnections()
+                .Where(connection =>
+                    connection.LocalEndPoint.Address.AddressFamily ==
+                        System.Net.Sockets.AddressFamily.InterNetworkV6
+                    || connection.RemoteEndPoint.Address.AddressFamily ==
+                        System.Net.Sockets.AddressFamily.InterNetworkV6)
+                .Select(connection => new TcpConnectionSnapshot(
+                    connection.LocalEndPoint.Address.ToString(),
+                    connection.LocalEndPoint.Port,
+                    connection.RemoteEndPoint.Address.ToString(),
+                    connection.RemoteEndPoint.Port,
+                    connection.State.ToString(),
+                    null,
+                    null));
+
+            var combined = owned.Concat(ipv6).ToList();
+            if (combined.Count > 0)
             {
-                return owned
+                return combined
                     .OrderByDescending(connection =>
                         connection.State.Equals(
                             TcpState.Established.ToString(),
