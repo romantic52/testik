@@ -23,6 +23,7 @@
       <button class="nav" data-view="reports"><span>06</span>Отчёты</button>
     </nav>
     <div class="side-bottom">
+      <button class="crash-button" id="crashButton">⚠ CRASH SYSTEM</button>
       <div class="health"><i></i> Все системы в сети</div>
       <div class="operator"><div class="avatar">RM</div><div><b>Оператор SOC</b><span>Смена №42</span></div></div>
     </div>
@@ -76,12 +77,10 @@
       </article>
     </section>
 
-    <section class="view" id="incidents">
-      <div class="incident-layout">
-        <article class="card"><div class="card-head"><div><small>ОЧЕРЕДЬ SOC</small><h2>Активные инциденты</h2></div><button class="primary" id="newIncident">+ Инцидент</button></div><div id="incidentList" class="incident-list"></div></article>
-        <article class="card"><small>КАРТОЧКА РАССЛЕДОВАНИЯ</small><div id="incidentDetail"></div></article>
-      </div>
-    </section>
+    <section class="view" id="incidents"><div class="incident-layout">
+      <article class="card"><div class="card-head"><div><small>ОЧЕРЕДЬ SOC</small><h2>Активные инциденты</h2></div><button class="primary" id="newIncident">+ Инцидент</button></div><div id="incidentList" class="incident-list"></div></article>
+      <article class="card"><small>КАРТОЧКА РАССЛЕДОВАНИЯ</small><div id="incidentDetail"></div></article>
+    </div></section>
 
     <section class="view" id="assets"><article class="card tall"><small>ИНВЕНТАРИЗАЦИЯ</small><h2>Активы предприятия</h2><div class="asset-grid"><div><b>112</b><span>Рабочие станции</span></div><div><b>34</b><span>Серверы</span></div><div><b>76</b><span>IoT / камеры</span></div><div><b>26</b><span>Сетевые устройства</span></div></div></article></section>
     <section class="view" id="access"><article class="card tall"><small>СКУД</small><h2>Контроль физического доступа</h2><div id="accessLog" class="access-log"></div></article></section>
@@ -103,6 +102,31 @@
     <footer><span><i></i> Relay connected</span><span>Double Ratchet / demo adapter</span></footer>
   </aside>
 </div>
+
+<div class="crash-confirm" id="crashConfirm" aria-hidden="true">
+  <div class="confirm-box">
+    <small>DEMO SAFETY ACTION</small>
+    <h2>Имитировать критический сбой?</h2>
+    <p>Покажет фейковый BSOD на весь экран и затем чёрный экран. Компьютер реально не выключается.</p>
+    <div><button id="cancelCrash">Отмена</button><button class="danger-action" id="confirmCrash">Запустить</button></div>
+  </div>
+</div>
+
+<div class="bsod" id="bsod" aria-hidden="true">
+  <div class="bsod-content">
+    <div class="sad">:(</div>
+    <h2>Your device ran into a problem and needs to restart.</h2>
+    <p>We're just collecting some error info, and then we'll restart for you.</p>
+    <div class="progress"><span id="crashProgress">0</span>% complete</div>
+    <div class="stopcode">Stop code: AEGIS_SIMULATED_SYSTEM_FAILURE</div>
+    <div class="demo-label">DEMO MODE — no real system action</div>
+  </div>
+</div>
+
+<div class="fake-off" id="fakeOff" aria-hidden="true">
+  <div><span>AEGIS</span><small>System offline simulation</small><button id="restoreSystem">Restore demo system</button></div>
+</div>
+
 <div class="toast" id="toast"></div>
 <script src="aether.js"></script>
 <script src="app.js"></script>
