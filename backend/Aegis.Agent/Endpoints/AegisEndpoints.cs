@@ -78,6 +78,7 @@ public static class AegisEndpoints
         });
 
         MapIncidentEndpoints(api);
+        MapAlertSettingsEndpoints(api);
         MapReportEndpoints(api);
         MapAetherEndpoints(api);
         app.MapTelemetryWebSocket();
@@ -125,6 +126,30 @@ public static class AegisEndpoints
         {
             await incidents.AppendAuditAsync(record, cancellationToken);
             return Results.Accepted();
+        });
+    }
+
+    private static void MapAlertSettingsEndpoints(RouteGroupBuilder api)
+    {
+        api.MapGet("/settings/alerts", async (
+            AlertSettingsService settings,
+            CancellationToken cancellationToken) =>
+            Results.Ok(await settings.GetAsync(cancellationToken)));
+
+        api.MapPut("/settings/alerts", async (
+            AlertSettings value,
+            AlertSettingsService settings,
+            IncidentStoreService incidents,
+            CancellationToken cancellationToken) =>
+        {
+            var saved = await settings.SaveAsync(value, cancellationToken);
+            await incidents.AppendAuditAsync(new AuditRecord(
+                DateTimeOffset.UtcNow,
+                "settings.alerts.updated",
+                "alert-rules",
+                "Alert thresholds updated",
+                "AEGIS API"), cancellationToken);
+            return Results.Ok(saved);
         });
     }
 
@@ -200,6 +225,7 @@ public static class AegisEndpoints
             }
 
             var telemetry = context.RequestServices.GetRequiredService<TelemetrySamplerService>();
+            var incidents = context.RequestServices.GetRequiredService<IncidentStoreService>();
             var options = context.RequestServices.GetRequiredService<IOptions<AgentOptions>>().Value;
 
             using var socket = await context.WebSockets.AcceptWebSocketAsync();
@@ -215,7 +241,8 @@ public static class AegisEndpoints
                     {
                         type = "telemetry",
                         system = frame.System,
-                        processes = frame.Processes
+                        processes = frame.Processes,
+                        incidentRevision = incidents.Revision
                     };
 
                     var json = JsonSerializer.Serialize(payload);
