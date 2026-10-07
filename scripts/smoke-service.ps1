@@ -18,7 +18,7 @@ try {
     do {
         Start-Sleep -Milliseconds 750
         try {
-            $diagnostics = Invoke-RestMethod "$baseUrl/api/diagnostics" -TimeoutSec 3
+            $diagnostics = Invoke-RestMethod "$baseUrl/api/v1/diagnostics" -TimeoutSec 3
         }
         catch {
         }
@@ -27,16 +27,17 @@ try {
     if (-not $diagnostics) {
         throw "Installed AEGIS Windows Service did not become reachable within 45 seconds"
     }
-    if ($diagnostics.runningAsWindowsService -ne $true) {
+    $agent = if ($diagnostics.agent) { $diagnostics.agent } else { $diagnostics }
+    if ($agent.runningAsWindowsService -ne $true) {
         throw "AEGIS process is reachable but did not detect Windows Service hosting"
     }
 
-    $health = Invoke-RestMethod "$baseUrl/api/health" -TimeoutSec 5
+    $health = Invoke-RestMethod "$baseUrl/api/v1/health" -TimeoutSec 5
     if ($health.status -notin @("ok", "warming_up")) {
         throw "Unexpected service health status: $($health.status)"
     }
 
-    Write-Host "AEGIS Windows Service smoke passed. PID=$($diagnostics.processId) Uptime=$($diagnostics.uptimeSeconds)s"
+    Write-Host "AEGIS Windows Service smoke passed. PID=$($agent.processId) Uptime=$($agent.uptimeSeconds)s"
 }
 finally {
     if ($installed -or (Get-Service -Name "AEGISAgent" -ErrorAction SilentlyContinue)) {
