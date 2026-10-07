@@ -139,3 +139,16 @@ Service integration is inventory-only.
 AEGIS reads service name/display name/status/type and capability flags. It exposes no Start, Stop, Pause, Restart or configuration endpoint.
 
 An operator may create an incident from a suspicious or unexpected service state, but remediation is intentionally outside the current Agent.
+
+
+## Windows Service privilege boundary
+
+Windows Service installation is explicit and requires an elevated operator.
+
+The service runs using the Windows Service Control Manager. The installer does not silently install, update, or replace a service.
+
+Service-mode persistence is explicitly placed under %ProgramData%\AEGIS instead of relying on the LocalSystem user profile.
+
+AEGIS does not expose API endpoints to install/uninstall itself, manipulate services, terminate arbitrary processes, shut down Windows, modify firewall rules, or perform other privileged remediation.
+
+The privileged Agent keeps AETHER E2E credentials out of the service: user password and Ratchet state remain in the browser client.
