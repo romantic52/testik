@@ -12,7 +12,15 @@ API предназначен для локальной operator console. Agent �
 
 GET /api/health
 
-Возвращает:
+Сводный status: warming_up / ok / degraded.
+
+GET /api/health/live
+: liveness — процесс HTTP host отвечает.
+
+GET /api/health/ready
+: readiness — telemetry sample уже существует и не stale. Возвращает HTTP 503 при warming_up/stale.
+
+GET /api/health возвращает:
 - status: ok или warming_up;
 - service/version;
 - machine;
