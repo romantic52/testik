@@ -24,6 +24,9 @@ jobs:
           node --check app.js
           node --check aether.js
 
+      - name: Check frontend structure
+        run: node scripts/check-frontend.mjs
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
