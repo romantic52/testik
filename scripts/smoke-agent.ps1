@@ -34,6 +34,7 @@ try {
     if ($health.status -notin @("ok", "warming_up")) { throw "Unexpected health status: $($health.status)" }
 
     $null = Invoke-RestMethod "$baseUrl/api/incidents" -TimeoutSec 5
+    $null = Invoke-RestMethod "$baseUrl/api/diagnostics" -TimeoutSec 5
     $null = Invoke-RestMethod "$baseUrl/api/settings/alerts" -TimeoutSec 5
     $null = Invoke-RestMethod "$baseUrl/api/history?seconds=10" -TimeoutSec 5
     $null = Invoke-RestMethod "$baseUrl/api/network/connections?limit=5" -TimeoutSec 5
