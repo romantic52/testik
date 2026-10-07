@@ -41,6 +41,13 @@ try {
     $null = Invoke-RestMethod "$baseUrl/api/windows/events?log=System&limit=5" -TimeoutSec 5
     $null = Invoke-RestMethod "$baseUrl/api/windows/services?limit=5" -TimeoutSec 5
 
+    $bundlePath = Join-Path $env:TEMP ("aegis-smoke-bundle-" + [Guid]::NewGuid().ToString("N") + ".zip")
+    Invoke-WebRequest "$baseUrl/api/reports/bundle.zip" -OutFile $bundlePath -TimeoutSec 15
+    if ((Get-Item -LiteralPath $bundlePath).Length -lt 100) {
+        throw "AEGIS support bundle is unexpectedly empty"
+    }
+    Remove-Item -LiteralPath $bundlePath -Force
+
     Write-Host "AEGIS smoke test passed. Status=$($health.status) Machine=$($health.machine)"
 }
 finally {
