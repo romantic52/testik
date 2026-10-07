@@ -29,7 +29,6 @@ public sealed class NetworkMonitorService
                     if (_previous.TryGetValue(nic.Id, out var previous))
                     {
                         var seconds = (now - previous.Timestamp).TotalSeconds;
-
                         if (seconds > 0)
                         {
                             rxPerSecond = Math.Max(0, stats.BytesReceived - previous.BytesReceived) / seconds;
@@ -63,6 +62,54 @@ public sealed class NetworkMonitorService
         }
     }
 
+    public IReadOnlyList<TcpConnectionSnapshot> GetTcpConnections(int limit = 200)
+    {
+        limit = Math.Clamp(limit, 1, 1000);
+
+        try
+        {
+            return IPGlobalProperties.GetIPGlobalProperties()
+                .GetActiveTcpConnections()
+                .OrderByDescending(connection => connection.State == TcpState.Established)
+                .ThenBy(connection => connection.State)
+                .ThenBy(connection => connection.RemoteEndPoint.Address.ToString())
+                .Take(limit)
+                .Select(connection => new TcpConnectionSnapshot(
+                    connection.LocalEndPoint.Address.ToString(),
+                    connection.LocalEndPoint.Port,
+                    connection.RemoteEndPoint.Address.ToString(),
+                    connection.RemoteEndPoint.Port,
+                    connection.State.ToString()))
+                .ToList();
+        }
+        catch
+        {
+            return Array.Empty<TcpConnectionSnapshot>();
+        }
+    }
+
+    public IReadOnlyList<UdpListenerSnapshot> GetUdpListeners(int limit = 200)
+    {
+        limit = Math.Clamp(limit, 1, 1000);
+
+        try
+        {
+            return IPGlobalProperties.GetIPGlobalProperties()
+                .GetActiveUdpListeners()
+                .OrderBy(endpoint => endpoint.Address.ToString())
+                .ThenBy(endpoint => endpoint.Port)
+                .Take(limit)
+                .Select(endpoint => new UdpListenerSnapshot(
+                    endpoint.Address.ToString(),
+                    endpoint.Port))
+                .ToList();
+        }
+        catch
+        {
+            return Array.Empty<UdpListenerSnapshot>();
+        }
+    }
+
     private sealed record NetworkSample(long BytesReceived, long BytesSent, DateTimeOffset Timestamp);
 }
 
@@ -81,3 +128,14 @@ public sealed record NetworkSnapshot(
     IReadOnlyList<NetworkAdapterSnapshot> Adapters,
     double TotalReceiveBytesPerSecond,
     double TotalSendBytesPerSecond);
+
+public sealed record TcpConnectionSnapshot(
+    string LocalAddress,
+    int LocalPort,
+    string RemoteAddress,
+    int RemotePort,
+    string State);
+
+public sealed record UdpListenerSnapshot(
+    string LocalAddress,
+    int LocalPort);
