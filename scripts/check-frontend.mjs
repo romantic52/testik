@@ -38,7 +38,8 @@ const requiredIds = [
   "windowsEventList",
   "cpuHistoryLine",
   "incidentModal",
-  "processModal"
+  "processModal",
+  "agentDiagnosticsGrid"
 ];
 
 for (const id of requiredIds) {
