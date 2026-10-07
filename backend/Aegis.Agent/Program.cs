@@ -37,6 +37,7 @@ builder.Services.AddSingleton<ReportService>();
 builder.Services.AddSingleton<TelemetrySamplerService>();
 builder.Services.AddHostedService(provider => provider.GetRequiredService<TelemetrySamplerService>());
 builder.Services.AddHostedService<AlertEngineService>();
+builder.Services.AddHostedService<WindowsEventAlertService>();
 builder.Services.AddHostedService<AgentLifecycleService>();
 
 builder.Services
