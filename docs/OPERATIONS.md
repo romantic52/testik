@@ -2,20 +2,18 @@
 
 ## Runtime modes
 
-AEGIS supports three execution modes.
-
 ### Source / development
 
 ~~~text
 run-agent.bat
 ~~~
 
-If no published bundle exists, the launcher uses dotnet run.
+If no published bundle exists, the launcher uses `dotnet run`.
 
-Default data directory:
+Default state:
 
 ~~~text
-%LocalAppData%\AEGIS
+%LocalAppData%\AEGIS\aegis.db
 ~~~
 
 ### Published console bundle
@@ -25,17 +23,15 @@ build-release.bat
 run-agent.bat
 ~~~
 
-The launcher prefers:
+Preferred executable:
 
 ~~~text
 dist\AEGIS\Aegis.Agent.exe
 ~~~
 
-The build script verifies restore, tests, publish and runtime smoke before accepting the bundle.
-
 ### Windows Service
 
-Build the release first, then open an elevated terminal:
+Elevated terminal:
 
 ~~~powershell
 .\scripts\install-service.ps1
@@ -47,72 +43,27 @@ or:
 install-service.bat
 ~~~
 
-Service name:
+Service name: `AEGISAgent`
+
+Display name: `AEGIS Agent`
+
+Service state directory:
 
 ~~~text
-AEGISAgent
+%ProgramData%\AEGIS\aegis.db
 ~~~
 
-Display name:
-
-~~~text
-AEGIS Agent
-~~~
-
-The installer:
-- requires administrator rights;
-- refuses to silently replace an existing service;
-- points SCM at the published executable;
-- configures automatic startup;
-- configures restart-on-failure recovery;
-- starts the service unless -NoStart is supplied;
-- configures service-mode persistence at %ProgramData%\AEGIS.
-
-Microsoft's Windows Service host integration is context-aware: the same executable still runs normally as a console app when it is not launched by SCM.
-
-## Service data
-
-Console/source default:
-
-~~~text
-%LocalAppData%\AEGIS
-~~~
-
-Installed service default:
-
-~~~text
-%ProgramData%\AEGIS
-~~~
-
-Service installation passes Agent:DataDirectory explicitly so LocalSystem profile paths do not silently change the persistence location.
-
-## Uninstall
-
-Elevated terminal:
+Uninstall:
 
 ~~~powershell
 .\scripts\uninstall-service.ps1
 ~~~
 
-or:
-
-~~~text
-uninstall-service.bat
-~~~
-
-By default data is preserved.
-
-Explicit destructive cleanup:
-
-~~~powershell
-.\scripts\uninstall-service.ps1 -PurgeData
-~~~
-
--PurgeData is intentionally opt-in.
+Data is preserved by default. `-PurgeData` is explicit/destructive.
 
 ## Configuration
 
-Base configuration lives in:
+Base file:
 
 ~~~text
 backend\Aegis.Agent\appsettings.json
@@ -127,148 +78,151 @@ Agent:ProcessLimit
 Agent:HistoryMinutes
 Agent:DataDirectory
 Agent:AetherTimeoutSeconds
-Agent:AuditMaxMegabytes
-Agent:AuditRetentionFiles
+Agent:AuditRetentionDays
+Agent:AuditMaxRows
+Agent:StateMaintenanceMinutes
 ~~~
 
-.NET configuration precedence allows command-line and environment overrides.
-
-Environment variables use double underscore:
+Environment override example:
 
 ~~~powershell
 $env:Agent__SampleIntervalMs = "2000"
-$env:Agent__HistoryMinutes = "30"
+$env:Agent__AuditRetentionDays = "180"
 ~~~
 
-Command-line example:
+Command line:
 
 ~~~powershell
 Aegis.Agent.exe --Agent:DataDirectory="D:\AEGIS-Data"
 ~~~
 
-## Diagnostics
+## SQLite persistence
+
+Primary state file:
 
 ~~~text
-GET /api/diagnostics
+aegis.db
 ~~~
 
-Returns:
-- Agent version;
-- process id;
-- console vs Windows Service mode;
-- start time and uptime;
-- working/private memory;
-- managed memory / GC heap;
-- thread and handle counts;
-- GC collection counts;
-- last telemetry sample and age;
-- history size;
-- incident revision;
-- active persistence directory;
-- runtime sampling configuration.
+SQLite uses WAL mode. Incidents, audit and alert settings share one transactional store.
 
-This is also visible in the Monitoring UI and included in JSON reports.
+On first start after upgrading from the JSON-based version, AEGIS imports:
+- `incidents.json`
+- `audit*.jsonl`
+- `alert-settings.json`
+
+Successfully imported files are renamed with `.migrated`. Malformed legacy incident JSON is preserved with a timestamped `.corrupt-...` suffix.
 
 ## Audit retention
 
 Defaults:
 
 ~~~text
-Agent:AuditMaxMegabytes = 25
-Agent:AuditRetentionFiles = 5
+Agent:AuditRetentionDays = 90
+Agent:AuditMaxRows = 100000
+Agent:StateMaintenanceMinutes = 360
 ~~~
 
-When audit.jsonl reaches the configured size, AEGIS rotates it to audit.1.jsonl and retains bounded historical files. The audit API reads current + rotated files newest-first.
+`StateMaintenanceService` removes only audit rows older than the retention window and then enforces the row cap. Incidents are never removed by maintenance.
 
-## Backups
+A passive WAL checkpoint runs after maintenance.
 
-For a consistent manual backup, stop the Windows Service or console Agent first.
+## Backup
 
-Back up:
+For a simple consistent manual backup, stop the console process or Windows Service first, then copy:
 
 ~~~text
-incidents.json
-audit.jsonl
-alert-settings.json
+aegis.db
 ~~~
 
-The incident store uses temp-file replacement for normal updates.
+When the Agent is live, WAL files may contain uncheckpointed state, so copying only the main DB file is not recommended.
 
-If incidents.json is malformed, AEGIS preserves it as:
+## Health
+
+Primary endpoints:
 
 ~~~text
-incidents.corrupt-YYYYMMDDHHMMSSfff.json
+GET /api/v1/health/live
+GET /api/v1/health/ready
+GET /api/v1/diagnostics
 ~~~
 
-instead of silently overwriting it.
+Readiness requires both fresh telemetry and a successful SQLite persistence probe.
 
-## AETHER while running as a service
+Diagnostics exposes nested `agent` and `persistence` objects.
 
-Monitoring and automatic incident creation run fully in the service.
+## Automatic background services
 
-AETHER E2E encryption intentionally remains in the browser operator client. Therefore:
-- incidents continue to be created with the UI closed;
-- incidents remain pending with aetherSent=false;
-- when an operator opens the UI and connects AETHER, pending automatic incidents are encrypted and delivered.
+Without any browser open, the Agent runs:
+- telemetry sampling;
+- telemetry alert engine;
+- Windows Event Log Critical/Error correlation;
+- agent lifecycle audit;
+- SQLite state maintenance.
 
-This avoids storing the user's AETHER password and Ratchet state inside the privileged Windows Service.
+AETHER E2E delivery remains browser-owned. Pending incidents keep `aetherSent=false` until an operator connects an AETHER-capable browser session.
 
-## Recovery
+## Windows Event correlation
 
-The service installer configures SCM failure actions:
-- restart after 5 seconds;
-- restart after 15 seconds;
-- restart after 60 seconds;
-- reset failure counter after 24 hours.
+System/Application logs are polled for newly created Critical/Error entries.
 
-Graceful service stop writes agent.stopped to the AEGIS audit when Windows gives the process time to shut down.
+Startup seeds a watermark from current records; historical errors are not bulk-created as incidents.
 
 ## Troubleshooting
 
-### Agent API is not reachable
-
-Check:
+### Agent not reachable
 
 ~~~powershell
 Get-Service AEGISAgent
-Invoke-RestMethod http://127.0.0.1:8765/api/health
+Invoke-RestMethod http://127.0.0.1:8765/api/v1/health
 ~~~
 
-If the port is already used:
+Port check:
 
 ~~~powershell
 Get-NetTCPConnection -LocalPort 8765
 ~~~
 
-### Temperatures or fans are missing
+### Readiness is 503
 
-Not all ECs/controllers expose sensors through LibreHardwareMonitor.
+Inspect:
 
-AEGIS reports unavailable data instead of inventing values.
+~~~powershell
+Invoke-RestMethod http://127.0.0.1:8765/api/v1/health/ready
+Invoke-RestMethod http://127.0.0.1:8765/api/v1/diagnostics
+~~~
 
-Running elevated can expose additional sensors on some hardware.
+Possible causes:
+- telemetry still warming up;
+- stale sampler;
+- SQLite/data-directory access failure.
 
-### Windows Event Log is empty
+### Sensors missing
 
-The integration is read-only and only exposes System/Application warning/error/critical records.
+Not all laptop ECs, motherboards, GPUs or fan controllers expose every sensor through LibreHardwareMonitor.
 
-Unavailable descriptions or denied access return empty/unavailable values; AEGIS does not escalate privileges.
+Missing data remains null/unavailable.
 
-### Service inventory is empty
+### Process fields missing
 
-The ServiceController API can fail under restricted Windows environments. The endpoint returns an empty list instead of mutating system permissions.
+Windows can deny access to protected processes. AEGIS does not bypass access controls.
 
-## Release verification
+### TCP PID missing
 
-The main CI gate checks:
-1. JavaScript syntax;
-2. frontend structure;
-3. PowerShell script syntax;
-4. .NET restore;
+IPv4 owner mapping uses Windows IP Helper. IPv6 is preserved but may not have owner PID in the current implementation.
+
+## CI/release verification
+
+Main CI validates:
+1. split frontend JavaScript syntax;
+2. frontend DOM/runtime structure;
+3. PowerShell syntax;
+4. restore;
 5. Release build;
-6. xUnit;
+6. xUnit tests;
 7. source runtime smoke;
 8. self-contained win-x64 publish;
-9. smoke of the published executable.
+9. packaged executable smoke;
+10. Windows Service smoke.
 
-The release workflow repeats test/publish/smoke before uploading its artifact.
+The release workflow repeats verification before artifact upload.

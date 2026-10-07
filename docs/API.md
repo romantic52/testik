@@ -6,195 +6,171 @@ Base URL:
 http://127.0.0.1:8765
 ~~~
 
-API предназначен для локальной operator console. Agent по умолчанию не слушает LAN-интерфейс.
+Primary API prefix:
 
-## Health
+~~~text
+/api/v1
+~~~
 
-GET /api/health
+Legacy `/api` aliases currently map to the same handlers for compatibility.
 
-Сводный status: warming_up / ok / degraded.
+## Version / health
 
-GET /api/health/live
-: liveness — процесс HTTP host отвечает.
+`GET /api/v1/version`
+: API/service version.
 
-GET /api/health/ready
-: readiness — telemetry sample уже существует и не stale. Возвращает HTTP 503 при warming_up/stale.
+`GET /api/v1/health`
+: overall agent status and telemetry metadata.
 
-GET /api/health возвращает:
-- status: ok или warming_up;
-- service/version;
-- machine;
-- current timestamp;
-- last telemetry sample;
-- sample interval;
-- number of history points;
-- persistence directory.
+`GET /api/v1/health/live`
+: liveness only.
 
-## Agent diagnostics
+`GET /api/v1/health/ready`
+: readiness. HTTP 200 requires a fresh telemetry frame and a healthy SQLite persistence probe; otherwise HTTP 503.
 
-GET /api/diagnostics
+## Diagnostics
 
-Возвращает self-observability AEGIS Agent:
-- version/runtime;
-- PID;
-- console vs Windows Service mode;
-- uptime;
-- working/private/managed/GC memory;
-- thread/handle counts;
-- GC collections;
-- last sample age;
-- history points;
-- incident revision;
-- active data directory;
-- effective sampling configuration.
+`GET /api/v1/diagnostics`
 
-## Telemetry
+Shape:
 
-GET /api/system
-: последний SystemSnapshot.
+~~~json
+{
+  "agent": {},
+  "persistence": {
+    "provider": "sqlite",
+    "database": "aegis.db",
+    "revision": 42
+  }
+}
+~~~
 
-GET /api/hardware
-: sensors из того же telemetry sample.
+Agent diagnostics include version, PID, service/console mode, uptime, memory/GC, thread/handle counts, telemetry age/history and active data directory.
 
-GET /api/network
-: network snapshot из того же sample.
+## Telemetry / investigation
 
-GET /api/network/connections?limit=200
-: on-demand active TCP endpoints и TCP state.
+`GET /api/v1/system`
+: latest system snapshot.
 
-GET /api/network/udp?limit=200
-: on-demand active UDP listeners.
+`GET /api/v1/hardware`
+: hardware sensors from the same sample.
 
-GET /api/windows/events?log=System&limit=100
-: read-only Critical / Error / Warning events from allow-listed System or Application logs.
+`GET /api/v1/history?seconds=900`
+: bounded telemetry history.
 
-GET /api/windows/services?limit=500
-: read-only Windows service inventory: name, display name, status, service type and capability flags.
+`GET /api/v1/processes?limit=50`
+: sampled process list; backend caps the limit.
 
-GET /api/processes?limit=50
-: sampled processes. limit ограничен 1..200.
+`GET /api/v1/processes/{pid}`
+: on-demand process details, including available path/file metadata, bounded SHA-256 and embedded signer certificate metadata. Signer metadata is not a full trust-chain verification result.
 
-GET /api/processes/{pid}
-: on-demand detail процесса, если Windows разрешает чтение. Включает file size, version/product/company metadata и SHA-256 исполняемого файла, когда путь доступен и файл не превышает safety limit.
+`GET /api/v1/network`
+: sampled adapter counters.
 
-GET /api/history?seconds=900
-: bounded telemetry history. Window ограничен configured history retention.
+`GET /api/v1/network/connections?limit=200`
+: active TCP connections. IPv4 rows include owner PID/process when Windows IP Helper returns it. IPv6 endpoints are preserved and may have null owner fields.
 
-GET /api/connectors
-: capability/status surface: monitoring, hardware, processes, network, AETHER, access control, cameras.
+`GET /api/v1/network/udp?limit=200`
+: active UDP listeners.
 
-Если initial telemetry ещё не готова, snapshot endpoints возвращают HTTP 503.
+`GET /api/v1/windows/events?log=System&limit=100`
+: read-only Warning/Error/Critical events. Only System/Application are allow-listed.
+
+`GET /api/v1/windows/services?limit=500`
+: read-only service inventory.
+
+`GET /api/v1/connectors`
+: truthfulness/capability surface for real vs not-configured integrations.
+
+Snapshot endpoints can return 503 while telemetry warms up.
 
 ## Incidents
 
-GET /api/incidents
-: полный persistent incident list, newest first.
+`GET /api/v1/incidents`
 
-PUT /api/incidents/{id}
-: create/update incident. Path id должен совпадать с body id.
+`PUT /api/v1/incidents/{id}`
 
-DELETE /api/incidents/{id}
-: delete incident.
+`DELETE /api/v1/incidents/{id}`
 
 Incident fields:
-- id;
-- title;
-- source;
-- severity;
-- status;
-- description;
-- events[];
-- auto;
-- aetherSent;
-- ruleKey;
-- createdAt.
+- id
+- title
+- source
+- severity
+- status
+- description
+- events[]
+- auto
+- aetherSent
+- ruleKey
+- createdAt
+
+Incident mutations are persisted in SQLite. Create/update/delete operations generate backend audit entries transactionally.
 
 ## Alert settings
 
-GET /api/settings/alerts
+`GET /api/v1/settings/alerts`
 
-PUT /api/settings/alerts
+`PUT /api/v1/settings/alerts`
 
-Поля:
-- enabled;
-- autoAether;
-- cpuLoad;
-- cpuTemp;
-- gpuTemp;
-- ram;
-- processCpu;
-- disk;
-- sustainSeconds;
-- cooldownMinutes.
+Fields:
+- enabled
+- autoAether
+- cpuLoad
+- cpuTemp
+- gpuTemp
+- ram
+- processCpu
+- disk
+- sustainSeconds
+- cooldownMinutes
 
-Backend нормализует значения в безопасные диапазоны.
+Values are normalized to backend safe ranges and stored in SQLite.
 
 ## Audit
 
-GET /api/audit?limit=200
-: newest audit records. limit ограничивается backend.
+`GET /api/v1/audit?limit=200`
 
-POST /api/audit
-: operator/client audit event.
+`POST /api/v1/audit`
 
-Автоматические create/update/delete incidents также пишутся backend самостоятельно.
+The audit store is operational, not cryptographically tamper-proof.
+
+Automatic backend incident lifecycle events also write audit entries.
 
 ## Reports
 
-GET /api/reports/current.json
+`GET /api/v1/reports/current.json`
+: current operational report.
 
-Содержит:
-- agent metadata;
-- current system snapshot;
-- process snapshot;
-- 15-minute history;
-- current alert settings;
-- incidents;
-- audit.
+`GET /api/v1/reports/incidents.csv`
+: incident export.
 
-GET /api/reports/incidents.csv
-: CSV export incidents.
-
-GET /api/reports/bundle.zip
-: downloadable support bundle containing report.json, incidents.csv and a manifest. It does not contain AETHER password or browser Ratchet state.
+`GET /api/v1/reports/bundle.zip`
+: support ZIP containing report/CSV/manifest. AETHER password and browser Ratchet state are excluded.
 
 ## AETHER bridge
 
-POST /api/aether/relay
+`POST /api/v1/aether/relay`
 
-Это не generic proxy.
+This is an allow-listed protocol bridge, not a generic HTTP proxy.
 
-Body содержит:
-- serverUrl;
-- method;
-- path;
-- token;
-- optional JSON body.
-
-Backend проверяет:
-- allowed HTTP method;
-- allow-listed AETHER path;
-- remote HTTPS requirement;
-- no embedded URL credentials;
-- timeout.
-
-HTTP для AETHER server разрешён только loopback.
+Backend restrictions include method/path allow-listing, remote HTTPS, no URL credentials, redirects disabled and bounded timeout.
 
 ## WebSocket
 
+~~~text
 WS /ws/monitor
+~~~
 
-Payload type telemetry:
+Example:
 
 ~~~json
 {
   "type": "telemetry",
   "system": {},
   "processes": [],
-  "incidentRevision": 12
+  "incidentRevision": 42
 }
 ~~~
 
-incidentRevision позволяет UI понять, что backend rule engine или другой operator изменил incident store, и перечитать /api/incidents.
-
-WebSocket сам не собирает telemetry — он публикует latest sample TelemetrySamplerService.
+The WebSocket publishes the latest `TelemetrySamplerService` frame; it does not independently sample the machine.

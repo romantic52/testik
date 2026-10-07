@@ -1,154 +1,112 @@
 # AEGIS Security Model
 
-## Scope
+## Trust boundaries
 
-AEGIS — local-first Windows monitoring application.
+AEGIS is local-first.
 
-Главная граница доверия:
-- monitoring Agent имеет доступ к локальным system/process/hardware данным;
-- browser UI получает их только через loopback API;
-- AETHER plaintext/crypto state остаётся в browser client.
+- The .NET Agent can read local machine/process/hardware information.
+- The browser operator console talks to the Agent over loopback.
+- AETHER password and Double Ratchet state remain browser-side.
+- External enterprise connectors are not considered trusted/active until explicitly implemented.
 
 ## Network exposure
 
-Default listen URL:
+Default:
 
 ~~~text
 http://127.0.0.1:8765
 ~~~
 
-Agent не должен быть опубликован в LAN без отдельной threat-model ревизии и authentication layer.
+`Agent:ListenUrl` is validated as loopback-only. Publishing AEGIS to LAN/Internet would require a separate authentication and threat-model change.
 
-Host header middleware разрешает только:
-- 127.0.0.1;
-- localhost.
+Host validation allows loopback names/addresses only.
 
-## Browser security headers
+## HTTP/browser controls
 
-Agent выставляет:
-- X-Content-Type-Options: nosniff;
-- X-Frame-Options: DENY;
-- Referrer-Policy: no-referrer;
-- restrictive Permissions-Policy;
-- Content-Security-Policy;
-- no-store для API.
+The web layer sets restrictive headers including CSP, frame blocking, no-referrer, Permissions-Policy and API no-store behavior.
 
-CSP разрешает local scripts/styles и wasm-unsafe-eval только потому, что canonical AETHER Double Ratchet runtime использует WebAssembly.
-
-Обычный unsafe-eval не разрешён.
-
-## AETHER
-
-AEGIS не переносит E2E crypto в backend.
-
-Browser:
-- принимает пароль пользователя только для login/key backup decryption;
-- создаёт отдельный soc-* device;
-- хранит encrypted local Ratchet state;
-- проверяет AETHER device/master signatures;
-- шифрует до relay;
-- расшифровывает после relay.
-
-Backend bridge видит protocol envelopes, но не должен получать chat plaintext от UI.
-
-### Relay SSRF boundary
-
-AetherRelayProxyService:
-- не принимает произвольный destination path;
-- использует allow-list AETHER endpoints;
-- запрещает URL credentials;
-- запрещает remote plain HTTP;
-- отключает redirects;
-- имеет configured timeout.
-
-Это снижает риск превращения local Agent в generic SSRF proxy.
+WebAssembly support is enabled for the canonical AETHER Ratchet runtime; arbitrary unsafe eval is not enabled.
 
 ## Persistence
 
-incidents.json и alert-settings.json находятся в user LocalAppData.
+Operational SOC state is stored in SQLite `aegis.db` under the configured data directory.
 
-audit.jsonl — operational audit, но не cryptographically immutable log. Термин immutable-like означает append-oriented semantics, а не tamper-proof storage.
+SQLite stores:
+- incident content;
+- audit records;
+- alert settings;
+- internal schema/revision metadata.
 
-Для production-grade tamper evidence понадобились бы:
-- hash chaining;
-- signing;
-- protected remote log sink.
+It is not encrypted at rest and the audit table is not cryptographically tamper-evident. Local filesystem permissions remain part of the trust boundary.
 
-## Hardware permissions
+For stronger production guarantees, use OS-protected storage and/or a signed remote audit sink.
 
-AEGIS не пытается обходить Windows security boundaries.
+Legacy JSON state is migrated but preserved with a `.migrated` suffix rather than silently discarded.
 
-Если protected process path, temperature или fan RPM недоступны:
-- значение остаётся unavailable/null;
-- UI не подставляет fake data.
+Audit maintenance deletes only rows outside configured retention; it does not delete incidents.
 
-Administrator execution может открыть больше hardware sensors, но не является обязательным режимом.
+## AETHER E2E
 
-## Automatic rules
+The privileged Agent does not own user E2E secrets.
 
-Rules создают incidents и не выполняют destructive remediation.
+Browser responsibilities:
+- login/key-backup decryption;
+- dedicated `soc-*` device;
+- prekeys/fallback key;
+- device/master signature verification;
+- Double Ratchet encryption/decryption.
 
-Нет:
-- kill process;
-- remote execution;
-- Windows shutdown;
-- firewall mutation;
-- credential changes.
+The bridge is allow-listed and has SSRF controls:
+- allowed protocol endpoints only;
+- remote relay requires HTTPS;
+- no embedded credentials;
+- redirects disabled;
+- bounded timeout.
 
-Кнопка CRASH SYSTEM — только визуальная demo simulation.
+## Process investigation
 
-## UI truthfulness
+AEGIS respects Windows access boundaries. Protected process fields may be unavailable.
 
-Overview не содержит фиктивных host counts.
+SHA-256 is computed only when a readable path exists and the executable is below the configured safety bound in code.
 
-Access Control и Cameras не показываются как live, пока real connector не настроен.
+Embedded signer fields indicate whether Windows/.NET can extract a certificate from the signed file and expose certificate metadata. This is not a full Authenticode chain/revocation/policy trust verdict.
 
-High process CPU обозначается как anomaly requiring review, не как malware detection.
+AEGIS does not automatically classify unsigned or high-CPU processes as malware.
 
-## Release verification
+## Network investigation
 
-Release считается валидным только после:
-- xUnit tests;
-- publish;
-- launching packaged executable;
-- /api/health;
-- incident endpoint;
-- alert settings endpoint;
-- history endpoint.
+IPv4 TCP owner PID/process mapping uses Windows IP Helper APIs.
 
-Это проверяется scripts/smoke-agent.ps1.
-
+IPv6 endpoints remain visible even when owner PID mapping is unavailable. Missing PID is reported as unavailable rather than guessed.
 
 ## Windows Event Log
 
-Event Log integration is read-only.
+Only System/Application are exposed.
 
-AEGIS allow-lists only:
-- System;
-- Application.
+Background correlation converts newly observed Critical/Error events into incidents. Startup establishes a watermark, preventing historical-log floods.
 
-The Security log and arbitrary log paths are not exposed by the API.
-
-If Windows denies access or event descriptions cannot be resolved, AEGIS returns unavailable/empty data rather than attempting privilege escalation.
-
+The Security log is not exposed, and AEGIS does not escalate privileges to access unavailable logs.
 
 ## Windows Services
 
-Service integration is inventory-only.
+Service inventory is read-only. There is no HTTP endpoint to start, stop, restart or reconfigure arbitrary Windows Services.
 
-AEGIS reads service name/display name/status/type and capability flags. It exposes no Start, Stop, Pause, Restart or configuration endpoint.
+## No destructive remediation
 
-An operator may create an incident from a suspicious or unexpected service state, but remediation is intentionally outside the current Agent.
+AEGIS currently exposes no API for:
+- process termination;
+- OS shutdown/reboot;
+- arbitrary command execution;
+- firewall changes;
+- service mutation;
+- credential changes.
 
+`CRASH SYSTEM` is a visual demonstration only.
 
 ## Windows Service privilege boundary
 
-Windows Service installation is explicit and requires an elevated operator.
+Installing AEGIS as a Windows Service is explicit and requires elevation.
 
-The service runs using the Windows Service Control Manager. The installer does not silently install, update, or replace a service.
+Service-mode state defaults to `%ProgramData%\AEGIS`. The browser still owns AETHER credentials.
 
-Service-mode persistence is explicitly placed under %ProgramData%\AEGIS instead of relying on the LocalSystem user profile.
-
-AEGIS does not expose API endpoints to install/uninstall itself, manipulate services, terminate arbitrary processes, shut down Windows, modify firewall rules, or perform other privileged remediation.
-
-The privileged Agent keeps AETHER E2E credentials out of the service: user password and Ratchet state remain in the browser client.
+Uninstall preserves SOC data unless the operator explicitly requests purge.
