@@ -10,6 +10,7 @@ public sealed class IncidentStoreService
     private readonly string _dataDirectory;
     private readonly string _incidentFile;
     private readonly string _auditFile;
+    private long _revision;
     private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true
@@ -71,6 +72,7 @@ public sealed class IncidentStoreService
             else incidents.Add(normalized);
 
             await WriteUnsafeAsync(incidents, cancellationToken);
+            Interlocked.Increment(ref _revision);
             await AppendAuditUnsafeAsync(new AuditRecord(
                 DateTimeOffset.UtcNow,
                 action,
@@ -96,6 +98,7 @@ public sealed class IncidentStoreService
             if (!removed) return false;
 
             await WriteUnsafeAsync(incidents, cancellationToken);
+            Interlocked.Increment(ref _revision);
             await AppendAuditUnsafeAsync(new AuditRecord(
                 DateTimeOffset.UtcNow,
                 "incident.deleted",
@@ -161,6 +164,7 @@ public sealed class IncidentStoreService
     }
 
     public string DataDirectory => _dataDirectory;
+    public long Revision => Interlocked.Read(ref _revision);
 
     private async Task<List<IncidentRecord>> ReadUnsafeAsync(CancellationToken cancellationToken)
     {
