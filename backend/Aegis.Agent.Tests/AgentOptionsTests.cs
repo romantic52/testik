@@ -4,6 +4,19 @@ namespace Aegis.Agent.Tests;
 
 public sealed class AgentOptionsTests
 {
+    [Theory]
+    [InlineData("http://127.0.0.1:8765", true)]
+    [InlineData("http://localhost:8765", true)]
+    [InlineData("http://[::1]:8765", true)]
+    [InlineData("http://0.0.0.0:8765", false)]
+    [InlineData("http://192.168.1.20:8765", false)]
+    [InlineData("https://example.com", false)]
+    [InlineData("ftp://127.0.0.1:21", false)]
+    public void Listen_url_must_remain_loopback_only(string url, bool expected)
+    {
+        Assert.Equal(expected, AgentOptions.IsLoopbackListenUrl(url));
+    }
+
     [Fact]
     public void Runtime_limits_are_clamped_to_safe_ranges()
     {
