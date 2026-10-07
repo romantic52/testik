@@ -1,14 +1,170 @@
-const state={current:"INC-2401",incidents:[
-{id:"INC-2401",title:"Подозрительная авторизация",source:"VPN-GW-02",severity:"Критический",status:"Расследование",time:"02:13",description:"Успешная авторизация после серии отказов. Новый ASN и нетипичная география.",events:["01:58 — 4 отклонённых входа","02:07 — ещё 2 отклонённых входа","02:13 — успешная авторизация","02:14 — корреляция SIEM повысила риск"]},
-{id:"INC-2398",title:"Аномальный исходящий трафик",source:"WS-FIN-14",severity:"Высокий",status:"В работе",time:"01:47",description:"Рабочая станция финансового отдела установила соединение с ранее не наблюдавшимся узлом.",events:["01:41 — EDR отметил новую сессию","01:47 — превышен сетевой baseline","01:52 — оператор начал проверку"]},
-{id:"INC-2394",title:"Повторный отказ доступа",source:"Door B-17",severity:"Средний",status:"Проверка",time:"00:58",description:"Несколько попыток прохода по карте сотрудника вне разрешённой зоны.",events:["00:54 — первый отказ","00:56 — второй отказ","00:58 — создано событие СКУД"]}
-]};
+const state={current:"",incidents:[]};
 try{
   const savedAuto=JSON.parse(localStorage.getItem("aegis_auto_incidents")||"[]");
-  if(Array.isArray(savedAuto))state.incidents=[...savedAuto,...state.incidents];
+  if(Array.isArray(savedAuto))state.incidents=[...savedAuto];
 }catch{}
 const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",audit:"Журнал аудита"};
 const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
+
+let lastTelemetryPayload=null;
+let telemetryHistory=[];
+let incidentStoreOnline=false;
+let aetherOnline=false;
+let historyLoaded=false;
+
+function numeric(value){
+  const n=Number(value);
+  return Number.isFinite(n)?n:null;
+}
+function openIncidents(){
+  return state.incidents.filter(i=>i.status!=="Закрыт");
+}
+function riskScore(system){
+  let score=0;
+  for(const incident of openIncidents()){
+    const severity=String(incident.severity||"").toLowerCase();
+    score+=severity.includes("крит")?18:severity.includes("выс")?10:severity.includes("сред")?5:2;
+  }
+  score=Math.min(score,45);
+
+  const cpu=numeric(system?.cpuLoadPercent);
+  const ram=numeric(system?.memory?.loadPercent);
+  const cpuTemp=numeric(system?.cpuTemperatureC);
+  const gpuTemp=numeric(system?.gpus?.[0]?.temperatureC);
+  const maxDisk=Math.max(0,...(system?.disks||[]).map(d=>numeric(d.usedPercent)||0));
+
+  if(cpu!==null&&cpu>70)score+=Math.min(15,(cpu-70)*0.5);
+  if(ram!==null&&ram>80)score+=Math.min(10,(ram-80)*0.5);
+  if(cpuTemp!==null&&cpuTemp>75)score+=Math.min(20,cpuTemp-75);
+  if(gpuTemp!==null&&gpuTemp>75)score+=Math.min(15,(gpuTemp-75)*0.75);
+  if(maxDisk>90)score+=Math.min(10,maxDisk-90);
+  return Math.round(Math.max(0,Math.min(100,score)));
+}
+function riskLabel(score){
+  if(score>=80)return ["критический","critical"];
+  if(score>=55)return ["высокий","high"];
+  if(score>=30)return ["средний","medium"];
+  return ["низкий","low"];
+}
+function setService(rowId,statusId,text,level="ok"){
+  const row=q("#"+rowId),status=q("#"+statusId);
+  if(status)status.textContent=text;
+  if(row){
+    row.classList.toggle("warn",level==="warn");
+    row.classList.toggle("down",level==="down");
+  }
+}
+function renderOverviewIncidents(){
+  const box=q("#overviewIncidentRows");if(!box)return;
+  const incidents=state.incidents.slice(0,4);
+  box.innerHTML=incidents.length?incidents.map(i=>{
+    const sev=String(i.severity||"").toLowerCase();
+    const sevClass=sev.includes("крит")?"critical":sev.includes("выс")||sev.includes("сред")?"medium":"low";
+    const tagClass=sev.includes("крит")?"danger":i.status==="Закрыт"?"":"work";
+    return '<button class="row overview-incident" data-id="'+escapeHtml(i.id)+'"><span>'+escapeHtml(i.id)+'</span><span><i class="sev '+sevClass+'"></i>'+escapeHtml(i.title)+'</span><span>'+escapeHtml(i.source)+'</span><span>'+escapeHtml(i.time||"")+'</span><span class="pill '+tagClass+'">'+escapeHtml(i.status)+'</span></button>';
+  }).join(""):'<div class="empty-overview">Инцидентов пока нет.</div>';
+  qa(".overview-incident").forEach(row=>row.addEventListener("click",()=>{state.current=row.dataset.id;view("incidents")}));
+}
+function updateOverview(payload=lastTelemetryPayload){
+  const system=payload?.system;
+  const open=openIncidents();
+  const critical=open.filter(i=>String(i.severity||"").toLowerCase().includes("крит")).length;
+
+  const openMetric=q("#openIncidentMetric");if(openMetric)openMetric.textContent=String(open.length);
+  const criticalMetric=q("#criticalIncidentMetric");if(criticalMetric)criticalMetric.textContent=critical+" крит.";
+  const incidentMeta=q("#incidentMetricMeta");if(incidentMeta)incidentMeta.textContent=incidentStoreOnline?"persistent store online":"локальный fallback";
+  renderOverviewIncidents();
+
+  if(!system)return;
+  const score=riskScore(system),[label]=riskLabel(score);
+  if(q("#riskValue"))q("#riskValue").textContent=String(score);
+  if(q("#riskLabel"))q("#riskLabel").textContent=label;
+  if(q("#riskBar"))q("#riskBar").style.width=score+"%";
+  if(q("#systemOverallStatus"))q("#systemOverallStatus").textContent=score>=80?"Критично":score>=55?"Внимание":"Стабильно";
+
+  const sources=(system.temperatures?.length||0)+(system.fans?.length||0)+(system.gpus?.length||0)+(system.disks?.length||0)+(system.network?.adapters?.length||0);
+  if(q("#telemetrySourceMetric"))q("#telemetrySourceMetric").textContent=String(sources);
+  if(q("#telemetryHealthMetric"))q("#telemetryHealthMetric").textContent=sources?"online":"limited";
+  const processCount=payload?.processes?.length||0;
+  if(q("#processMetric"))q("#processMetric").textContent=String(processCount);
+  if(q("#processHealthMetric"))q("#processHealthMetric").textContent=processCount?"live":"—";
+
+  setService("serviceHardwareRow","serviceHardwareStatus",sources?String(sources)+" sources":"unavailable",sources?"ok":"warn");
+  setService("serviceProcessRow","serviceProcessStatus",processCount?String(processCount)+" sampled":"empty",processCount?"ok":"warn");
+  const adapters=system.network?.adapters?.length||0;
+  setService("serviceNetworkRow","serviceNetworkStatus",adapters?String(adapters)+" adapters":"unavailable",adapters?"ok":"warn");
+  setService("serviceStoreRow","serviceStoreStatus",incidentStoreOnline?"online":"fallback",incidentStoreOnline?"ok":"warn");
+  setService("serviceAetherRow","serviceAetherStatus",aetherOnline?"online":"offline",aetherOnline?"ok":"down");
+
+  renderInventory(system);
+}
+function renderInventory(system){
+  if(!system)return;
+  if(q("#assetInventoryStatus"))q("#assetInventoryStatus").textContent="LIVE";
+  if(q("#assetMachine"))q("#assetMachine").textContent=system.machineName||"—";
+  if(q("#assetCpu"))q("#assetCpu").textContent=String(system.logicalProcessors??"—");
+  if(q("#assetGpu"))q("#assetGpu").textContent=String(system.gpus?.length||0);
+  if(q("#assetDisk"))q("#assetDisk").textContent=String(system.disks?.length||0);
+  if(q("#assetNetwork"))q("#assetNetwork").textContent=String(system.network?.adapters?.length||0);
+  if(q("#assetSensors"))q("#assetSensors").textContent=String((system.temperatures?.length||0)+(system.fans?.length||0));
+  const details=q("#inventoryDetails");
+  if(details){
+    const gpu=(system.gpus||[]).map(x=>'<div><b>'+escapeHtml(x.name)+'</b><span>GPU • '+fmtTemp(x.temperatureC)+'</span></div>');
+    const disks=(system.disks||[]).map(x=>'<div><b>'+escapeHtml(x.name)+'</b><span>'+escapeHtml(x.fileSystem)+' • '+x.usedPercent.toFixed(1)+'% used</span></div>');
+    const net=(system.network?.adapters||[]).map(x=>'<div><b>'+escapeHtml(x.name)+'</b><span>'+escapeHtml(x.type)+' • '+fmtBytes(x.receiveBytesPerSecond+x.sendBytesPerSecond)+'</span></div>');
+    details.innerHTML=[...gpu,...disks,...net].join("")||'<p class="muted">Дополнительных устройств нет.</p>';
+  }
+}
+function historyPointFromSystem(system){
+  return {
+    timestamp:system.timestamp||new Date().toISOString(),
+    cpuLoadPercent:numeric(system.cpuLoadPercent),
+    memoryLoadPercent:numeric(system.memory?.loadPercent),
+    gpuLoadPercent:numeric(system.gpus?.[0]?.loadPercent)
+  };
+}
+function pushHistory(system){
+  if(!system)return;
+  telemetryHistory.push(historyPointFromSystem(system));
+  const cutoff=Date.now()-15*60*1000;
+  telemetryHistory=telemetryHistory.filter(p=>new Date(p.timestamp).getTime()>=cutoff);
+  renderHistoryChart();
+}
+function pathForHistory(key){
+  const now=Date.now(),start=now-15*60*1000;
+  const points=telemetryHistory.map(p=>({t:new Date(p.timestamp).getTime(),v:numeric(p[key])}))
+    .filter(p=>Number.isFinite(p.t)&&p.v!==null&&p.t>=start);
+  if(!points.length)return "";
+  return points.map((p,index)=>{
+    const x=20+Math.max(0,Math.min(1,(p.t-start)/(now-start)))*720;
+    const y=185-Math.max(0,Math.min(100,p.v))/100*150;
+    return (index?"L":"M")+x.toFixed(1)+" "+y.toFixed(1);
+  }).join(" ");
+}
+function renderHistoryChart(){
+  const cpu=pathForHistory("cpuLoadPercent");
+  const ram=pathForHistory("memoryLoadPercent");
+  const gpu=pathForHistory("gpuLoadPercent");
+  if(q("#cpuHistoryLine"))q("#cpuHistoryLine").setAttribute("d",cpu);
+  if(q("#ramHistoryLine"))q("#ramHistoryLine").setAttribute("d",ram);
+  if(q("#gpuHistoryLine"))q("#gpuHistoryLine").setAttribute("d",gpu);
+  if(q("#cpuHistoryArea")){
+    if(cpu){
+      const pts=cpu.match(/(?:M|L)([0-9.]+) ([0-9.]+)/g)||[];
+      const first=pts[0]?.match(/([0-9.]+) ([0-9.]+)/),last=pts.at(-1)?.match(/([0-9.]+) ([0-9.]+)/);
+      q("#cpuHistoryArea").setAttribute("d",first&&last?cpu+" L"+last[1]+" 210 L"+first[1]+" 210 Z":"");
+    }else q("#cpuHistoryArea").setAttribute("d","");
+  }
+}
+async function loadTelemetryHistory(){
+  if(historyLoaded)return;
+  try{
+    const points=await apiJson("/api/history?seconds=900");
+    telemetryHistory=Array.isArray(points)?points:[];
+    historyLoaded=true;renderHistoryChart();
+  }catch(error){console.warn("History unavailable",error)}
+}
+
 
 async function apiJson(path,options={}){
   const response=await fetch(path,{cache:"no-store",...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
@@ -55,8 +211,11 @@ async function loadPersistentIncidents(){
         await saveIncidentApi(i);
       }
     }
-    renderIncidents();updateAutoQueueState();
+    incidentStoreOnline=true;
+    renderIncidents();updateAutoQueueState();updateOverview();
   }catch(error){
+    incidentStoreOnline=false;updateOverview();
+
     console.warn("Persistent incidents unavailable; local fallback remains",error);
   }
 }
@@ -120,6 +279,7 @@ function renderIncidents(){
     await saveIncidentApi(i);await appendAudit("incident.closed",i.id,i.title);
     renderIncidents();toast("Инцидент закрыт");
   });
+  updateOverview();
   q("#deleteIncident").onclick=async()=>{
     try{await fetch("/api/incidents/"+encodeURIComponent(i.id),{method:"DELETE"});}catch{}
     state.incidents=state.incidents.filter(x=>x.id!==i.id);state.current=state.incidents[0]?.id||"";
@@ -196,6 +356,7 @@ aetherConfig.onsubmit=async e=>{
 
 window.addEventListener("aether-state",event=>{
   const d=event.detail||{},online=!!d.connected;
+  aetherOnline=online;updateOverview();
   q("#aetherRelayState").classList.toggle("relay-offline",!online);
   q("#aetherRelayState").classList.toggle("relay-online",online);
   q("#aetherRelayState").innerHTML="<i></i> "+(online?"Relay connected":"Relay offline");
@@ -238,8 +399,6 @@ q("#incidentForm")?.addEventListener("submit",async e=>{
   e.target.reset();closeModal("incidentModal");renderIncidents();toast("Инцидент создан");
 });
 q("#notify").onclick=()=>toast(state.incidents.filter(i=>i.status!=="Закрыт").length+" активных инцидентов");
-const access=[["02:12","Серверная A-02","Разрешён • Иван П."],["01:58","Door B-17","Отказ • Карта #1842"],["01:35","Главный вход","Разрешён • Анна К."],["00:49","Архив C-04","Разрешён • Сервисная карта"]];
-q("#accessLog").innerHTML=access.map(x=>`<div class="access-entry"><b>${x[0]}</b><span>${x[1]}</span><em>${x[2]}</em></div>`).join("");
 
 
 
@@ -498,6 +657,7 @@ let reconnectTimer=null;
 
 function setAgentState(online,text){
   const el=q("#agentState");
+  setService("serviceAgentRow","serviceAgentStatus",online?"online":"offline",online?"ok":"down");
   if(!el)return;
   el.classList.toggle("offline",!online);
   el.classList.toggle("online",online);
@@ -536,6 +696,9 @@ function escapeHtml(value){
 function renderTelemetry(payload){
   const system=payload?.system;
   if(!system)return;
+  lastTelemetryPayload=payload;
+  pushHistory(system);
+  updateOverview(payload);
 
   q("#machineName").textContent=system.machineName||"Windows PC";
   q("#machineMeta").textContent=(system.os||"Windows")+" • "+(system.logicalProcessors||"?")+" logical CPU";
@@ -611,6 +774,7 @@ async function probeAgent(){
     if(!response.ok)throw new Error("HTTP "+response.status);
     const health=await response.json();
     setAgentState(true,"AGENT ONLINE");markAgentOnlineForAlerts();
+    loadTelemetryHistory();
     return health;
   }catch{
     setAgentState(false,"AGENT OFFLINE");
@@ -669,4 +833,4 @@ async function startFakeCrash(){
   },260);
 }
 
-function tick(){q("#clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour12:false})}tick();setInterval(tick,1000);bindAutomationUi();renderIncidents();loadPersistentIncidents();connectAgent();
+function tick(){q("#clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour12:false})}tick();setInterval(tick,1000);bindAutomationUi();renderIncidents();updateOverview();loadPersistentIncidents();connectAgent();
