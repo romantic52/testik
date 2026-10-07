@@ -105,9 +105,82 @@
       <article class="card"><small>КАРТОЧКА РАССЛЕДОВАНИЯ</small><div id="incidentDetail"></div></article>
     </div></section>
 
-    <section class="view" id="assets"><article class="card tall"><small>ИНВЕНТАРИЗАЦИЯ</small><h2>Активы предприятия</h2><div class="asset-grid"><div><b>112</b><span>Рабочие станции</span></div><div><b>34</b><span>Серверы</span></div><div><b>76</b><span>IoT / камеры</span></div><div><b>26</b><span>Сетевые устройства</span></div></div></article></section>
-    <section class="view" id="access"><article class="card tall"><small>СКУД</small><h2>Контроль физического доступа</h2><div id="accessLog" class="access-log"></div></article></section>
-    <section class="view" id="cameras"><article class="card tall"><small>ВИДЕОНАБЛЮДЕНИЕ</small><h2>Камеры</h2><div class="camera-grid"><div class="camera"><span>CAM-01 • Lobby</span><b>LIVE</b><i></i></div><div class="camera"><span>CAM-07 • Server room</span><b>LIVE</b><i></i></div><div class="camera"><span>CAM-12 • Parking</span><b>LIVE</b><i></i></div><div class="camera offline"><span>CAM-19 • Warehouse</span><b>OFFLINE</b></div></div></article></section>
+    <section class="view" id="assets">
+      <article class="card tall">
+        <div class="card-head"><div><small>LIVE INVENTORY</small><h2>Инвентаризация локального хоста</h2></div><b class="ok" id="assetInventoryStatus">Ожидание</b></div>
+        <p class="muted">Inventory строится из реального snapshot AEGIS Agent.</p>
+        <div class="asset-grid">
+          <div><b id="assetMachine">—</b><span>Компьютер</span></div>
+          <div><b id="assetCpu">—</b><span>Логические CPU</span></div>
+          <div><b id="assetGpu">—</b><span>GPU</span></div>
+          <div><b id="assetDisk">—</b><span>Диски</span></div>
+          <div><b id="assetNetwork">—</b><span>Сетевые интерфейсы</span></div>
+          <div><b id="assetSensors">—</b><span>Hardware readings</span></div>
+        </div>
+        <div class="inventory-details" id="inventoryDetails"><p class="muted">Запусти Agent для получения inventory.</p></div>
+      </article>
+    </section>
+
+    <section class="view" id="access">
+      <article class="card tall connector-card">
+        <small>СКУД / CONNECTOR</small><h2>Контроль физического доступа</h2>
+        <div class="connector-state"><b>NOT CONFIGURED</b><span>Реальный контроллер доступа не подключён.</span></div>
+        <p class="muted">AEGIS не генерирует фиктивные проходы. Для production сюда подключается API/SDK конкретной СКУД, а её события идут в общий incident/audit pipeline.</p>
+      </article>
+    </section>
+
+    <section class="view" id="cameras">
+      <article class="card tall connector-card">
+        <small>VIDEO / CONNECTOR</small><h2>Видеонаблюдение</h2>
+        <div class="connector-state"><b>NOT CONFIGURED</b><span>RTSP/VMS connector не настроен.</span></div>
+        <p class="muted">Фейковые LIVE-камеры удалены. Реальная интеграция должна получать stream/status/events от VMS или камер.</p>
+      </article>
+    </section>
+
+    <section class="view" id="monitoring">
+      <div class="monitor-hero card">
+        <div><small>WINDOWS LOCAL AGENT</small><h2 id="machineName">Ожидание подключения…</h2><p class="muted" id="machineMeta">Запусти run-agent.bat на этом компьютере.</p></div>
+        <button class="primary" id="reconnectAgent">Переподключить</button>
+      </div>
+
+      <div class="telemetry-grid">
+        <article class="card telemetry-card"><span>CPU</span><strong id="cpuLoad">—</strong><div class="telemetry-bar"><i id="cpuBar"></i></div><small id="cpuTemp">Температура: —</small></article>
+        <article class="card telemetry-card"><span>RAM</span><strong id="ramLoad">—</strong><div class="telemetry-bar"><i id="ramBar"></i></div><small id="ramMeta">—</small></article>
+        <article class="card telemetry-card"><span>GPU</span><strong id="gpuLoad">—</strong><div class="telemetry-bar"><i id="gpuBar"></i></div><small id="gpuMeta">Температура: —</small></article>
+        <article class="card telemetry-card"><span>NETWORK</span><strong id="networkRate">—</strong><div class="network-pair"><small id="networkDown">↓ —</small><small id="networkUp">↑ —</small></div></article>
+      </div>
+
+      <article class="card automation-card">
+        <div class="automation-main"><div><small>AUTO RESPONSE</small><h2>Автоматические инциденты</h2><p class="muted">Порог должен удерживаться заданное время; одинаковые тревоги ограничиваются cooldown.</p></div><label class="auto-switch"><input id="autoAlertsEnabled" type="checkbox" checked><span></span></label></div>
+        <div class="automation-status"><b id="autoEngineState" class="auto-armed">ARMED</b><span id="autoQueueState">0 queued for AETHER</span></div>
+        <div class="automation-rules">
+          <label>CPU load <span><input id="ruleCpuLoad" type="number" min="50" max="100" value="95">%</span></label>
+          <label>CPU temp <span><input id="ruleCpuTemp" type="number" min="50" max="120" value="90">°C</span></label>
+          <label>GPU temp <span><input id="ruleGpuTemp" type="number" min="50" max="120" value="90">°C</span></label>
+          <label>RAM <span><input id="ruleRam" type="number" min="50" max="100" value="95">%</span></label>
+          <label>Process CPU <span><input id="ruleProcessCpu" type="number" min="30" max="100" value="80">%</span></label>
+          <label>Disk used <span><input id="ruleDisk" type="number" min="70" max="100" value="95">%</span></label>
+        </div>
+        <div class="automation-options">
+          <label><input id="autoAetherEnabled" type="checkbox" checked> Автоотправка в AETHER</label>
+          <label>Удержание <input id="ruleSustain" type="number" min="5" max="120" value="15"> сек</label>
+          <label>Cooldown <input id="ruleCooldown" type="number" min="1" max="120" value="10"> мин</label>
+        </div>
+      </article>
+
+      <div class="monitor-layout">
+        <article class="card">
+          <div class="card-head"><div><small>LIVE SNAPSHOT</small><h2>Процессы Windows</h2></div><span class="muted" id="processCount">0 процессов</span></div>
+          <div class="process-table"><div class="process-row process-head"><span>PID</span><span>Процесс</span><span>CPU</span><span>RAM</span><span>Threads</span></div><div id="processRows"></div></div>
+        </article>
+        <div class="sensor-column">
+          <article class="card"><div class="card-head"><div><small>HARDWARE</small><h2>Температуры</h2></div></div><div class="sensor-list" id="temperatureList"><p class="muted">Нет данных.</p></div></article>
+          <article class="card"><div class="card-head"><div><small>COOLING</small><h2>Вентиляторы</h2></div></div><div class="sensor-list" id="fanList"><p class="muted">Нет данных.</p></div></article>
+          <article class="card"><div class="card-head"><div><small>STORAGE</small><h2>Диски</h2></div></div><div class="sensor-list" id="diskList"><p class="muted">Нет данных.</p></div></article>
+        </div>
+      </div>
+    </section>
+
     <section class="view" id="reports">
       <article class="card report-card">
         <div class="card-head">
