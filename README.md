@@ -43,7 +43,7 @@ Telemetry is collected by one background TelemetrySamplerService. REST, reports 
 - automatic incidents from a backend rule engine;
 - persistent incidents;
 - close/delete workflows;
-- append-oriented JSONL audit;
+- append-oriented JSONL audit with configurable rotation/retention;
 - persistent alert settings;
 - JSON operational report;
 - incident CSV export;
@@ -265,6 +265,7 @@ POST   /api/audit
 
 GET    /api/reports/current.json
 GET    /api/reports/incidents.csv
+GET    /api/reports/bundle.zip
 
 POST   /api/aether/relay
 
