@@ -9,11 +9,97 @@ function toast(t){const e=q("#toast");e.textContent=t;e.classList.add("show");cl
 function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent()}
 qa(".nav").forEach(b=>b.onclick=()=>view(b.dataset.view));qa("[data-go]").forEach(b=>b.onclick=()=>view(b.dataset.go));
 function renderIncidents(){q("#incidentList").innerHTML=state.incidents.map(i=>`<div class="incident-item ${i.id===state.current?"active":""}" data-id="${i.id}"><div><span>${i.id}</span><span>${i.time}</span></div><h3>${i.title}</h3><p>${i.source} • ${i.severity} • ${i.status}</p></div>`).join("");qa(".incident-item").forEach(x=>x.onclick=()=>{state.current=x.dataset.id;renderIncidents()});const i=state.incidents.find(x=>x.id===state.current);q("#incidentDetail").innerHTML=`<h3 class="detail-title">${i.title}</h3><div class="detail-meta"><span>${i.id}</span><span>${i.source}</span><span>${i.severity}</span><span>${i.status}</span></div><p class="muted">${i.description}</p><div class="timeline">${i.events.map(e=>{const p=e.split(" — ");return `<div class="event"><b>${p[0]}</b><p>${p[1]}</p></div>`}).join("")}</div><button class="primary" id="shareIncident">Отправить в AETHER.chat</button>`;q("#shareIncident").onclick=()=>shareIncident(i)}
-function addMessage(text){const box=q("#messages"),d=document.createElement("div");d.className="message outgoing";d.innerHTML=`<div><b>Вы</b><span>${new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}</span></div><p></p>`;d.querySelector("p").textContent=text;box.appendChild(d);box.scrollTop=box.scrollHeight}
-async function shareIncident(i){await window.aether.shareIncident(i);addMessage(`${i.id} • ${i.title} • ${i.source}`);toast("Карточка отправлена через AETHER adapter")}
+function addMessage(text,type="outgoing",author="Вы",time=null){
+  const box=q("#messages"),d=document.createElement("div");
+  d.className="message "+type;
+  const stamp=time||new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
+  d.innerHTML='<div><b></b><span></span></div><p></p>';
+  d.querySelector("b").textContent=author;
+  d.querySelector("span").textContent=stamp;
+  d.querySelector("p").textContent=text;
+  box.appendChild(d);box.scrollTop=box.scrollHeight;
+}
+async function shareIncident(i){
+  try{
+    await window.aether.shareIncident(i);
+    addMessage(i.id+" • "+i.title+" • "+i.source);
+    toast("Инцидент отправлен в AETHER.chat");
+  }catch(error){toast(error.message||"AETHER: ошибка отправки")}
+}
 qa(".incident-jump").forEach(r=>r.onclick=()=>{state.current=r.dataset.id;view("incidents")});qa("[data-open]").forEach(b=>b.onclick=()=>{state.current=b.dataset.open;view("incidents")});
-q("#chatForm").onsubmit=async e=>{e.preventDefault();const input=q("#chatInput"),text=input.value.trim();if(!text)return;await window.aether.sendMessage({text});addMessage(text);input.value="";toast("Сообщение отправлено через AETHER adapter")};
+q("#chatForm").onsubmit=async e=>{
+  e.preventDefault();const input=q("#chatInput"),text=input.value.trim();if(!text)return;
+  try{
+    await window.aether.sendMessage({text});
+    addMessage(text);input.value="";
+  }catch(error){toast(error.message||"AETHER: ошибка отправки")}
+};
 qa("[data-text]").forEach(b=>b.onclick=()=>{q("#chatInput").value=b.dataset.text;q("#chatInput").focus()});
+
+const aetherConfig=q("#aetherConfig"),aetherTotpField=q("#aetherTotpField");
+const rememberedAether=JSON.parse(localStorage.getItem("aegis_aether_ui")||"{}");
+q("#aetherServer").value=rememberedAether.server||"";
+q("#aetherUser").value=rememberedAether.user||"";
+q("#aetherPeer").value=rememberedAether.peer||"";
+
+q("#aetherSetupToggle").onclick=()=>aetherConfig.classList.toggle("open");
+q("#aetherDisconnect").onclick=async()=>{
+  await window.aether.disconnect();
+  q("#aetherPassword").value="";q("#aetherTotp").value="";
+  aetherConfig.classList.add("open");toast("AETHER отключён");
+};
+
+aetherConfig.onsubmit=async e=>{
+  e.preventDefault();
+  const server=q("#aetherServer").value.trim();
+  const user=q("#aetherUser").value.trim();
+  const peer=q("#aetherPeer").value.trim();
+  const password=q("#aetherPassword").value;
+  const totp=q("#aetherTotp").value.trim();
+  q("#aetherConnect").disabled=true;
+  q("#aetherLoginStatus").textContent="Подключение и инициализация Double Ratchet…";
+  try{
+    const result=await window.aether.connect({serverUrl:server,userId:user,password,totpCode:totp,peerId:peer});
+    localStorage.setItem("aegis_aether_ui",JSON.stringify({server,user,peer}));
+    q("#aetherLoginStatus").textContent="Подключено как @"+result.userId+" • device "+result.deviceId;
+    q("#aetherPassword").value="";q("#aetherTotp").value="";
+    aetherTotpField.classList.remove("show");
+    aetherConfig.classList.remove("open");
+    const box=q("#messages");box.innerHTML="";
+    addMessage("Защищённый SOC-канал подключён.","incoming","AEGIS");
+  }catch(error){
+    if(error.code==="TOTP_REQUIRED"||error.code==="TOTP_INVALID"){
+      aetherTotpField.classList.add("show");q("#aetherTotp").focus();
+    }
+    q("#aetherLoginStatus").textContent=error.message||"Ошибка AETHER";
+    toast(error.message||"Ошибка подключения AETHER");
+  }finally{q("#aetherConnect").disabled=false}
+};
+
+window.addEventListener("aether-state",event=>{
+  const d=event.detail||{},online=!!d.connected;
+  q("#aetherRelayState").classList.toggle("relay-offline",!online);
+  q("#aetherRelayState").classList.toggle("relay-online",online);
+  q("#aetherRelayState").innerHTML="<i></i> "+(online?"Relay connected":"Relay offline");
+  q("#aetherSecureTitle").textContent=online?"Double Ratchet активен":"AETHER не подключён";
+  q("#aetherSecureText").textContent=online
+    ?("SOC device "+d.deviceId+" • relay видит только ciphertext")
+    :"Войди в аккаунт и выбери peer. Plaintext не передаётся relay.";
+  q("#aetherUserLabel").textContent=online?("@"+d.userId):"offline";
+  q("#aetherPeerLabel").childNodes[0].nodeValue=online&&d.peerId?("@"+d.peerId+" "):"SOC secure channel ";
+  q("#aetherE2eBadge").textContent=online?"E2E ✓":"E2E";
+});
+
+window.addEventListener("aether-message",event=>{
+  const d=event.detail||{};
+  let time=null;
+  if(d.createdAt){const date=new Date(d.createdAt);if(!Number.isNaN(date.getTime()))time=date.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});}
+  addMessage(d.text||"","incoming","@"+(d.senderId||"unknown"),time);
+});
+window.addEventListener("aether-error",event=>{
+  const message=event.detail?.message;if(message)toast("AETHER: "+message);
+});
+
 q("#newIncident").onclick=()=>toast("Создание инцидента — demo UI");q("#report").onclick=()=>toast("Отчёт SOC сформирован");q("#notify").onclick=()=>toast("3 уведомления высокого приоритета");
 const access=[["02:12","Серверная A-02","Разрешён • Иван П."],["01:58","Door B-17","Отказ • Карта #1842"],["01:35","Главный вход","Разрешён • Анна К."],["00:49","Архив C-04","Разрешён • Сервисная карта"]];
 q("#accessLog").innerHTML=access.map(x=>`<div class="access-entry"><b>${x[0]}</b><span>${x[1]}</span><em>${x[2]}</em></div>`).join("");
