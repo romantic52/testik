@@ -77,6 +77,42 @@ public sealed class IncidentStoreServiceTests : IDisposable
             x.Type == "incident.deleted" && x.Subject == "INC-TEST-3");
     }
 
+    [Fact]
+    public async Task Upsert_rejects_invalid_incident_id()
+    {
+        var store = CreateStore();
+
+        var incident = new IncidentRecord(
+            "bad id with spaces",
+            "Invalid",
+            "unit-test",
+            "Средний",
+            "Новый",
+            "",
+            Array.Empty<string>(),
+            false,
+            false,
+            null,
+            DateTimeOffset.UtcNow);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => store.UpsertAsync(incident));
+    }
+
+    [Fact]
+    public async Task Corrupt_incident_file_is_preserved_instead_of_overwritten()
+    {
+        Directory.CreateDirectory(_directory);
+        var original = Path.Combine(_directory, "incidents.json");
+        await File.WriteAllTextAsync(original, "{ this is not json");
+
+        var store = CreateStore();
+        var incidents = await store.ListAsync();
+
+        Assert.Empty(incidents);
+        Assert.False(File.Exists(original));
+        Assert.Single(Directory.GetFiles(_directory, "incidents.corrupt-*.json"));
+    }
+
     private IncidentStoreService CreateStore() =>
         new(Options.Create(new AgentOptions { DataDirectory = _directory }));
 
