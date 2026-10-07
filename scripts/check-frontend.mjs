@@ -1,6 +1,17 @@
 import fs from "node:fs";
+import path from "node:path";
 
 const html = fs.readFileSync("index.html", "utf8");
+const runtimeFiles = [
+  "aether.js",
+  "frontend/core.js",
+  "frontend/incidents.js",
+  "frontend/aether-ui.js",
+  "frontend/automation.js",
+  "frontend/monitoring.js",
+  "frontend/crash-demo.js",
+  "app.js"
+];
 
 function fail(message) {
   console.error("[frontend-check] " + message);
@@ -8,7 +19,9 @@ function fail(message) {
 }
 
 const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
+const idSet = new Set(ids);
 const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
+
 if (duplicates.length) {
   fail("duplicate ids: " + [...new Set(duplicates)].join(", "));
 }
@@ -21,7 +34,9 @@ for (const [open, close, label] of [
 ]) {
   const opens = (html.match(open) || []).length;
   const closes = (html.match(close) || []).length;
-  if (opens !== closes) fail(label + " tags are unbalanced: " + opens + " / " + closes);
+  if (opens !== closes) {
+    fail(label + " tags are unbalanced: " + opens + " / " + closes);
+  }
 }
 
 const requiredIds = [
@@ -43,7 +58,7 @@ const requiredIds = [
 ];
 
 for (const id of requiredIds) {
-  if (!ids.includes(id)) fail("required element #" + id + " is missing");
+  if (!idSet.has(id)) fail("required element #" + id + " is missing");
 }
 
 for (const match of html.matchAll(/<(?:script|link)[^>]+(?:src|href)="([^"]+)"/g)) {
@@ -53,10 +68,64 @@ for (const match of html.matchAll(/<(?:script|link)[^>]+(?:src|href)="([^"]+)"/g
   }
 }
 
-if (!html.includes('vendor/nacl.min.js') || !html.includes('aether.js') || !html.includes('app.js')) {
-  fail("required frontend scripts are missing");
+const scriptSources = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)]
+  .map(match => match[1]);
+
+let previousIndex = -1;
+for (const file of runtimeFiles) {
+  if (!fs.existsSync(file)) {
+    fail("runtime file is missing: " + file);
+    continue;
+  }
+
+  const index = scriptSources.indexOf(file);
+  if (index < 0) {
+    fail("runtime file is not loaded by index.html: " + file);
+  } else if (index <= previousIndex) {
+    fail("runtime script order is invalid around: " + file);
+  } else {
+    previousIndex = index;
+  }
+}
+
+const runtimeSource = runtimeFiles
+  .filter(file => fs.existsSync(file))
+  .map(file => fs.readFileSync(file, "utf8"))
+  .join("\n");
+
+const referencedIds = new Set();
+for (const pattern of [
+  /\bq\("#([^"]+)"\)/g,
+  /\bq\('#([^']+)'\)/g,
+  /document\.getElementById\("([^"]+)"\)/g,
+  /document\.getElementById\('([^']+)'\)/g
+]) {
+  for (const match of runtimeSource.matchAll(pattern)) {
+    referencedIds.add(match[1]);
+  }
+}
+
+for (const id of referencedIds) {
+  if (!idSet.has(id)) {
+    fail("runtime references missing element #" + id);
+  }
+}
+
+if (!runtimeSource.includes("/api/v1/")) {
+  fail("operator runtime is not using versioned /api/v1 endpoints");
+}
+
+if (runtimeSource.includes("shutdown /") || runtimeSource.includes("Stop-Computer")) {
+  fail("destructive shutdown command found in frontend runtime");
 }
 
 if (!process.exitCode) {
-  console.log("[frontend-check] structure OK, unique ids=" + ids.length);
+  console.log(
+    "[frontend-check] structure OK, unique ids=" +
+      ids.length +
+      ", runtime files=" +
+      runtimeFiles.length +
+      ", checked refs=" +
+      referencedIds.size
+  );
 }
