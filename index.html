@@ -16,6 +16,7 @@
       <div class="nav-section-label">РАБОЧЕЕ МЕСТО</div>
       <button class="nav active" data-view="overview"><span class="nav-symbol">▦</span>Обзор</button>
       <button class="nav" data-view="monitoring"><span class="nav-symbol">◫</span>Мониторинг</button>
+      <button class="nav" data-view="lab"><span class="nav-symbol">◉</span>Лаборатория</button>
       <button class="nav" data-view="incidents"><span class="nav-symbol">⚑</span>Инциденты <i id="incidentBadge">0</i></button>
       <button class="nav" data-view="assets"><span class="nav-symbol">▤</span>Оборудование</button>
       <div class="nav-section-label">АНАЛИТИКА</div>
@@ -278,6 +279,55 @@
 
 
 
+    <section class="view" id="lab">
+      <article class="card lab-intro-card">
+        <div><small>AEGIS / TEST BENCH</small><h2>Рулетка испытаний</h2><p class="muted">Крути колесо, чтобы случайно выбрать ресурс Windows. CPU и RAM можно проверить коротким, ограниченным тестом. Для остальных ресурсов доступны реальные показатели мониторинга.</p></div>
+        <span class="lab-mini-badge" id="labStatus">ГОТОВО</span>
+      </article>
+      <div class="lab-layout">
+        <article class="card lab-wheel-panel">
+          <div class="lab-wheel-wrap">
+            <div class="lab-pointer" aria-hidden="true"></div>
+            <div class="lab-wheel" id="labWheel" aria-label="Рулетка CPU, RAM, GPU, диск, сеть">
+              <span class="lab-wheel-label" style="--sector:0">CPU</span>
+              <span class="lab-wheel-label" style="--sector:1">RAM</span>
+              <span class="lab-wheel-label" style="--sector:2">GPU</span>
+              <span class="lab-wheel-label" style="--sector:3">DISK</span>
+              <span class="lab-wheel-label" style="--sector:4">NET</span>
+              <span class="lab-wheel-center">Æ</span>
+            </div>
+          </div>
+          <button class="primary lab-wheel-spin" type="button" id="labWheelButton">↻ Крутить рулетку</button>
+          <p class="muted lab-wheel-note">Каждый сектор выбирается случайно. Настоящий BSOD рулеткой никогда не запускается.</p>
+        </article>
+        <article class="card lab-control-panel">
+          <div class="lab-chosen-header"><span class="lab-choice-icon" id="labSelectedIcon">?</span><div><small>ВЫБРАННОЕ ИСПЫТАНИЕ</small><h2 id="labSelectedTitle">Раскрути колесо</h2></div></div>
+          <p class="muted" id="labSelectedDescription">После остановки колеса появится выбранная категория и доступные действия.</p>
+          <div id="labActions" hidden>
+            <div class="lab-tuning" id="labTuning" hidden>
+              <label for="labMemory">Объём тестовой RAM: <b id="labMemoryAmount">16 МиБ</b></label>
+              <input id="labMemory" type="range" min="8" max="64" value="16" step="8">
+              <p class="muted">CPU: ограниченная вычислительная нагрузка на один поток. RAM: максимум 64 МиБ. Тест длится не более 12 секунд.</p>
+            </div>
+            <label class="lab-consent" id="labConsentLabel"><input type="checkbox" id="labConsent"> Разрешаю короткую нагрузочную проверку в этой сессии.</label>
+            <div class="lab-action-buttons"><button type="button" class="primary" id="labStart">▶ Запустить тест (10 сек)</button><button type="button" id="labStop" disabled>■ Стоп</button><b id="labTimer">00:00</b></div>
+          </div>
+          <p id="labOutcome" role="status" aria-live="polite">Сначала нажми «Крутить рулетку».</p>
+          <div class="lab-readings">
+            <div><i id="labIndicator-cpu"></i><span>CPU</span><strong id="labActual-cpu">—</strong></div>
+            <div><i id="labIndicator-ram"></i><span>RAM</span><strong id="labActual-ram">—</strong></div>
+            <div><i id="labIndicator-gpu"></i><span>GPU</span><strong id="labActual-gpu">—</strong></div>
+            <div><i id="labIndicator-disk"></i><span>DISK</span><strong id="labActual-disk">—</strong></div>
+            <div><i id="labIndicator-network"></i><span>NET RX</span><strong id="labActual-network">—</strong></div>
+          </div>
+        </article>
+      </div>
+      <article class="card lab-bsod-info">
+        <div><small>VM-ONLY / ADVANCED</small><h2>Настоящий синий экран смерти</h2>
+          <p class="muted">Для отдельного ручного испытания в виртуальной Windows Microsoft предоставляет NotMyFault. Рулетка не вызывает сбой ядра, не выключает компьютер и не выполняет опасных операций.</p></div>
+        <a href="https://learn.microsoft.com/sysinternals/downloads/notmyfault" target="_blank" rel="noopener noreferrer">Microsoft NotMyFault ↗</a>
+      </article>
+    </section>
   </main>
 
   <aside class="chat aether-embedded" id="aetherPanel" aria-label="Встроенный AETHER чат">
@@ -375,6 +425,7 @@
 <script src="frontend/automation.js"></script>
 <script src="frontend/monitoring.js"></script>
 <script src="frontend/crash-demo.js"></script>
+<script src="frontend/lab.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
