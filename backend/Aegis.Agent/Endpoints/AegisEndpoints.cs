@@ -257,6 +257,7 @@ public static class AegisEndpoints
         MapAlertSettingsEndpoints(api);
         MapReportEndpoints(api);
         MapAetherEndpoints(api);
+        MapOperatorShutdownEndpoints(api);
     }
 
     private static void MapIncidentEndpoints(RouteGroupBuilder api)
@@ -428,6 +429,53 @@ public static class AegisEndpoints
                     new { detail = "AETHER relay request timed out" },
                     statusCode: StatusCodes.Status504GatewayTimeout);
             }
+        });
+    }
+
+    private static void MapOperatorShutdownEndpoints(RouteGroupBuilder api)
+    {
+        // High-impact OS action: never triggered by the simulated BSOD route.
+        // The browser must explicitly select real shutdown, type the phrase,
+        // and send the custom intent header (simple cross-site form posts fail).
+        api.MapPost("/system/shutdown", (
+            OperatorShutdownRequest request,
+            HttpContext context,
+            OperatorShutdownService shutdown) =>
+        {
+            if (!OperatorShutdownService.IsAuthorized(
+                    request.Confirmation,
+                    context.Request.Headers[OperatorShutdownService.IntentHeader].ToString()))
+            {
+                return Results.BadRequest(new
+                {
+                    detail = "Для выключения Windows нужно ввести ВЫКЛЮЧИТЬ и подтвердить действие."
+                });
+            }
+
+            var result = shutdown.Schedule();
+            return result.Success
+                ? Results.Ok(result)
+                : Results.Json(new { detail = result.Message },
+                    statusCode: StatusCodes.Status409Conflict);
+        });
+
+        api.MapPost("/system/shutdown/cancel", (
+            HttpContext context,
+            OperatorShutdownService shutdown) =>
+        {
+            if (!string.Equals(
+                    context.Request.Headers[OperatorShutdownService.IntentHeader].ToString(),
+                    OperatorShutdownService.IntentValue,
+                    StringComparison.Ordinal))
+            {
+                return Results.BadRequest(new { detail = "Не подтверждён локальный оператор." });
+            }
+
+            var result = shutdown.Cancel();
+            return result.Success
+                ? Results.Ok(result)
+                : Results.Json(new { detail = result.Message },
+                    statusCode: StatusCodes.Status409Conflict);
         });
     }
 
