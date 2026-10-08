@@ -219,7 +219,7 @@ If startup fails, the launcher prints an error; to inspect backend details run `
 
 ## BSOD and Windows shutdown
 
-`CRASH SYSTEM` offers a harmless BSOD simulation by default. A second mode can schedule Windows shutdown only after manual typed consent; it provides a 45-second cancellation period and does not use forced-close mode. Avoid triggering the real mode during production work, remote sessions or while files are unsaved.
+`CRASH SYSTEM` offers a harmless BSOD simulation by default. A second mode can schedule Windows shutdown only after manual typed consent; it provides a cancellable 45-second AEGIS countdown, then a zero-timeout Windows shutdown request that does not imply force-close. Avoid triggering the real mode during production work, remote sessions or while files are unsaved.
 
 ## CI/release verification
 
@@ -236,3 +236,5 @@ Main CI validates:
 10. Windows Service smoke.
 
 The release workflow repeats verification before artifact upload.
+
+**Power safety note:** Positive Windows `shutdown.exe /t` values implicitly force-close apps. AEGIS therefore keeps the 45-second delay in its own agent, then calls the Windows shutdown utility with `/t 0` (no implicit force-close). If the agent exits during the countdown, the shutdown is not requested. Open apps can still block shutdown, and the operator may need to close them manually. Real power actions are not available when the agent runs as a non-interactive Windows Service.
