@@ -306,6 +306,13 @@
       this.token = "";
       this.password = "";
       this.boxSecretB64 = "";
+      this.accountPickle = "";
+      this.identityB64 = "";
+      this.sessions = Object.create(null);
+      this.identityPins = Object.create(null);
+      this.edPins = Object.create(null);
+      this.masterPins = Object.create(null);
+      this.peerDevices = Object.create(null);
 
       if (wasConnected) this.emit("aether-state", { connected: false });
     }
@@ -584,6 +591,12 @@
         if (!firstMessageId) firstMessageId = response.message_id;
       }
 
+      this.emit("aether-sent", {
+        id: firstMessageId,
+        peerId: peer,
+        text: String(text),
+        createdAt: new Date().toISOString()
+      });
       this.peerId = peer;
       this.emit("aether-state", {
         connected: true,
