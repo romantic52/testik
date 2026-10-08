@@ -28,7 +28,7 @@
     $("#labWheelButton").disabled = wheelBusy || value;
     $("#labStatus").textContent = value ? "ТЕСТ ИДЁТ" : "ГОТОВО";
     $("#labStatus").classList.toggle("is-running", value);
-    $("#labTuning").hidden = !selected?.runnable;
+    $("#labTuning").hidden = selected?.id !== "ram";
   };
 
   const stop = (reason = "Тест остановлен.") => {
