@@ -151,6 +151,33 @@
       return "aegis_aether_fallback::" + this.stateNamespace();
     }
 
+    chatHistoryKey() {
+      return "aegis_aether_history::" + this.stateNamespace();
+    }
+    async loadChatHistory() {
+      if (!this.connected || !this.password) throw new Error("AETHER session is not active");
+      const encrypted = localStorage.getItem(this.chatHistoryKey());
+      const history = encrypted ? await decryptLocalState(encrypted, this.password) : null;
+      return history && typeof history === "object" && history.version === 1
+        ? history : { version: 1, conversations: {} };
+    }
+    async saveChatHistory(conversations) {
+      if (!this.connected || !this.password) throw new Error("AETHER session is not active");
+      const bounded = Object.fromEntries(
+        Object.entries(conversations || {}).slice(0, 40).map(([peer, items]) => [
+          peer,
+          Array.isArray(items) ? items.slice(-150).map(item => ({
+            id: String(item.id || ""),
+            text: String(item.text || "").slice(0, 8000),
+            direction: item.direction === "incoming" ? "incoming" : "outgoing",
+            createdAt: String(item.createdAt || "")
+          })) : []
+        ])
+      );
+      const encrypted = await encryptLocalState({ version: 1, conversations: bounded }, this.password);
+      localStorage.setItem(this.chatHistoryKey(), encrypted);
+    }
+
     pinKey(peerId, deviceId) {
       return deviceId === "primary" ? peerId : peerId + "::" + deviceId;
     }
@@ -292,6 +319,10 @@
       const encrypted = localStorage.getItem(this.stateKey());
       const local = encrypted ? await decryptLocalState(encrypted, this.password) : null;
 
+      this.sessions = Object.create(null);
+      this.identityPins = Object.create(null);
+      this.edPins = Object.create(null);
+      this.masterPins = Object.create(null);
       this.accountPickle = local?.account_pickle || api.account_new();
       this.identityB64 = api.account_identity(this.accountPickle);
 
