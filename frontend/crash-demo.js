@@ -111,6 +111,10 @@ async function requestRealShutdown(event) {
     q("#powerFeedback").textContent = "Введи ВЫКЛЮЧИТЬ и подтверди предупреждение.";
     return;
   }
+  // Fullscreen requires the original user gesture. Request it before network I/O.
+  const fullscreenRequested = (!document.fullscreenElement && document.documentElement.requestFullscreen)
+    ? document.documentElement.requestFullscreen().catch(() => {})
+    : Promise.resolve();
   const submit = q("#scheduleShutdownButton");
   submit.disabled = true;
   q("#powerFeedback").textContent = "Проверяю подтверждение Windows…";
@@ -128,6 +132,10 @@ async function requestRealShutdown(event) {
     showShutdownCountdown(Number(payload.delaySeconds) || 45);
   } catch (error) {
     q("#powerFeedback").textContent = error.message || "Не удалось запросить выключение.";
+    await fullscreenRequested;
+    if (document.fullscreenElement && !scheduledShutdown) {
+      try { await document.exitFullscreen(); } catch {}
+    }
   } finally {
     submit.disabled = false;
   }
