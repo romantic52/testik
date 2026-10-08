@@ -258,6 +258,7 @@ public static class AegisEndpoints
         MapReportEndpoints(api);
         MapAetherEndpoints(api);
         MapOperatorShutdownEndpoints(api);
+        MapResourceLabEndpoints(api);
     }
 
     private static void MapIncidentEndpoints(RouteGroupBuilder api)
@@ -522,6 +523,55 @@ public static class AegisEndpoints
 
             return Results.Ok(result);
         });
+    }
+
+    private static void MapResourceLabEndpoints(RouteGroupBuilder api)
+    {
+        // Limited I/O diagnostics. Does not accept arbitrary paths, targets or
+        // commands. The local browser explicitly opts in before each request.
+        api.MapPost("/lab/disk", async (
+            DiskLabRequest request,
+            LabDiagnosticsService lab,
+            HttpContext context,
+            CancellationToken cancellationToken) =>
+        {
+            if (!Environment.UserInteractive)
+                return Results.Json(new { detail = "Лаборатория доступна только в интерактивной сессии." },
+                    statusCode: StatusCodes.Status403Forbidden);
+
+            if (!string.Equals(context.Request.Headers["X-AEGIS-Lab-Intent"].ToString(),
+                "bounded-resource-check", StringComparison.Ordinal))
+                return Results.BadRequest(new { detail = "Требуется подтверждение локального теста." });
+
+            if (!LabDiagnosticsService.ValidSize(request.SizeMiB))
+                return Results.BadRequest(new { detail = "Максимальный тестовый файл: 32 МиБ." });
+
+            try
+            {
+                return Results.Ok(await lab.CheckDiskAsync(request.SizeMiB, cancellationToken));
+            }
+            catch (InvalidOperationException error)
+            {
+                return Results.Json(new { detail = error.Message },
+                    statusCode: StatusCodes.Status409Conflict);
+            }
+        });
+
+        api.MapGet("/lab/loopback-sample", (HttpContext context) =>
+        {
+            context.Response.Headers.CacheControl = "no-store, no-cache";
+            // Same-origin, loopback only. This does not generate external network traffic.
+            return Results.Bytes(LoopbackSample, contentType: "application/octet-stream");
+        });
+    }
+
+    private static readonly byte[] LoopbackSample = BuildLoopbackSample();
+
+    private static byte[] BuildLoopbackSample()
+    {
+        var result = new byte[64 * 1024];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(result);
+        return result;
     }
 
     private static void MapTelemetryWebSocket(this WebApplication app)
