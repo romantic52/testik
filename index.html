@@ -64,8 +64,8 @@
       <div class="grid2">
         <article class="card">
           <div class="card-head">
-            <div><small>ПОСЛЕДНИЕ 15 МИНУТ</small><h2>История нагрузки</h2></div>
-            <div class="legend"><span><i class="blue"></i>CPU</span><span><i class="ram-dot"></i>RAM</span><span><i class="gpu-dot"></i>GPU</span></div>
+            <div><small>ИСТОРИЯ ТЕЛЕМЕТРИИ · SQLITE</small><h2>История нагрузки</h2></div>
+            <div class="history-controls"><label for="historyRange">Период</label><select id="historyRange" aria-label="Период истории"><option value="900">15 мин</option><option value="3600">1 час</option><option value="21600">6 часов</option><option value="86400">24 часа</option></select><div class="legend"><span><i class="blue"></i>CPU</span><span><i class="ram-dot"></i>RAM</span><span><i class="gpu-dot"></i>GPU</span></div></div>
           </div>
           <svg class="chart" viewBox="0 0 760 230" aria-label="История нагрузки CPU RAM GPU">
             <defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5f8fff" stop-opacity=".25"/><stop offset="1" stop-color="#5f8fff" stop-opacity="0"/></linearGradient></defs>
@@ -74,7 +74,7 @@
             <path class="line" id="cpuHistoryLine" d=""/>
             <path class="history-line ram-history" id="ramHistoryLine" d=""/>
             <path class="history-line gpu-history" id="gpuHistoryLine" d=""/>
-            <g class="labels"><text x="20" y="226">−15m</text><text x="250" y="226">−10m</text><text x="480" y="226">−5m</text><text x="700" y="226">Сейчас</text></g>
+            <g class="labels"><text id="historyLabel0" x="20" y="226">−15м</text><text id="historyLabel1" x="250" y="226">−10м</text><text id="historyLabel2" x="480" y="226">−5м</text><text id="historyLabel3" x="700" y="226">Сейчас</text></g>
           </svg>
         </article>
         <article class="card">
