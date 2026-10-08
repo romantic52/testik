@@ -92,6 +92,44 @@ public sealed class StateMaintenanceServiceTests : IDisposable
         Assert.Equal(25, result.RemovedByCount);
     }
 
+
+    [Fact]
+    public async Task Maintenance_prunes_telemetry_by_retention()
+    {
+        var options = Options.Create(new AgentOptions
+        {
+            DataDirectory = _directory,
+            AuditRetentionDays = 3650,
+            AuditMaxRows = 1000,
+            TelemetryRetentionHours = 1,
+            TelemetryMaxRows = 1000
+        });
+
+        var database = new StateDatabase(options);
+        var store = new TelemetryHistoryStoreService(database);
+
+        await store.AppendAsync(new Aegis.Agent.Models.TelemetryHistoryPoint(
+            DateTimeOffset.UtcNow.AddHours(-3),
+            10, 50, 20, 30, 60, 100, 50));
+
+        await store.AppendAsync(new Aegis.Agent.Models.TelemetryHistoryPoint(
+            DateTimeOffset.UtcNow.AddMinutes(-10),
+            40, 60, 50, 70, 65, 200, 100));
+
+        var maintenance = new StateMaintenanceService(
+            database,
+            options,
+            NullLogger<StateMaintenanceService>.Instance);
+
+        var result = await maintenance.RunOnceAsync();
+
+        Assert.Equal(1, result.TelemetryRemovedByAge);
+        Assert.Equal(1, result.RemainingTelemetryRows);
+        Assert.Single(await store.ReadAsync(
+            DateTimeOffset.UtcNow.AddHours(-1),
+            DateTimeOffset.UtcNow.AddMinutes(1)));
+    }
+
     public void Dispose()
     {
         try
