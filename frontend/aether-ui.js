@@ -228,7 +228,7 @@ async function restoreAetherMiniHistory(session) {
       aetherMini.restoring = false;
       const pending = aetherMini.pending.splice(0);
       for (const event of pending) recordAetherMessage(event);
-      const suggested = rememberedAether.peer || q("#aetherPeer").value.trim();
+      const suggested = q("#aetherPeer").value.trim() || rememberedAether.peer;
       const firstPeer = aetherMini.peer || suggested || aetherMini.conversations.keys().next().value;
       if (firstPeer) {
         try { selectAetherConversation(firstPeer); }
@@ -256,6 +256,17 @@ function clearAetherMiniSession() {
   updateAetherComposer();
 }
 
+q("#aetherCollapseToggle").addEventListener("click", () => {
+  const collapsed = aetherPanel.classList.toggle("is-collapsed");
+  q("#aetherCollapseToggle").textContent = collapsed ? "+" : "−";
+  q("#aetherCollapseToggle").setAttribute("aria-expanded", String(!collapsed));
+  q("#aetherCollapseToggle").setAttribute("aria-label", collapsed ? "Развернуть чат" : "Свернуть чат");
+});
+if (window.matchMedia("(max-width: 900px)").matches) {
+  aetherPanel.classList.add("is-collapsed");
+  q("#aetherCollapseToggle").textContent = "+";
+  q("#aetherCollapseToggle").setAttribute("aria-expanded", "false");
+}
 q("#aetherSetupToggle").addEventListener("click", () => {
   aetherConfig.classList.toggle("open");
   if (aetherConfig.classList.contains("open")) q("#aetherServer").focus();
