@@ -3,8 +3,8 @@ using System.Diagnostics;
 namespace Aegis.Agent.Services;
 
 /// <summary>
-/// An explicit, operator-initiated Windows shutdown. This is not a BSOD or crash.
-/// The OS gets a grace period to close applications; "/f" is deliberately not used.
+/// Explicit operator-initiated shutdown. Delay is maintained by the local agent,
+/// not by shutdown.exe /t (which implicitly forces applications to close for t > 0).
 /// </summary>
 public sealed class OperatorShutdownService
 {
@@ -16,11 +16,9 @@ public sealed class OperatorShutdownService
     private readonly object _sync = new();
     private readonly ILogger<OperatorShutdownService> _logger;
     private DateTimeOffset? _scheduledAt;
+    private CancellationTokenSource? _pending;
 
-    public OperatorShutdownService(ILogger<OperatorShutdownService> logger)
-    {
-        _logger = logger;
-    }
+    public OperatorShutdownService(ILogger<OperatorShutdownService> logger) => _logger = logger;
 
     public static bool IsAuthorized(string? confirmation, string? intent) =>
         string.Equals(confirmation?.Trim(), Confirmation, StringComparison.Ordinal)
@@ -33,20 +31,16 @@ public sealed class OperatorShutdownService
             if (!OperatingSystem.IsWindows())
                 return new(false, "Реальное выключение поддерживается только в Windows.", 0);
 
-            if (_scheduledAt.HasValue &&
-                DateTimeOffset.UtcNow < _scheduledAt.Value.AddSeconds(DelaySeconds))
+            if (_pending is not null)
                 return new(false, "Выключение уже запланировано.", 0);
 
-            var result = RunWindowsShutdown("/s", "/t", DelaySeconds.ToString(),
-                "/c", "AEGIS: подтверждённое выключение оператором");
-            if (!result)
-                return new(false, "Windows отказала в планировании выключения.", 0);
-
+            var cts = new CancellationTokenSource();
+            _pending = cts;
             _scheduledAt = DateTimeOffset.UtcNow;
-            _logger.LogWarning(
-                "Operator confirmed Windows shutdown in {DelaySeconds} seconds",
-                DelaySeconds);
-            return new(true, "Windows выключится через 45 секунд.", DelaySeconds);
+            _ = RunDelayedShutdownAsync(cts);
+            _logger.LogWarning("Operator confirmed graceful shutdown in {DelaySeconds} seconds", DelaySeconds);
+
+            return new(true, "Выключение Windows будет запрошено через 45 секунд.", DelaySeconds);
         }
     }
 
@@ -54,15 +48,49 @@ public sealed class OperatorShutdownService
     {
         lock (_sync)
         {
-            if (!_scheduledAt.HasValue)
-                return new(false, "В AEGIS нет запланированного выключения.", 0);
+            if (_pending is null)
+                return new(false, "Нет ожидающего выключения или запрос уже передан Windows.", 0);
 
-            if (!RunWindowsShutdown("/a"))
-                return new(false, "Windows не смогла отменить выключение.", 0);
-
+            var pending = _pending;
+            _pending = null;
             _scheduledAt = null;
-            _logger.LogInformation("Operator cancelled the scheduled Windows shutdown");
-            return new(true, "Запланированное выключение отменено.", 0);
+            pending.Cancel();
+            _logger.LogInformation("Operator cancelled pending Windows shutdown");
+            return new(true, "Ожидающее выключение отменено.", 0);
+        }
+    }
+
+    private async Task RunDelayedShutdownAsync(CancellationTokenSource pending)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(DelaySeconds), pending.Token);
+            lock (_sync)
+            {
+                if (!ReferenceEquals(_pending, pending))
+                    return;
+                _pending = null;
+                _scheduledAt = null;
+            }
+
+            // Zero seconds avoids the implicit /f of positive shutdown.exe /t values.
+            // Open apps may prompt for unsaved changes and block the shutdown.
+            if (RunWindowsShutdown("/s", "/t", "0"))
+                _logger.LogWarning("Graceful Windows shutdown was requested");
+            else
+                _logger.LogError("Windows refused the graceful shutdown request");
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancelled explicitly in the UI.
+        }
+        catch (Exception error)
+        {
+            _logger.LogError(error, "Delayed Windows shutdown failed");
+        }
+        finally
+        {
+            pending.Dispose();
         }
     }
 
@@ -70,15 +98,15 @@ public sealed class OperatorShutdownService
     {
         try
         {
-            var start = new ProcessStartInfo("shutdown.exe")
+            var file = Path.Combine(Environment.SystemDirectory, "shutdown.exe");
+            var start = new ProcessStartInfo(file)
             {
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
             foreach (var arg in args) start.ArgumentList.Add(arg);
             using var process = Process.Start(start);
-            if (process is null) return false;
-            return process.WaitForExit(5000) && process.ExitCode == 0;
+            return process is not null && process.WaitForExit(5000) && process.ExitCode == 0;
         }
         catch (Exception)
         {
@@ -86,8 +114,5 @@ public sealed class OperatorShutdownService
         }
     }
 }
-
-public sealed record ShutdownCommandResult(
-    bool Success, string Message, int DelaySeconds);
-
+public sealed record ShutdownCommandResult(bool Success, string Message, int DelaySeconds);
 public sealed record OperatorShutdownRequest(string? Confirmation);
