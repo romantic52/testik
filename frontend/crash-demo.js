@@ -99,7 +99,14 @@ function showShutdownCountdown(delay) {
       "Реальное выключение Windows через " + remaining + " сек. Нажми «Отменить выключение», чтобы остановить.";
     if (remaining <= 0) {
       resetPowerTimer();
-      q("#bsodModeLabel").textContent = "Команда выключения передана Windows.";
+      setShutdownControls(false);
+      q("#bsodModeLabel").textContent = "Ожидание реакции Windows. Несохранённые документы могут задержать выключение.";
+      setTimeout(async () => {
+        if (!scheduledShutdown) return;
+        scheduledShutdown = false;
+        await exitPowerOverlay();
+        toast("Запрос передан Windows. Если приложение блокирует выключение, сохрани данные и закрой его.");
+      }, 8000);
     }
   }, 250);
 }
