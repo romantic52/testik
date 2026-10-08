@@ -304,15 +304,31 @@
           <div class="lab-chosen-header"><span class="lab-choice-icon" id="labSelectedIcon">?</span><div><small>ВЫБРАННОЕ ИСПЫТАНИЕ</small><h2 id="labSelectedTitle">Раскрути колесо</h2></div></div>
           <p class="muted" id="labSelectedDescription">После остановки колеса появится выбранная категория и доступные действия.</p>
           <div id="labActions" hidden>
-            <div class="lab-tuning" id="labTuning" hidden>
-              <label for="labMemory">Объём тестовой RAM: <b id="labMemoryAmount">16 МиБ</b></label>
-              <input id="labMemory" type="range" min="8" max="64" value="16" step="8">
-              <p class="muted">CPU: ограниченная вычислительная нагрузка на один поток. RAM: максимум 64 МиБ. Тест длится не более 12 секунд.</p>
+            <div class="lab-tuning" id="labTuning">
+              <div class="lab-setting-row" id="labDurationRow">
+                <label for="labDuration">Длительность теста</label>
+                <select id="labDuration"><option value="10">10 секунд</option><option value="20">20 секунд</option><option value="30">30 секунд</option></select>
+              </div>
+              <div class="lab-setting-row" id="labCpuRow" hidden>
+                <label for="labCpuIntensity">Интенсивность одного потока <b id="labCpuAmount">50%</b></label>
+                <input id="labCpuIntensity" type="range" min="20" max="80" value="50" step="10">
+              </div>
+              <div class="lab-setting-row" id="labRamRow" hidden>
+                <label for="labMemory">Объём выделяемой RAM <b id="labMemoryAmount">32 МиБ</b></label>
+                <input id="labMemory" type="range" min="16" max="128" value="32" step="16">
+              </div>
+              <div class="lab-setting-row" id="labDiskRow" hidden>
+                <label for="labDiskSize">Временный тестовый файл</label>
+                <select id="labDiskSize"><option value="8">8 МиБ</option><option value="16" selected>16 МиБ</option><option value="32">32 МиБ</option></select>
+              </div>
+              <p class="muted" id="labSafetyNotice">Нагрузка ограничена. Системные файлы и реальные сетевые адреса не затрагиваются.</p>
             </div>
-            <label class="lab-consent" id="labConsentLabel"><input type="checkbox" id="labConsent"> Разрешаю короткую нагрузочную проверку в этой сессии.</label>
-            <div class="lab-action-buttons"><button type="button" class="primary" id="labStart">▶ Запустить тест (10 сек)</button><button type="button" id="labStop" disabled>■ Стоп</button><b id="labTimer">00:00</b></div>
+            <label class="lab-consent" id="labConsentLabel"><input type="checkbox" id="labConsent"> Подтверждаю запуск ограниченного теста на моём компьютере.</label>
+            <div class="lab-action-buttons"><button type="button" class="primary" id="labStart">▶ Запустить выбранный тест</button><button type="button" id="labStop" disabled>■ Стоп</button><b id="labTimer">00:00</b></div>
           </div>
+          <canvas id="labGpuCanvas" width="512" height="320" hidden aria-label="Визуальный GPU-тест"></canvas>
           <p id="labOutcome" role="status" aria-live="polite">Сначала нажми «Крутить рулетку».</p>
+          <div class="lab-test-summary" id="labResultSummary" aria-live="polite" hidden></div>
           <div class="lab-readings">
             <div><i id="labIndicator-cpu"></i><span>CPU</span><strong id="labActual-cpu">—</strong></div>
             <div><i id="labIndicator-ram"></i><span>RAM</span><strong id="labActual-ram">—</strong></div>
@@ -322,6 +338,12 @@
           </div>
         </article>
       </div>
+      <article class="card lab-results-card">
+        <div class="lab-results-head"><div><small>ИСТОРИЯ ТЕСТОВ</small><h2>Результаты и замеры</h2></div>
+          <div><button type="button" id="labExport" class="secondary">↓ JSON</button><button type="button" id="labClear" class="secondary">Очистить</button></div>
+        </div>
+        <div id="labRunHistory" class="lab-run-history"><p class="muted">Проверок пока не было.</p></div>
+      </article>
       <article class="card lab-bsod-info">
         <div><small>VM-ONLY / ADVANCED</small><h2>Настоящий синий экран смерти</h2>
           <p class="muted">Для отдельного ручного испытания в виртуальной Windows Microsoft предоставляет NotMyFault. Рулетка не вызывает сбой ядра, не выключает компьютер и не выполняет опасных операций.</p></div>
