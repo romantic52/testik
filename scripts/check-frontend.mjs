@@ -10,6 +10,7 @@ const runtimeFiles = [
   "frontend/automation.js",
   "frontend/monitoring.js",
   "frontend/crash-demo.js",
+  "frontend/lab.js",
   "app.js"
 ];
 
@@ -54,7 +55,13 @@ const requiredIds = [
   "cpuHistoryLine",
   "incidentModal",
   "processModal",
-  "agentDiagnosticsGrid"
+  "agentDiagnosticsGrid",
+  "lab",
+  "labWheel",
+  "labWheelButton",
+  "labStart",
+  "labStop",
+  "labActual-cpu"
 ];
 
 for (const id of requiredIds) {
@@ -155,6 +162,15 @@ if (!adapter.includes("encryptLocalState") || !adapter.includes("saveChatHistory
 }
 if (!embeddedUi.includes("document.createElement") || !embeddedUi.includes(".textContent")) {
   fail("mini-chat must render decrypted text using safe DOM text nodes");
+}
+
+if (!fs.existsSync("frontend/lab-worker.js")) {
+  fail("resource lab Web Worker missing");
+}
+const labSource = fs.readFileSync("frontend/lab.js", "utf8");
+if (!labSource.includes("new Worker") || !labSource.includes("pagehide")
+  || !labSource.includes("labConsent")) {
+  fail("resource lab must have bounded worker, consent and cleanup");
 }
 
 if (!process.exitCode) {
