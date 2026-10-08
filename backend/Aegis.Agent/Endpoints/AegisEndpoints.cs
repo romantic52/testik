@@ -186,31 +186,26 @@ public static class AegisEndpoints
 
         api.MapGet("/history", async (
             int? seconds,
+            int? maxPoints,
             TelemetrySamplerService telemetry,
             TelemetryHistoryStoreService historyStore,
             IOptions<AgentOptions> options,
             CancellationToken cancellationToken) =>
         {
             var maxSeconds = options.Value.SafeTelemetryRetentionHours * 60 * 60;
-            var windowSeconds = Math.Clamp(seconds ?? options.Value.SafeHistoryMinutes * 60, 10, maxSeconds);
+            var windowSeconds = Math.Clamp(
+                seconds ?? options.Value.SafeHistoryMinutes * 60, 10, maxSeconds);
             var now = DateTimeOffset.UtcNow;
             var from = now.AddSeconds(-windowSeconds);
 
             var persisted = await historyStore.ReadAsync(
-                from,
-                now,
-                limit: Math.Min(options.Value.SafeTelemetryMaxRows, 100_000),
+                from, now,
+                Math.Min(options.Value.SafeTelemetryMaxRows, 100_000),
                 cancellationToken);
 
             var live = telemetry.GetHistory(TimeSpan.FromSeconds(windowSeconds));
-            var merged = persisted
-                .Concat(live)
-                .GroupBy(point => point.Timestamp.ToUnixTimeMilliseconds())
-                .Select(group => group.OrderByDescending(point => point.Timestamp).First())
-                .OrderBy(point => point.Timestamp)
-                .ToList();
-
-            return Results.Ok(merged);
+            return Results.Ok(TelemetryHistoryQuery.MergeAndDownsample(
+                persisted, live, from, now, maxPoints ?? 600));
         });
 
         api.MapGet("/connectors", (TelemetrySamplerService telemetry) =>
