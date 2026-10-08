@@ -441,7 +441,7 @@ public static class AegisEndpoints
             HttpContext context,
             OperatorShutdownService shutdown,
             IncidentStoreService incidents,
-            CancellationToken cancellationToken) =>
+            ILoggerFactory loggerFactory) =>
         {
             if (!Environment.UserInteractive)
                 return Results.Json(
@@ -461,14 +461,22 @@ public static class AegisEndpoints
                 return Results.Json(new { detail = result.Message },
                     statusCode: StatusCodes.Status409Conflict);
 
-            await incidents.AppendAuditAsync(
-                new AuditRecord(
-                    DateTimeOffset.UtcNow,
-                    "system.shutdown.scheduled",
-                    Environment.MachineName,
-                    "Operator scheduled Windows shutdown with a 45-second grace period.",
-                    "AEGIS local operator"),
-                cancellationToken);
+            try
+            {
+                await incidents.AppendAuditAsync(
+                    new AuditRecord(
+                        DateTimeOffset.UtcNow,
+                        "system.shutdown.scheduled",
+                        Environment.MachineName,
+                        "Operator scheduled Windows shutdown with a 45-second grace period.",
+                        "AEGIS local operator"),
+                    CancellationToken.None);
+            }
+            catch (Exception error)
+            {
+                loggerFactory.CreateLogger("AEGIS.PowerActions").LogError(
+                    error, "Windows shutdown was scheduled, but the audit write failed");
+            }
 
             return Results.Ok(result);
         });
@@ -477,7 +485,7 @@ public static class AegisEndpoints
             HttpContext context,
             OperatorShutdownService shutdown,
             IncidentStoreService incidents,
-            CancellationToken cancellationToken) =>
+            ILoggerFactory loggerFactory) =>
         {
             if (!Environment.UserInteractive)
                 return Results.Json(
@@ -495,14 +503,22 @@ public static class AegisEndpoints
                 return Results.Json(new { detail = result.Message },
                     statusCode: StatusCodes.Status409Conflict);
 
-            await incidents.AppendAuditAsync(
-                new AuditRecord(
-                    DateTimeOffset.UtcNow,
-                    "system.shutdown.cancelled",
-                    Environment.MachineName,
-                    "Operator cancelled the scheduled Windows shutdown.",
-                    "AEGIS local operator"),
-                cancellationToken);
+            try
+            {
+                await incidents.AppendAuditAsync(
+                    new AuditRecord(
+                        DateTimeOffset.UtcNow,
+                        "system.shutdown.cancelled",
+                        Environment.MachineName,
+                        "Operator cancelled the scheduled Windows shutdown.",
+                        "AEGIS local operator"),
+                    CancellationToken.None);
+            }
+            catch (Exception error)
+            {
+                loggerFactory.CreateLogger("AEGIS.PowerActions").LogError(
+                    error, "Windows shutdown was cancelled, but the audit write failed");
+            }
 
             return Results.Ok(result);
         });
