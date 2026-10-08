@@ -238,6 +238,8 @@ async function restoreAetherMiniHistory(session) {
         renderAetherMessages();
         updateAetherComposer();
       }
+      // Retry queued SOC alerts only after a destination peer has been restored.
+      if (aetherMini.peer && typeof flushAutoShares === "function") flushAutoShares();
     }
   }
 }
