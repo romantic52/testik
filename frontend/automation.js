@@ -108,7 +108,7 @@ async function flushAutoShares(){
       try{
         await window.aether.shareIncident(incident);
         incident.aetherSent=true;
-        addMessage("AUTO • "+incident.id+" • "+incident.title);
+        // Sent message is rendered by the embedded AETHER mini-chat.
         persistAutoIncidents();
         await saveIncidentApi(incident);
         await appendAudit("incident.aether_sent",incident.id,incident.title);
