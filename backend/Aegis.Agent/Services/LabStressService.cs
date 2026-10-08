@@ -115,10 +115,12 @@ public sealed class LabStressService : IDisposable
                 {
                     var mem = ReadMemory();
                     var held = _blocks.Sum(b => (long)b.Length);
-                    var baselineUsed = Math.Max(0, mem.TotalBytes - mem.AvailableBytes - held);
-                    var desiredTotalUsed = mem.TotalBytes * _memoryTarget / 100L;
-                    var desiredHeld = Math.Max(0, desiredTotalUsed - baselineUsed);
-                    var maxAdditional = Math.Max(0, mem.AvailableBytes - ReserveBytes(mem.TotalBytes));
+                    var total = (long)Math.Min(mem.TotalBytes, (ulong)long.MaxValue);
+                    var available = (long)Math.Min(mem.AvailableBytes, (ulong)long.MaxValue);
+                    var baselineUsed = Math.Max(0L, total - available - held);
+                    var desiredTotalUsed = (long)(total * (_memoryTarget / 100d));
+                    var desiredHeld = Math.Max(0L, desiredTotalUsed - baselineUsed);
+                    var maxAdditional = Math.Max(0L, available - ReserveBytes(mem.TotalBytes));
                     var safeHeld = Math.Min(desiredHeld, held + maxAdditional);
 
                     if (safeHeld + BlockBytes < held && _blocks.Count > 0)
