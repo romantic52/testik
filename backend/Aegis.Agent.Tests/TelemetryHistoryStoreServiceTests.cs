@@ -48,6 +48,24 @@ public sealed class TelemetryHistoryStoreServiceTests : IDisposable
         Assert.Equal(70, point.CpuLoadPercent);
     }
 
+    [Fact]
+    public async Task Limited_read_returns_newest_points_in_chronological_order()
+    {
+        var options = Options.Create(new AgentOptions { DataDirectory = _directory });
+        var store = new TelemetryHistoryStoreService(new StateDatabase(options));
+        var now = DateTimeOffset.UtcNow;
+
+        await store.AppendAsync(Point(now.AddMinutes(-3), 10, 10));
+        await store.AppendAsync(Point(now.AddMinutes(-2), 20, 20));
+        await store.AppendAsync(Point(now.AddMinutes(-1), 30, 30));
+
+        var points = await store.ReadAsync(now.AddHours(-1), now.AddMinutes(1), limit: 2);
+
+        Assert.Equal(2, points.Count);
+        Assert.Equal(20, points[0].CpuLoadPercent);
+        Assert.Equal(30, points[1].CpuLoadPercent);
+    }
+
     private static TelemetryHistoryPoint Point(
         DateTimeOffset timestamp,
         double cpu,
