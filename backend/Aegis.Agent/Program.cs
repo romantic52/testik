@@ -34,6 +34,7 @@ builder.Services.AddSingleton<StateDatabase>();
 builder.Services.AddSingleton<IncidentStoreService>();
 builder.Services.AddSingleton<AlertSettingsService>();
 builder.Services.AddSingleton<ReportService>();
+builder.Services.AddSingleton<TelemetryHistoryStoreService>();
 builder.Services.AddSingleton<TelemetrySamplerService>();
 builder.Services.AddHostedService(provider => provider.GetRequiredService<TelemetrySamplerService>());
 builder.Services.AddHostedService<AlertEngineService>();
