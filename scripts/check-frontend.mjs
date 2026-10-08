@@ -10,6 +10,7 @@ const runtimeFiles = [
   "frontend/automation.js",
   "frontend/monitoring.js",
   "frontend/crash-demo.js",
+  "frontend/lab-tests.js",
   "frontend/lab.js",
   "app.js"
 ];
@@ -168,9 +169,13 @@ if (!fs.existsSync("frontend/lab-worker.js")) {
   fail("resource lab Web Worker missing");
 }
 const labSource = fs.readFileSync("frontend/lab.js", "utf8");
-if (!labSource.includes("new Worker") || !labSource.includes("pagehide")
-  || !labSource.includes("labConsent")) {
-  fail("resource lab must have bounded worker, consent and cleanup");
+const labEngines = fs.readFileSync("frontend/lab-tests.js", "utf8");
+if (!labEngines.includes("new Worker") || !labEngines.includes("webgl2")
+  || !labEngines.includes("/api/v1/lab/disk")
+  || !labEngines.includes("/api/v1/lab/loopback-sample")
+  || !labSource.includes("pagehide") || !labSource.includes("labConsent")
+  || !labSource.includes("labStop")) {
+  fail("resource lab must cover bounded tests, consent and cleanup");
 }
 
 if (!process.exitCode) {
