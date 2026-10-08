@@ -306,11 +306,26 @@
 </div>
 
 <div class="crash-confirm" id="crashConfirm" aria-hidden="true">
-  <div class="confirm-box">
-    <small>DEMO SAFETY ACTION</small>
-    <h2>Имитировать критический сбой?</h2>
-    <p>Покажет фейковый BSOD на весь экран и затем чёрный экран. Компьютер реально не выключается.</p>
-    <div><button id="cancelCrash">Отмена</button><button class="danger-action" id="confirmCrash">Запустить</button></div>
+  <div class="confirm-box crash-dialog" role="dialog" aria-modal="true" aria-labelledby="crashTitle">
+    <small>AEGIS / SYSTEM ACTIONS</small>
+    <h2 id="crashTitle">Режим сбоя Windows</h2>
+    <p>Выбери сценарий. По умолчанию это безопасный полноэкранный макет BSOD — без изменений в Windows.</p>
+    <label class="crash-choice selected" id="crashDemoChoice">
+      <input type="radio" name="crashMode" value="demo" checked>
+      <span><strong>Демонстрация BSOD</strong><small>Синий экран → имитация отключения → возврат в AEGIS</small></span>
+      <em>Безопасно</em>
+    </label>
+    <label class="crash-choice shutdown-choice" id="crashShutdownChoice">
+      <input type="radio" name="crashMode" value="shutdown">
+      <span><strong>BSOD + выключить Windows</strong><small>Покажет тот же экран, Windows выключится через 45 секунд. Несохранённая работа может быть потеряна.</small></span>
+      <em>Реальное действие</em>
+    </label>
+    <div class="shutdown-consent" id="shutdownConsent" hidden>
+      <label for="shutdownPhrase">Чтобы подтвердить выключение этого ПК, введи <strong>ВЫКЛЮЧИТЬ</strong></label>
+      <input id="shutdownPhrase" type="text" spellcheck="false" autocomplete="off" placeholder="ВЫКЛЮЧИТЬ" aria-label="Подтверждение выключения Windows">
+      <small>AEGIS не использует принудительное закрытие программ. Пока идёт отсчёт, действие можно отменить.</small>
+    </div>
+    <div class="crash-actions"><button id="cancelCrash" type="button">Отмена</button><button class="danger-action" id="confirmCrash" type="button">Запустить демонстрацию</button></div>
   </div>
 </div>
 
@@ -321,14 +336,19 @@
     <p>We're just collecting some error info, and then we'll restart for you.</p>
     <div class="progress"><span id="crashProgress">0</span>% complete</div>
     <div class="stopcode">Stop code: AEGIS_SIMULATED_SYSTEM_FAILURE</div>
-    <div class="demo-label">DEMO MODE — no real system action</div>
+    <div class="demo-label" id="bsodModeLabel">AEGIS SIMULATION — no real OS crash</div>
   </div>
 </div>
 
 <div class="fake-off" id="fakeOff" aria-hidden="true">
-  <div><span>AEGIS</span><small>System offline simulation</small><button id="restoreSystem">Restore demo system</button></div>
+  <div>
+    <span>AEGIS</span>
+    <small id="fakeOffMessage">Симуляция завершена. Компьютер не выключен.</small>
+    <p id="shutdownCountdown" hidden>Windows выключится через <b id="shutdownSeconds">45</b> сек.</p>
+    <button id="cancelShutdown" type="button" hidden>Отменить выключение Windows</button>
+    <button id="restoreSystem" type="button">Вернуться в AEGIS</button>
+  </div>
 </div>
-
 
 <div class="modal-layer" id="incidentModal" aria-hidden="true">
   <form class="modal-card" id="incidentForm">
