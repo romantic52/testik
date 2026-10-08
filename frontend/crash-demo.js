@@ -1,134 +1,175 @@
-// AEGIS BSOD presentation: always simulated. Optional real Windows shutdown is explicit,
-// opt-in, cancellable, and only initiated by a dedicated local operator action.
-const crashConfirm=q("#crashConfirm"),bsod=q("#bsod"),fakeOff=q("#fakeOff");
-let crashDemoTimer=null;
-let shutdownCountdownTimer=null;
-let scheduledShutdown=false;
+// AEGIS power controls: separate demo BSOD and explicit, cancellable Windows shutdown.
+// The demo NEVER calls the power API.
+const crashConfirm = q("#crashConfirm");
+const bsod = q("#bsod");
+const fakeOff = q("#fakeOff");
+const shutdownForm = q("#powerConfirmForm");
+let powerMode = "demo";
+let scheduledShutdown = false;
+let crashTimer = null;
 
-function selectedCrashMode(){
-  return q('input[name="crashMode"]:checked')?.value||"demo";
+function resetPowerTimer() {
+  if (crashTimer !== null) clearInterval(crashTimer);
+  crashTimer = null;
 }
-function updateCrashMode(){
-  const real=selectedCrashMode()==="shutdown";
-  q("#shutdownConsent").hidden=!real;
-  q("#crashDemoChoice").classList.toggle("selected",!real);
-  q("#crashShutdownChoice").classList.toggle("selected",real);
-  q("#confirmCrash").textContent=real?"Подтвердить выключение":"Запустить демонстрацию";
-  q("#confirmCrash").disabled=real&&q("#shutdownPhrase").value.trim()!=="ВЫКЛЮЧИТЬ";
-}
-function openCrashDialog(){
-  q('input[name="crashMode"][value="demo"]').checked=true;
-  q("#shutdownPhrase").value="";
-  updateCrashMode();
-  crashConfirm.classList.add("show");
-  crashConfirm.setAttribute("aria-hidden","false");
-  q("#cancelCrash").focus();
-}
-function closeCrashDialog(){
+function closePowerDialog() {
   crashConfirm.classList.remove("show");
-  crashConfirm.setAttribute("aria-hidden","true");
+  crashConfirm.setAttribute("aria-hidden", "true");
+  shutdownForm.hidden = true;
+  q("#shutdownPhrase").value = "";
+  q("#shutdownAcknowledge").checked = false;
+  q("#powerFeedback").textContent = "";
 }
-q("#crashButton").addEventListener("click",openCrashDialog);
-q("#cancelCrash").addEventListener("click",closeCrashDialog);
-qa('input[name="crashMode"]').forEach(input=>input.addEventListener("change",updateCrashMode));
-q("#shutdownPhrase").addEventListener("input",updateCrashMode);
-q("#confirmCrash").addEventListener("click",async()=>{
-  if(selectedCrashMode()==="shutdown"){
-    if(q("#shutdownPhrase").value.trim()!=="ВЫКЛЮЧИТЬ")return;
-    const button=q("#confirmCrash");
-    button.disabled=true;
-    try{
-      const response=await fetch("/api/v1/system/shutdown",{
-        method:"POST",
-        headers:{"Content-Type":"application/json","X-AEGIS-Operator-Intent":"local-shutdown-confirmed"},
-        body:JSON.stringify({confirmation:"ВЫКЛЮЧИТЬ"})
-      });
-      const result=await response.json();
-      if(!response.ok||!result.success)throw new Error(result.detail||result.message||"Не удалось запланировать выключение");
-      scheduledShutdown=true;
-      startBsodPresentation(true,result.delaySeconds||45);
-    }catch(error){
-      scheduledShutdown=false;
-      toast("Windows не выключается: "+error.message);
-    }finally{updateCrashMode()}
-  }else{
-    startBsodPresentation(false,0);
-  }
-});
-q("#restoreSystem").addEventListener("click",()=>{
-  if(scheduledShutdown){
-    toast("Сначала отмени реальное выключение Windows");
+function openPowerDialog() {
+  if (scheduledShutdown) {
+    toast("Выключение запланировано. Нажми «Отменить выключение».");
     return;
   }
-  hideCrashPresentation();
-});
-q("#cancelShutdown").addEventListener("click",async()=>{
-  const button=q("#cancelShutdown");
-  button.disabled=true;
-  try{
-    const response=await fetch("/api/v1/system/shutdown/cancel",{
-      method:"POST",
-      headers:{"X-AEGIS-Operator-Intent":"local-shutdown-confirmed"}
-    });
-    const result=await response.json();
-    if(!response.ok||!result.success)throw new Error(result.detail||result.message||"Отмена недоступна");
-    scheduledShutdown=false;
-    hideCrashPresentation();
-    toast("Выключение Windows отменено");
-  }catch(error){toast("Не удалось отменить: "+error.message)}
-  finally{button.disabled=false}
-});
-document.addEventListener("keydown",event=>{
-  if(event.key==="Escape"&&!scheduledShutdown){
-    if(crashConfirm.classList.contains("show"))closeCrashDialog();
-    if(bsod.classList.contains("show")||fakeOff.classList.contains("show"))hideCrashPresentation();
-  }
-});
-function hideCrashPresentation(){
-  if(crashDemoTimer)clearInterval(crashDemoTimer);
-  if(shutdownCountdownTimer)clearInterval(shutdownCountdownTimer);
-  crashDemoTimer=null;shutdownCountdownTimer=null;
-  bsod.classList.remove("show");fakeOff.classList.remove("show");
-  bsod.setAttribute("aria-hidden","true");
-  fakeOff.setAttribute("aria-hidden","true");
-  document.exitFullscreen?.().catch(()=>{});
+  crashConfirm.classList.add("show");
+  crashConfirm.setAttribute("aria-hidden", "false");
 }
-async function startBsodPresentation(real,delaySeconds){
-  closeCrashDialog();
-  q("#bsodModeLabel").textContent=real
-    ?"AEGIS SIMULATED BSOD • REAL WINDOWS SHUTDOWN SCHEDULED"
-    :"AEGIS SIMULATION — no real OS crash";
-  q("#crashProgress").textContent="0";
-  q("#fakeOffMessage").textContent=real
-    ?"Windows получила команду завершения работы."
-    :"Симуляция завершена. Компьютер не выключен.";
-  q("#cancelShutdown").hidden=!real;
-  q("#shutdownCountdown").hidden=!real;
-  q("#restoreSystem").hidden=real;
-  try{await document.documentElement.requestFullscreen?.()}catch{}
+async function enterBsod() {
+  try {
+    if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+  } catch {
+    // The overlay remains screen-sized within the browser if fullscreen is denied.
+  }
   bsod.classList.add("show");
-  bsod.setAttribute("aria-hidden","false");
-  let progress=0;
-  crashDemoTimer=setInterval(()=>{
-    progress=Math.min(100,progress+Math.floor(Math.random()*11)+6);
-    q("#crashProgress").textContent=String(progress);
-    if(progress===100){
-      clearInterval(crashDemoTimer);
-      crashDemoTimer=null;
-      setTimeout(()=>{
-        bsod.classList.remove("show");
-        bsod.setAttribute("aria-hidden","true");
-        fakeOff.classList.add("show");
-        fakeOff.setAttribute("aria-hidden","false");
-      },550);
-    }
-  },210);
-  if(real){
-    const stopAt=Date.now()+delaySeconds*1000;
-    const refresh=()=>{
-      q("#shutdownSeconds").textContent=String(Math.max(0,Math.ceil((stopAt-Date.now())/1000)));
-    };
-    refresh();
-    shutdownCountdownTimer=setInterval(refresh,250);
+  bsod.setAttribute("aria-hidden", "false");
+  fakeOff.classList.remove("show");
+  fakeOff.setAttribute("aria-hidden", "true");
+  q("#crashProgress").textContent = "0";
+}
+async function exitPowerOverlay() {
+  bsod.classList.remove("show");
+  bsod.setAttribute("aria-hidden", "true");
+  fakeOff.classList.remove("show");
+  fakeOff.setAttribute("aria-hidden", "true");
+  if (document.fullscreenElement) {
+    try { await document.exitFullscreen(); } catch {}
   }
 }
+function setShutdownControls(visible) {
+  q("#cancelScheduledShutdown").hidden = !visible;
+  q("#cancelShutdownOffline").hidden = !visible;
+  q("#restoreSystem").hidden = visible;
+}
+async function startFakeCrash() {
+  resetPowerTimer();
+  powerMode = "demo";
+  scheduledShutdown = false;
+  closePowerDialog();
+  setShutdownControls(false);
+  q("#bsodModeLabel").textContent = "ДЕМОНСТРАЦИЯ — Windows не выключается";
+  await enterBsod();
+  let progress = 0;
+  crashTimer = setInterval(() => {
+    progress = Math.min(100, progress + Math.floor(Math.random() * 12) + 4);
+    q("#crashProgress").textContent = String(progress);
+    if (progress >= 100) {
+      resetPowerTimer();
+      setTimeout(() => {
+        if (powerMode !== "demo") return;
+        bsod.classList.remove("show");
+        bsod.setAttribute("aria-hidden", "true");
+        q("#offlineStateText").textContent = "Демо: компьютер выключен только на экране";
+        fakeOff.classList.add("show");
+        fakeOff.setAttribute("aria-hidden", "false");
+      }, 650);
+    }
+  }, 260);
+}
+function showRealPowerForm() {
+  shutdownForm.hidden = false;
+  q("#shutdownPhrase").focus();
+}
+function showShutdownCountdown(delay) {
+  powerMode = "shutdown";
+  scheduledShutdown = true;
+  setShutdownControls(true);
+  q("#bsodModeLabel").textContent = "WINDOWS SHUTDOWN • 45 секунд на отмену";
+  closePowerDialog();
+  enterBsod();
+  const started = Date.now();
+  resetPowerTimer();
+  crashTimer = setInterval(() => {
+    const remaining = Math.max(0, delay - Math.floor((Date.now() - started) / 1000));
+    q("#crashProgress").textContent = String(Math.min(99, Math.floor((delay - remaining) / delay * 100)));
+    q("#bsodModeLabel").textContent =
+      "Реальное выключение Windows через " + remaining + " сек. Нажми «Отменить выключение», чтобы остановить.";
+    if (remaining <= 0) {
+      resetPowerTimer();
+      q("#bsodModeLabel").textContent = "Команда выключения передана Windows.";
+    }
+  }, 250);
+}
+async function requestRealShutdown(event) {
+  event.preventDefault();
+  const phrase = q("#shutdownPhrase").value.trim();
+  const acknowledged = q("#shutdownAcknowledge").checked;
+  if (phrase !== "ВЫКЛЮЧИТЬ" || !acknowledged) {
+    q("#powerFeedback").textContent = "Введи ВЫКЛЮЧИТЬ и подтверди предупреждение.";
+    return;
+  }
+  const submit = q("#scheduleShutdownButton");
+  submit.disabled = true;
+  q("#powerFeedback").textContent = "Проверяю подтверждение Windows…";
+  try {
+    const result = await fetch("/api/v1/system/shutdown", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-AEGIS-Operator-Intent": "local-shutdown-confirmed"
+      },
+      body: JSON.stringify({ confirmation: phrase })
+    });
+    const payload = await result.json().catch(() => ({}));
+    if (!result.ok || !payload.success) throw new Error(payload.detail || payload.message || "Команда отклонена.");
+    showShutdownCountdown(Number(payload.delaySeconds) || 45);
+  } catch (error) {
+    q("#powerFeedback").textContent = error.message || "Не удалось запросить выключение.";
+  } finally {
+    submit.disabled = false;
+  }
+}
+async function cancelRealShutdown() {
+  if (!scheduledShutdown) return;
+  const buttons = [q("#cancelScheduledShutdown"), q("#cancelShutdownOffline")];
+  buttons.forEach(button => { button.disabled = true; button.textContent = "Отмена выключения…"; });
+  try {
+    const result = await fetch("/api/v1/system/shutdown/cancel", {
+      method: "POST",
+      headers: { "X-AEGIS-Operator-Intent": "local-shutdown-confirmed" }
+    });
+    const payload = await result.json().catch(() => ({}));
+    if (!result.ok || !payload.success) throw new Error(payload.detail || payload.message || "Windows не подтвердила отмену");
+    resetPowerTimer();
+    scheduledShutdown = false;
+    powerMode = "demo";
+    await exitPowerOverlay();
+    toast("Выключение Windows отменено");
+  } catch (error) {
+    q("#bsodModeLabel").textContent = "Ошибка отмены: " + (error.message || "проверь Windows");
+    toast("Не удалось отменить выключение. Используй shutdown /a в Windows.");
+  } finally {
+    buttons.forEach(button => { button.disabled = false; button.textContent = "Отменить выключение Windows"; });
+  }
+}
+q("#crashButton").addEventListener("click", openPowerDialog);
+q("#cancelCrash").addEventListener("click", closePowerDialog);
+q("#confirmCrash").addEventListener("click", startFakeCrash);
+q("#realShutdownButton").addEventListener("click", showRealPowerForm);
+shutdownForm.addEventListener("submit", requestRealShutdown);
+q("#restoreSystem").addEventListener("click", async () => {
+  if (scheduledShutdown) return;
+  resetPowerTimer();
+  await exitPowerOverlay();
+  toast("AEGIS возвращён из демонстрационного режима");
+});
+q("#cancelScheduledShutdown").addEventListener("click", cancelRealShutdown);
+q("#cancelShutdownOffline").addEventListener("click", cancelRealShutdown);
+document.addEventListener("keydown", event => {
+  if (event.key !== "Escape") return;
+  if (scheduledShutdown) { event.preventDefault(); cancelRealShutdown(); }
+  else if (crashConfirm.classList.contains("show")) closePowerDialog();
+});
