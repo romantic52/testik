@@ -13,8 +13,12 @@ let telemetryHistory=[];
 let incidentStoreOnline=false;
 let aetherOnline=false;
 let historyLoaded=false;
+let historyWindowSeconds=900;
+let historyRequestId=0;
+let lastHistoryRefreshAt=0;
 
 function numeric(value){
+  if(value===null||value===undefined||value==="")return null;
   const n=Number(value);
   return Number.isFinite(n)?n:null;
 }
@@ -127,13 +131,26 @@ function historyPointFromSystem(system){
 }
 function pushHistory(system){
   if(!system)return;
-  telemetryHistory.push(historyPointFromSystem(system));
-  const cutoff=Date.now()-15*60*1000;
-  telemetryHistory=telemetryHistory.filter(p=>new Date(p.timestamp).getTime()>=cutoff);
+  const next=historyPointFromSystem(system);
+  const previous=telemetryHistory.at(-1);
+  const nextTime=new Date(next.timestamp).getTime();
+  const previousTime=previous?new Date(previous.timestamp).getTime():0;
+  if(!Number.isFinite(nextTime))return;
+  if(nextTime>previousTime){
+    if(historyWindowSeconds>900&&nextTime-previousTime<5000&&telemetryHistory.length){
+      telemetryHistory[telemetryHistory.length-1]=next;
+    }else telemetryHistory.push(next);
+  }
+  const cutoff=Date.now()-historyWindowSeconds*1000;
+  telemetryHistory=telemetryHistory.filter(p=>new Date(p.timestamp).getTime()>=cutoff).slice(-2500);
   renderHistoryChart();
+  if(historyWindowSeconds>900&&Date.now()-lastHistoryRefreshAt>=300000){
+    lastHistoryRefreshAt=Date.now();
+    loadTelemetryHistory(true);
+  }
 }
 function pathForHistory(key){
-  const now=Date.now(),start=now-15*60*1000;
+  const now=Date.now(),start=now-historyWindowSeconds*1000;
   const points=telemetryHistory.map(p=>({t:new Date(p.timestamp).getTime(),v:numeric(p[key])}))
     .filter(p=>Number.isFinite(p.t)&&p.v!==null&&p.t>=start);
   if(!points.length)return "";
@@ -142,6 +159,19 @@ function pathForHistory(key){
     const y=185-Math.max(0,Math.min(100,p.v))/100*150;
     return (index?"L":"M")+x.toFixed(1)+" "+y.toFixed(1);
   }).join(" ");
+}
+function renderHistoryLabels(){
+  const ranges={
+    900:["−15м","−10м","−5м","Сейчас"],
+    3600:["−1ч","−40м","−20м","Сейчас"],
+    21600:["−6ч","−4ч","−2ч","Сейчас"],
+    86400:["−24ч","−16ч","−8ч","Сейчас"]
+  };
+  const labels=ranges[historyWindowSeconds]||ranges[900];
+  for(let i=0;i<4;i++){
+    const node=q("#historyLabel"+i);
+    if(node)node.textContent=labels[i];
+  }
 }
 function renderHistoryChart(){
   const cpu=pathForHistory("cpuLoadPercent");
@@ -157,16 +187,40 @@ function renderHistoryChart(){
       q("#cpuHistoryArea").setAttribute("d",first&&last?cpu+" L"+last[1]+" 210 L"+first[1]+" 210 Z":"");
     }else q("#cpuHistoryArea").setAttribute("d","");
   }
+  renderHistoryLabels();
 }
-async function loadTelemetryHistory(){
-  if(historyLoaded)return;
+async function loadTelemetryHistory(force=false){
+  if(historyLoaded&&!force)return;
+  const requestId=++historyRequestId;
+  const requestedSeconds=historyWindowSeconds;
   try{
-    const points=await apiJson("/api/v1/history?seconds=900");
+    const points=await apiJson("/api/v1/history?seconds="+requestedSeconds+"&maxPoints=600");
+    if(requestId!==historyRequestId||requestedSeconds!==historyWindowSeconds)return;
+    const current=telemetryHistory.at(-1);
     telemetryHistory=Array.isArray(points)?points:[];
-    historyLoaded=true;renderHistoryChart();
-  }catch(error){console.warn("History unavailable",error)}
+    if(current){
+      const currentTime=new Date(current.timestamp).getTime();
+      if(currentTime>new Date(telemetryHistory.at(-1)?.timestamp||0).getTime()){
+        telemetryHistory.push(current);
+      }
+    }
+    historyLoaded=true;
+    lastHistoryRefreshAt=Date.now();
+    renderHistoryChart();
+  }catch(error){
+    if(requestId===historyRequestId)console.warn("History unavailable",error);
+  }
 }
-
+q("#historyRange")?.addEventListener("change",event=>{
+  const requested=Number(event.target.value);
+  if(![900,3600,21600,86400].includes(requested))return;
+  historyWindowSeconds=requested;
+  historyLoaded=false;
+  historyRequestId++;
+  telemetryHistory=[];
+  renderHistoryChart();
+  loadTelemetryHistory(true);
+});
 
 async function apiJson(path,options={}){
   const response=await fetch(path,{cache:"no-store",...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
