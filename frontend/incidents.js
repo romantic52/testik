@@ -50,7 +50,7 @@ async function shareIncident(i){
   try{
     await window.aether.shareIncident(i);
     i.aetherSent=true;persistAutoIncidents();updateAutoQueueState();saveIncidentApi(i);appendAudit("incident.aether_sent",i.id,i.title);
-    addMessage(i.id+" • "+i.title+" • "+i.source);
+    // Sent message is rendered once by the aether-sent event.
     toast("Инцидент отправлен в AETHER.chat");
   }catch(error){toast(error.message||"AETHER: ошибка отправки")}
 }
