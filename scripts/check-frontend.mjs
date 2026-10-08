@@ -125,6 +125,38 @@ if (runtimeSource.includes("shutdown /") || runtimeSource.includes("Stop-Compute
   fail("destructive shutdown command found in frontend runtime");
 }
 
+
+const embeddedChatIds = [
+  "aetherPanel",
+  "aetherMessenger",
+  "aetherContacts",
+  "aetherPeerForm",
+  "aetherNewPeer",
+  "aetherPeerName",
+  "aetherPeerAvatar",
+  "aetherConnectionDot",
+  "aetherCollapseToggle",
+  "chatForm",
+  "chatInput",
+  "chatSendButton",
+  "aetherLoginStatus"
+];
+
+for (const id of embeddedChatIds) {
+  if (!idSet.has(id)) fail("embedded AETHER mini-chat is missing element #" + id);
+}
+const embeddedUi = fs.readFileSync("frontend/aether-ui.js", "utf8");
+const adapter = fs.readFileSync("aether.js", "utf8");
+if (!embeddedUi.includes("aether-message") || !embeddedUi.includes("aether-sent")) {
+  fail("mini-chat must subscribe to both incoming and outgoing AETHER events");
+}
+if (!adapter.includes("encryptLocalState") || !adapter.includes("saveChatHistory")) {
+  fail("mini-chat local history must be encrypted");
+}
+if (!embeddedUi.includes("document.createElement") || !embeddedUi.includes(".textContent")) {
+  fail("mini-chat must render decrypted text using safe DOM text nodes");
+}
+
 if (!process.exitCode) {
   console.log(
     "[frontend-check] structure OK, unique ids=" +
