@@ -1,6 +1,6 @@
 // AEGIS frontend core: state, overview, API client, reports and read-only Windows views.
 const state={current:"",incidents:[]};
-const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",audit:"Журнал аудита",events:"События Windows",services:"Службы Windows"};
+const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",lab:"Лаборатория испытаний",audit:"Журнал аудита",events:"События Windows",services:"Службы Windows"};
 const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
 let lastProcesses=[];
 let lastConnections=[];
@@ -411,6 +411,7 @@ function toast(t){const e=q("#toast");e.textContent=t;e.classList.add("show");cl
 const pageSummaries={
   overview:"Контроль компонентов, процессов и событий Windows в реальном времени.",
   monitoring:"Реальные показания CPU, GPU, RAM, сети, дисков и датчиков.",
+  lab:"Рулетка проверки ресурсов и короткие ограниченные тесты.",
   incidents:"Расследования, приоритеты, статусы и отправка через AETHER.",
   assets:"Обнаруженное оборудование этого Windows-компьютера.",
   access:"Подключение СКУД. Источники данных не симулируются.",
