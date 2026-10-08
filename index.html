@@ -274,40 +274,35 @@
 
   </main>
 
-  <aside class="chat">
-    <div class="chat-head">
-      <div><small>AETHER.CHAT</small><h2 id="aetherPeerLabel">SOC secure channel <span id="aetherUserLabel">offline</span></h2></div>
-      <div class="chat-head-actions"><button id="aetherSetupToggle" title="Настройки AETHER">⚙</button><b id="aetherE2eBadge">E2E</b></div>
+  <aside class="chat aether-embedded" id="aetherPanel" aria-label="Встроенный AETHER чат">
+  <div class="chat-head">
+    <div class="mini-brand"><div class="mini-brand-icon">Æ</div><div><small>AEGIS / SECURE COMMS</small><h2>AETHER<span>.chat</span></h2></div></div>
+    <div class="chat-head-actions"><span class="mini-connection" id="aetherConnectionDot" title="Не подключено"></span><button type="button" id="aetherSetupToggle" title="Учётная запись и подключение" aria-label="Настройки встроенного чата">⚙</button><b id="aetherE2eBadge" title="Шифрование Double Ratchet">E2E</b></div>
+  </div>
+  <div class="secure" id="aetherSecureState"><b>◆</b><div><strong id="aetherSecureTitle">Подключи AETHER</strong><span id="aetherSecureText">Чат внутри AEGIS. Сообщения шифруются на устройстве.</span></div></div>
+  <form class="aether-config open" id="aetherConfig" autocomplete="on">
+    <div class="mini-form-heading"><strong>Подключение</strong><span>Отдельное SOC-устройство</span></div>
+    <label><span>Адрес AETHER relay</span><input id="aetherServer" type="url" required placeholder="https://relay.example.com" autocomplete="url"></label>
+    <div class="aether-two"><label><span>Имя пользователя</span><input id="aetherUser" type="text" required placeholder="operator" autocomplete="username"></label><label><span>Первый собеседник</span><input id="aetherPeer" type="text" placeholder="colleague" autocomplete="off"></label></div>
+    <label><span>Пароль</span><input id="aetherPassword" type="password" required placeholder="Пароль AETHER" autocomplete="current-password"></label>
+    <label class="totp-field" id="aetherTotpField"><span>Код 2FA</span><input id="aetherTotp" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code"></label>
+    <div class="aether-config-actions"><button class="aether-disconnect" id="aetherDisconnect" type="button">Выйти</button><button class="aether-connect" id="aetherConnect" type="submit">Войти в AETHER</button></div>
+    <p id="aetherLoginStatus" role="status">Работает через AETHER relay. Исходный мессенджер не изменяется.</p>
+  </form>
+  <div class="mini-messenger" id="aetherMessenger">
+    <div class="mini-roster-heading"><div><span>ДИАЛОГИ</span><small id="aetherUserLabel">Не в сети</small></div><button type="button" id="aetherNewChatToggle" title="Новый диалог" aria-label="Добавить собеседника">+</button></div>
+    <form id="aetherPeerForm" class="mini-new-peer" hidden><input id="aetherNewPeer" type="text" maxlength="64" aria-label="Имя собеседника" placeholder="Имя в AETHER" autocomplete="off"><button type="submit">Открыть</button></form>
+    <div class="mini-contacts" id="aetherContacts" role="group" aria-label="Диалоги AETHER"></div>
+    <div class="mini-thread-header"><div class="mini-peer-avatar" id="aetherPeerAvatar">#</div><div class="mini-thread-title"><strong id="aetherPeerName">Выберите диалог</strong><span id="aetherPeerLabel">Приватные сообщения · E2E</span></div><span class="mini-encryption-mark" title="Сообщения шифруются на клиенте">◈</span></div>
+    <div class="messages mini-messages" id="messages" role="log" aria-live="polite" aria-relevant="additions">
+      <div class="mini-empty"><strong>Добро пожаловать в AETHER</strong><span>Выберите собеседника, чтобы начать защищённую переписку в AEGIS.</span></div>
     </div>
-
-    <div class="secure" id="aetherSecureState">
-      <b>◆</b>
-      <div><strong id="aetherSecureTitle">AETHER не подключён</strong><span id="aetherSecureText">Войди в аккаунт и выбери peer. Plaintext не передаётся relay.</span></div>
-    </div>
-
-    <form class="aether-config open" id="aetherConfig">
-      <label><span>Relay URL</span><input id="aetherServer" type="url" placeholder="https://aether.example.com" autocomplete="url"></label>
-      <div class="aether-two">
-        <label><span>Аккаунт</span><input id="aetherUser" type="text" placeholder="username" autocomplete="username"></label>
-        <label><span>Peer</span><input id="aetherPeer" type="text" placeholder="teammate" autocomplete="off"></label>
-      </div>
-      <label><span>Пароль</span><input id="aetherPassword" type="password" placeholder="••••••••" autocomplete="current-password"></label>
-      <label class="totp-field" id="aetherTotpField"><span>2FA код</span><input id="aetherTotp" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code"></label>
-      <div class="aether-config-actions">
-        <button class="aether-disconnect" id="aetherDisconnect" type="button">Выйти</button>
-        <button class="aether-connect" id="aetherConnect" type="submit">Подключить AETHER</button>
-      </div>
-      <p id="aetherLoginStatus">SOC создаст отдельное crypto-device <code>soc-*</code>. Пароль не сохраняется.</p>
-    </form>
-
-    <div class="messages" id="messages">
-      <div class="message incoming system-message"><div><b>AEGIS</b><span>system</span></div><p>Подключи AETHER.chat выше. После входа здесь появятся реальные E2E-сообщения.</p></div>
-    </div>
-
-    <div class="quick"><button data-text="Передаю инцидент L2">Передать L2</button><button data-text="Нужна проверка доступа">Проверить доступ</button><button data-text="Изолировать хост FIN-14">Изолировать хост</button></div>
-    <form id="chatForm"><textarea id="chatInput" rows="1" placeholder="Сообщение в AETHER.chat…"></textarea><button>↑</button></form>
-    <footer><span id="aetherRelayState" class="relay-offline"><i></i> Relay offline</span><span id="aetherCryptoState">Double Ratchet</span></footer>
-  </aside>
+    <div class="quick" id="aetherQuickActions"><button type="button" data-text="Передаю инцидент L2">Передать L2</button><button type="button" data-text="Нужна проверка доступа">Проверить доступ</button><button type="button" data-text="Проверю состояние хоста">Проверить хост</button></div>
+    <form id="chatForm" class="mini-compose"><textarea id="chatInput" rows="2" maxlength="8000" placeholder="Написать сообщение..." aria-label="Сообщение AETHER"></textarea><button type="submit" id="chatSendButton" aria-label="Отправить сообщение" title="Отправить (Enter)">↗</button></form>
+    <div class="mini-compose-note"><span id="aetherComposeState">Войди, чтобы начать переписку</span><span>Enter ↵ · Shift+Enter</span></div>
+  </div>
+  <footer><span id="aetherRelayState" class="relay-offline"><i></i> Нет сессии</span><span id="aetherCryptoState">E2E / Double Ratchet</span></footer>
+</aside>
 </div>
 
 <div class="crash-confirm" id="crashConfirm" aria-hidden="true">
