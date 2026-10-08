@@ -31,7 +31,6 @@ builder.Services.AddSingleton<WindowsEventLogService>();
 builder.Services.AddSingleton<WindowsServiceMonitorService>();
 builder.Services.AddSingleton<AgentDiagnosticsService>();
 builder.Services.AddSingleton<OperatorShutdownService>();
-builder.Services.AddSingleton<LabStressService>();
 builder.Services.AddSingleton<StateDatabase>();
 builder.Services.AddSingleton<IncidentStoreService>();
 builder.Services.AddSingleton<AlertSettingsService>();
