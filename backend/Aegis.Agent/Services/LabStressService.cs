@@ -152,7 +152,7 @@ public sealed class LabStressService : IDisposable
     }
 
     private static long ReserveBytes(ulong total) =>
-        Math.Max(512L * MiB, (long)Math.Min(total, long.MaxValue) / 12);
+        Math.Max(512L * MiB, (long)Math.Min(total, (ulong)long.MaxValue) / 12);
 
     private static MemoryInfo ReadMemory()
     {
