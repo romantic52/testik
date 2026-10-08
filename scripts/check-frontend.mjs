@@ -10,6 +10,7 @@ const runtimeFiles = [
   "frontend/automation.js",
   "frontend/monitoring.js",
   "frontend/crash-demo.js",
+  "frontend/lab.js",
   "app.js"
 ];
 
@@ -43,6 +44,11 @@ const requiredIds = [
   "overview",
   "incidents",
   "monitoring",
+  "lab",
+  "labCpuRange",
+  "labRamRange",
+  "labApply",
+  "labStop",
   "reports",
   "audit",
   "events",
