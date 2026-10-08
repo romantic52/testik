@@ -19,7 +19,7 @@ AEGIS — local-first Windows monitoring/SOC application for a coursework projec
 
 Access Control/СКУД and Cameras/VMS are explicit connector placeholders until real vendor APIs are supplied. They do not display fake live data.
 
-`CRASH SYSTEM` is intentionally a visual-only BSOD/offline simulation. It never shuts down Windows or performs destructive remediation.
+`CRASH SYSTEM` opens two clearly separated choices: a **visual-only fake BSOD** (the default, never changes Windows) or an explicitly authorized **BSOD overlay + real Windows shutdown**. The latter requires typing `ВЫКЛЮЧИТЬ` and acknowledging the risk; the OS gets 45 seconds to shut down, with a visible cancel action. AEGIS does not crash Windows or force-close open programs.
 
 ## Architecture
 
@@ -203,6 +203,8 @@ GET /api/v1/reports/incidents.csv
 GET /api/v1/reports/bundle.zip
 
 POST /api/v1/aether/relay
+POST /api/v1/system/shutdown (typed explicit confirmation)
+POST /api/v1/system/shutdown/cancel
 WS   /ws/monitor
 ~~~
 
@@ -216,17 +218,11 @@ Requirements for source mode:
 winget install Microsoft.DotNet.SDK.8
 ~~~
 
-Then:
+For a simple launch double-click **Start AEGIS.cmd**. The launcher waits for a healthy local agent and opens the dashboard in an Edge app window if available (otherwise the default browser). If you use a packaged Windows release, the .NET SDK is not required.
 
-~~~text
-run-agent.bat
-~~~
+Source checkout alternative: `run-agent.bat` (uses the same launcher).
 
-Dashboard:
-
-~~~text
-http://127.0.0.1:8765
-~~~
+Dashboard URL: `http://127.0.0.1:8765`.
 
 ## Build release
 
@@ -237,7 +233,8 @@ build-release.bat
 Output:
 
 ~~~text
-dist\AEGIS\Aegis.Agent.exe
+dist\AEGIS\Start AEGIS.cmd (double-click)
+  └─ Aegis.Agent.exe (bundled .NET backend)
 ~~~
 
 The Windows CI pipeline is configured to check:
@@ -274,9 +271,10 @@ AEGIS binds loopback-only by default and validates the configured listen URL.
 There are no endpoints for:
 - killing arbitrary processes;
 - stopping/restarting Windows Services;
-- Windows shutdown;
 - firewall mutation;
 - arbitrary command execution.
+
+The one exception to read-only operation is the explicit local operator shutdown endpoint. It requires the dedicated intent header and a typed confirmation; the normal BSOD demo never calls it. Do not expose the local agent to other users or the internet.
 
 Process signer fields describe an embedded certificate if present; they are not a full Authenticode trust-chain verdict.
 
