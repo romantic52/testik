@@ -19,7 +19,10 @@ AEGIS — local-first Windows monitoring/SOC application for a coursework projec
 
 Access Control/СКУД and Cameras/VMS are explicit connector placeholders until real vendor APIs are supplied. They do not display fake live data.
 
-`CRASH SYSTEM` opens two clearly separated choices: a **visual-only fake BSOD** (the default, never changes Windows) or an explicitly authorized **BSOD overlay + real Windows shutdown**. The latter requires typing `ВЫКЛЮЧИТЬ` and acknowledging the risk; the OS gets 45 seconds to shut down, with a visible cancel action. AEGIS does not crash Windows or force-close open programs.
+`CRASH SYSTEM` opens two clearly separated choices: a **visual-only fake BSOD** (the default, never changes Windows) or an explicitly authorized **BSOD overlay + real Windows shutdown**. The latter requires typing `ВЫКЛЮЧИТЬ` and acknowledging the risk; AEGIS waits 45 seconds before requesting a graceful shutdown, with a visible cancel action. AEGIS does not crash Windows or force-close open programs.
+
+
+**Power safety note:** Positive Windows `shutdown.exe /t` values implicitly force-close apps. AEGIS therefore keeps the 45-second delay in its own agent, then calls the Windows shutdown utility with `/t 0` (no implicit force-close). If the agent exits during the countdown, the shutdown is not requested. Open apps can still block shutdown, and the operator may need to close them manually. Real power actions are not available when the agent runs as a non-interactive Windows Service.
 
 ## Architecture
 
