@@ -145,19 +145,26 @@ A second background correlator watches new Critical/Error records from Windows S
 
 High CPU alone is treated as a resource anomaly requiring review, not proof of malware.
 
-## AETHER.chat
+## Embedded AETHER mini-chat
 
-E2E remains browser-owned by design:
-- normal login + optional TOTP;
-- dedicated `soc-*` device;
-- signed prekeys/fallback key;
-- device/master key verification;
-- per-device Double Ratchet fanout;
-- inbox/ACK;
-- relay WebSocket + polling fallback;
-- queued incident delivery.
+The messenger is **embedded natively into the AEGIS operator panel**. The original [AETHER.chat](https://github.com/romantic52/AETHER.chat) repository is unchanged. No iframe or full web messenger clone is used.
 
-The privileged Agent does not store the AETHER password or browser Ratchet state.
+Features:
+- Account login against your existing AETHER relay, including optional TOTP.
+- Per-account dedicated SOC device and existing Rust/WASM Double Ratchet E2E transport.
+- Add contacts by AETHER username and switch between multiple 1-to-1 conversations.
+- Incoming and outgoing messages, timestamps, unread counters and Enter-to-send.
+- Incident sharing and automatic SOC alerts in the selected conversation.
+- Browser-local message history encrypted under the login password, capped at 150 messages per conversation (up to 40 contacts).
+- Native AEGIS colors and a collapsible messenger on smaller screens.
+
+The relay only transports encrypted messages. Decrypted conversation content is not sent to the monitoring backend for storage; the local history is encrypted before being written to browser storage. Contact display preferences (usernames and server URL, **not** message bodies or passwords) are stored separately.
+
+**How to use:** launch AEGIS, enter the URL of your running AETHER relay, existing AETHER credentials, optional TOTP and the first contact. Then use **+** in the messenger to open additional contacts by their usernames. Sending an incident from its card targets the currently selected contact.
+
+The mini-chat intentionally does not implement groups, calls, attachments, global user discovery or the full settings of the standalone messenger. It does not alter original AETHER clients. Offline messages can only be received according to the relay's own delivery/retention rules; the embedded client does not download full historical chat archives from the relay.
+
+Cross-client delivery and interoperability must still be verified with a running AETHER relay and multiple test accounts; a passing local build alone is not an end-to-end crypto compatibility test.
 
 ## Primary API
 
