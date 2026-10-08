@@ -258,7 +258,6 @@ public static class AegisEndpoints
         MapReportEndpoints(api);
         MapAetherEndpoints(api);
         MapOperatorShutdownEndpoints(api);
-        MapLabStressEndpoints(api);
     }
 
     private static void MapIncidentEndpoints(RouteGroupBuilder api)
@@ -522,47 +521,6 @@ public static class AegisEndpoints
             }
 
             return Results.Ok(result);
-        });
-    }
-
-    private static void MapLabStressEndpoints(RouteGroupBuilder api)
-    {
-        const string intentHeader = "X-AEGIS-Lab-Intent";
-        const string intentValue = "confirmed-local-stress";
-
-        api.MapGet("/lab/stress", (LabStressService lab) =>
-            Results.Ok(lab.Read()));
-
-        api.MapPut("/lab/stress", (
-            LabStressRequest request,
-            HttpContext context,
-            LabStressService lab) =>
-        {
-            if (!Environment.UserInteractive)
-                return Results.Json(
-                    new { detail = "Нагрузочный тест доступен только в интерактивной сессии Windows." },
-                    statusCode: StatusCodes.Status403Forbidden);
-
-            if (!string.Equals(context.Request.Headers[intentHeader].ToString(),
-                    intentValue, StringComparison.Ordinal))
-                return Results.BadRequest(new { detail = "Подтверди запуск нагрузочного теста в локальной панели AEGIS." });
-
-            if (request.CpuDutyPercent is < 0 or > 95 ||
-                request.MemoryTargetPercent is < 0 or > 95)
-                return Results.BadRequest(new { detail = "Целевые значения CPU и RAM должны быть от 0 до 95%." });
-
-            return Results.Ok(lab.Apply(request));
-        });
-
-        api.MapPost("/lab/stress/stop", (
-            HttpContext context,
-            LabStressService lab) =>
-        {
-            if (!string.Equals(context.Request.Headers[intentHeader].ToString(),
-                    intentValue, StringComparison.Ordinal))
-                return Results.BadRequest(new { detail = "Некорректное подтверждение остановки." });
-
-            return Results.Ok(lab.Stop());
         });
     }
 
