@@ -96,7 +96,7 @@ Service inventory is read-only. There is no HTTP endpoint to start, stop, restar
 AEGIS exposes a narrow, **operator-confirmed Windows shutdown**, not a remote-management shell:
 - Visual-only BSOD demo is the default and does not request OS power operations.
 - A separate real-shutdown action requires a second choice, the exact typed phrase `ВЫКЛЮЧИТЬ`, an acknowledgement and a custom intent header.
-- Windows schedules a shutdown after 45 seconds, without forced process termination.
+- AEGIS waits 45 seconds, then requests graceful Windows shutdown with zero OS timeout. Open apps may block shutdown.
 - The operator may cancel the scheduled shutdown in the interface before the timeout.
 - The local loopback origin/security headers are still enforced; this is not authorization for arbitrary hosts or users.
 
@@ -111,3 +111,5 @@ Installing AEGIS as a Windows Service is explicit and requires elevation.
 Service-mode state defaults to `%ProgramData%\AEGIS`. The browser still owns AETHER credentials.
 
 Uninstall preserves SOC data unless the operator explicitly requests purge.
+
+**Power safety note:** Positive Windows `shutdown.exe /t` values implicitly force-close apps. AEGIS therefore keeps the 45-second delay in its own agent, then calls the Windows shutdown utility with `/t 0` (no implicit force-close). If the agent exits during the countdown, the shutdown is not requested. Open apps can still block shutdown, and the operator may need to close them manually. Real power actions are not available when the agent runs as a non-interactive Windows Service.
