@@ -12,10 +12,25 @@ function Test-AegisRunning {
     catch { return $false }
 }
 
+function Open-AegisWindow {
+    $edgeCandidates = @(
+        "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
+        "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
+    )
+    foreach ($edge in $edgeCandidates) {
+        if ($edge -and (Test-Path -LiteralPath $edge)) {
+            Start-Process -FilePath $edge -ArgumentList @("--app=$baseUrl", "--window-size=1450,900") | Out-Null
+            return
+        }
+    }
+    # Use the default browser if Edge is not installed.
+    Start-Process $baseUrl | Out-Null
+}
+
 try {
     if (Test-AegisRunning) {
         Write-Host "[AEGIS] Agent already running. Opening dashboard..."
-        if (-not $NoBrowser) { Start-Process $baseUrl }
+        if (-not $NoBrowser) { Open-AegisWindow }
         exit 0
     }
 
@@ -55,7 +70,7 @@ try {
     }
 
     Write-Host "[AEGIS] Ready: $baseUrl"
-    if (-not $NoBrowser) { Start-Process $baseUrl }
+    if (-not $NoBrowser) { Open-AegisWindow }
     exit 0
 }
 catch {
