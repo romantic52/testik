@@ -11,6 +11,7 @@ function setAgentState(online,text){
   el.classList.toggle("offline",!online);
   el.classList.toggle("online",online);
   el.innerHTML="<i></i> "+(text||(online?"AGENT ONLINE":"AGENT OFFLINE"));
+  const side=q("#sidebarAgentHealth");if(side){side.innerHTML="<i></i> "+(online?"Агент подключён · данные LIVE":"Агент не подключён") ;side.classList.toggle("is-offline",!online)}
 }
 
 function formatDuration(seconds){
