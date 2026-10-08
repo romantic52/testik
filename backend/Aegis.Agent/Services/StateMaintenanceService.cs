@@ -135,7 +135,7 @@ public sealed class StateMaintenanceService : BackgroundService
         {
             var result = await RunOnceAsync(cancellationToken);
 
-            if (result.RemovedTotal > 0)
+            if (result.RemovedTotal > 0 || result.TelemetryRemovedTotal > 0)
             {
                 _logger.LogInformation(
                     "AEGIS SQLite maintenance removed {AuditRemoved} audit rows and {TelemetryRemoved} telemetry rows; {AuditRemaining} audit / {TelemetryRemaining} telemetry remain",
