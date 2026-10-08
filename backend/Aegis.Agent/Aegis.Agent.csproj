@@ -25,6 +25,11 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
+    <Content Include="..\..\frontend\theme.css">
+      <Link>wwwroot\frontend\theme.css</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
     <Content Include="..\..\app.js">
       <Link>wwwroot\app.js</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
