@@ -434,48 +434,77 @@ public static class AegisEndpoints
 
     private static void MapOperatorShutdownEndpoints(RouteGroupBuilder api)
     {
-        // High-impact OS action: never triggered by the simulated BSOD route.
-        // The browser must explicitly select real shutdown, type the phrase,
-        // and send the custom intent header (simple cross-site form posts fail).
-        api.MapPost("/system/shutdown", (
+        // The web UI uses a typed confirmation and a custom header. Refuse power
+        // operations from non-interactive Windows Service processes.
+        api.MapPost("/system/shutdown", async (
             OperatorShutdownRequest request,
             HttpContext context,
-            OperatorShutdownService shutdown) =>
+            OperatorShutdownService shutdown,
+            IncidentStoreService incidents,
+            CancellationToken cancellationToken) =>
         {
+            if (!Environment.UserInteractive)
+                return Results.Json(
+                    new { detail = "Реальное выключение разрешено только в интерактивном режиме AEGIS." },
+                    statusCode: StatusCodes.Status403Forbidden);
+
             if (!OperatorShutdownService.IsAuthorized(
-                    request.Confirmation,
-                    context.Request.Headers[OperatorShutdownService.IntentHeader].ToString()))
-            {
+                request.Confirmation,
+                context.Request.Headers[OperatorShutdownService.IntentHeader].ToString()))
                 return Results.BadRequest(new
                 {
                     detail = "Для выключения Windows нужно ввести ВЫКЛЮЧИТЬ и подтвердить действие."
                 });
-            }
 
             var result = shutdown.Schedule();
-            return result.Success
-                ? Results.Ok(result)
-                : Results.Json(new { detail = result.Message },
+            if (!result.Success)
+                return Results.Json(new { detail = result.Message },
                     statusCode: StatusCodes.Status409Conflict);
+
+            await incidents.AppendAuditAsync(
+                new AuditRecord(
+                    DateTimeOffset.UtcNow,
+                    "system.shutdown.scheduled",
+                    Environment.MachineName,
+                    "Operator scheduled Windows shutdown with a 45-second grace period.",
+                    "AEGIS local operator"),
+                cancellationToken);
+
+            return Results.Ok(result);
         });
 
-        api.MapPost("/system/shutdown/cancel", (
+        api.MapPost("/system/shutdown/cancel", async (
             HttpContext context,
-            OperatorShutdownService shutdown) =>
+            OperatorShutdownService shutdown,
+            IncidentStoreService incidents,
+            CancellationToken cancellationToken) =>
         {
+            if (!Environment.UserInteractive)
+                return Results.Json(
+                    new { detail = "Отмена через AEGIS доступна только в интерактивном режиме." },
+                    statusCode: StatusCodes.Status403Forbidden);
+
             if (!string.Equals(
-                    context.Request.Headers[OperatorShutdownService.IntentHeader].ToString(),
-                    OperatorShutdownService.IntentValue,
-                    StringComparison.Ordinal))
-            {
+                context.Request.Headers[OperatorShutdownService.IntentHeader].ToString(),
+                OperatorShutdownService.IntentValue,
+                StringComparison.Ordinal))
                 return Results.BadRequest(new { detail = "Не подтверждён локальный оператор." });
-            }
 
             var result = shutdown.Cancel();
-            return result.Success
-                ? Results.Ok(result)
-                : Results.Json(new { detail = result.Message },
+            if (!result.Success)
+                return Results.Json(new { detail = result.Message },
                     statusCode: StatusCodes.Status409Conflict);
+
+            await incidents.AppendAuditAsync(
+                new AuditRecord(
+                    DateTimeOffset.UtcNow,
+                    "system.shutdown.cancelled",
+                    Environment.MachineName,
+                    "Operator cancelled the scheduled Windows shutdown.",
+                    "AEGIS local operator"),
+                cancellationToken);
+
+            return Results.Ok(result);
         });
     }
 
