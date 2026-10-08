@@ -78,6 +78,27 @@ try {
     $null = Invoke-RestMethod "$api/windows/events?log=System&limit=5" -TimeoutSec 5
     $null = Invoke-RestMethod "$api/windows/services?limit=5" -TimeoutSec 5
 
+    # Confirm packaged frontend contains the real five-mode lab engines.
+    $labScript = Invoke-WebRequest "$baseUrl/frontend/lab-tests.js" -TimeoutSec 5
+    if ($labScript.StatusCode -ne 200 -or $labScript.Content -notmatch "AegisLabTests") {
+        throw "Resource lab engines are not served by AEGIS"
+    }
+
+    # Exercise the real local-transfer endpoint without contacting the internet.
+    $loopbackPath = Join-Path $env:TEMP (
+        "aegis-loopback-" + [Guid]::NewGuid().ToString("N") + ".bin"
+    )
+    try {
+        Invoke-WebRequest "$api/lab/loopback-sample" -OutFile $loopbackPath -TimeoutSec 5
+        if ((Get-Item -LiteralPath $loopbackPath).Length -ne 65536) {
+            throw "AEGIS loopback sample must be exactly 64 KiB"
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $loopbackPath -Force -ErrorAction SilentlyContinue
+    }
+
+
     $bundlePath = Join-Path $env:TEMP (
         "aegis-smoke-bundle-" + [Guid]::NewGuid().ToString("N") + ".zip"
     )
