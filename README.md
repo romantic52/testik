@@ -108,11 +108,26 @@ SQLite runs in WAL mode and stores:
 - incidents;
 - audit;
 - alert settings;
-- schema/revision metadata.
+- schema/revision metadata;
+- persisted telemetry history (CPU/RAM/GPU, temperatures and RX/TX speeds).
 
 Old `incidents.json`, `audit*.jsonl` and `alert-settings.json` are migrated once when found. Migrated files are preserved with a `.migrated` suffix.
 
-Audit retention is bounded by age and maximum row count. Incidents are not deleted by maintenance.
+Audit and telemetry history retention are bounded by age and maximum row count. Incidents are not deleted by maintenance.
+
+The Agent samples hardware every 1 second but writes a time-series point to SQLite every 5 seconds by default. The overview can request 15 minutes, 1 hour, 6 hours or 24 hours; its query is downsampled to at most 600 points, and previous measurements survive agent restarts. Missing sensors remain `null`, not zero. Alert rules always use full live telemetry, not chart aggregates.
+
+History settings in `backend/Aegis.Agent/appsettings.json` under `Agent`:
+
+~~~json
+{
+  "TelemetryPersistenceSeconds": 5,
+  "TelemetryRetentionHours": 24,
+  "TelemetryMaxRows": 100000
+}
+~~~
+
+`GET /api/v1/history?seconds=3600&maxPoints=600` returns a chronological series, merging recent live samples with persisted SQLite data. Increasing the 24-hour retention requires enough disk space.
 
 ## Automatic detection
 
@@ -164,6 +179,7 @@ GET /api/v1/health/ready
 GET /api/v1/diagnostics
 
 GET /api/v1/system
+GET /api/v1/history?seconds=3600&maxPoints=600
 GET /api/v1/hardware
 GET /api/v1/processes
 GET /api/v1/processes/{pid}
@@ -217,7 +233,7 @@ Output:
 dist\AEGIS\Aegis.Agent.exe
 ~~~
 
-The verified pipeline checks:
+The Windows CI pipeline is configured to check:
 - all frontend runtime syntax;
 - DOM/frontend structure;
 - PowerShell syntax;
