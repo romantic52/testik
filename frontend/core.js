@@ -406,5 +406,29 @@ q("#refreshAudit")?.addEventListener("click",loadAudit);
 q("#refreshReport")?.addEventListener("click",loadReportSummary);
 
 function toast(t){const e=q("#toast");e.textContent=t;e.classList.add("show");clearTimeout(window.tt);window.tt=setTimeout(()=>e.classList.remove("show"),1800)}
-function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent();if(id==="audit")loadAudit();if(id==="reports")loadReportSummary();if(id==="events")loadWindowsEvents();if(id==="services")loadWindowsServices()}
+
+// Main shell navigation and integrated secure chat shortcut.
+const pageSummaries={
+  overview:"Контроль компонентов, процессов и событий Windows в реальном времени.",
+  monitoring:"Реальные показания CPU, GPU, RAM, сети, дисков и датчиков.",
+  incidents:"Расследования, приоритеты, статусы и отправка через AETHER.",
+  assets:"Обнаруженное оборудование этого Windows-компьютера.",
+  access:"Подключение СКУД. Источники данных не симулируются.",
+  cameras:"Интеграция видеосистем по API или SDK производителя.",
+  events:"Системный журнал Windows и события безопасности.",
+  services:"Состояние установленных служб Windows.",
+  audit:"Хронология действий оператора и автоматических правил.",
+  reports:"Экспорт данных мониторинга и расследований."
+};
+q("#headerChat")?.addEventListener("click",()=>{
+  const chat=q("#aetherPanel");
+  if(!chat)return;
+  chat.classList.remove("is-collapsed");
+  const toggle=q("#aetherCollapseToggle");
+  if(toggle){toggle.textContent="−";toggle.setAttribute("aria-expanded","true")}
+  chat.scrollIntoView({behavior:"smooth",block:"nearest"});
+  q("#aetherSetupToggle")?.focus();
+});
+
+function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(q("#pageDescription"))q("#pageDescription").textContent=pageSummaries[id]||"";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent();if(id==="audit")loadAudit();if(id==="reports")loadReportSummary();if(id==="events")loadWindowsEvents();if(id==="services")loadWindowsServices()}
 qa(".nav").forEach(b=>b.onclick=()=>view(b.dataset.view));
