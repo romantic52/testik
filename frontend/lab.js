@@ -23,7 +23,7 @@
   const msg = text => { $("#labOutcome").textContent = text; };
   const setRunning = value => {
     running = value;
-    $("#labStart").disabled = !selected?.runnable || !value && !$("#labConsent").checked || value;
+    $("#labStart").disabled = !selected || (selected.runnable && (!$("#labConsent").checked || value));
     $("#labStop").disabled = !value;
     $("#labWheelButton").disabled = wheelBusy || value;
     $("#labStatus").textContent = value ? "ТЕСТ ИДЁТ" : "ГОТОВО";
@@ -70,7 +70,8 @@
     $("#labSelectedDescription").textContent = option.detail;
     $("#labSelectedIcon").textContent =
       ({ cpu: "◉", ram: "▦", gpu: "◈", disk: "▤", network: "⌁" })[option.id];
-    $("#labTuning").hidden = !option.runnable;
+    $("#labTuning").hidden = option.id !== "ram";
+    $("#labConsent").checked = false;
     $("#labStart").textContent = option.runnable ? "▶ Запустить тест (10 сек)" : "Открыть мониторинг";
     $("#labConsentLabel").hidden = !option.runnable;
     $("#labStart").disabled = option.runnable && !$("#labConsent").checked;
