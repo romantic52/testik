@@ -80,6 +80,8 @@ frontend/
   automation.js
   monitoring.js
   crash-demo.js
+  lab.js
+  lab-worker.js
 
 docs/
 scripts/
@@ -147,6 +149,18 @@ Backend rules continue to run with the browser closed:
 A second background correlator watches new Critical/Error records from Windows System/Application logs. Startup uses a watermark so existing historical Event Log entries are not bulk-imported as incidents.
 
 High CPU alone is treated as a resource anomaly requiring review, not proof of malware.
+
+## Рулетка испытаний / Resource Test Roulette
+
+В AEGIS появилась отдельная вкладка **«Лаборатория»**. Анимированное колесо случайно выбирает CPU, RAM, GPU, диск или сеть. После выбора доступны измерения от Windows Agent и соответствующее действие:
+
+- CPU: настоящий ограниченный вычислительный тест в отдельном браузерном Web Worker (до 10 секунд, один поток, не более 15 мс вычислений за 100 мс).
+- RAM: настоящее выделение 8–64 МиБ, с обращением к страницам памяти; лимит 10 секунд. Это проверка выделения, **не** заполнение всей оперативной памяти.
+- GPU, диск и сеть: просмотр живой телеметрии без генерации опасной нагрузки.
+- Тест запускается только после подтверждения. Есть кнопка **Стоп**; при уходе со страницы или истечении времени Web Worker завершается. Рулетка сама не запускает тесты.
+- Настоящий BSOD не запускается из AEGIS. Для отдельного ручного испытания в виртуальной Windows есть ссылка на официальный Microsoft Sysinternals NotMyFault.
+
+Локальная рулетка и короткие проверки работают в браузерном процессе и не требуют дополнительных привилегий Windows. Исходный репозиторий AETHER.chat не изменяется.
 
 ## Embedded AETHER mini-chat
 
