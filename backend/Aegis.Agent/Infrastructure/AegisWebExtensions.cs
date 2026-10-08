@@ -9,8 +9,7 @@ public static class AegisWebExtensions
         app.Use(async (context, next) =>
         {
             var host = context.Request.Host.Host;
-            if (!host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
-                && !host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+            if (!IsLoopbackHostname(host))
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 await context.Response.WriteAsJsonAsync(new { detail = "Invalid Host header" });
@@ -35,7 +34,7 @@ public static class AegisWebExtensions
                 var expectedPort = context.Request.Host.Port
                     ?? (context.Request.IsHttps ? 443 : 80);
                 if (!string.IsNullOrWhiteSpace(origin)
-                    && !IsAllowedBrowserOrigin(origin, expectedPort))
+                    && !IsAllowedBrowserOrigin(origin, expectedPort, context.Request.IsHttps))
                 {
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
                     await context.Response.WriteAsJsonAsync(new { detail = "Browser origin is not allowed" });
@@ -65,21 +64,34 @@ public static class AegisWebExtensions
         return app;
     }
 
-    public static bool IsAllowedBrowserOrigin(string origin, int expectedPort)
+    // Do not accept extra path/query/userinfo in an Origin header.
+    // Both IPv4 and bracketed IPv6 loopback spellings are supported.
+    private static bool IsLoopbackHostname(string hostname)
+    {
+        var host = hostname.Trim('[', ']');
+        return host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+            || host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+            || host.Equals("::1", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsAllowedBrowserOrigin(
+        string origin,
+        int expectedPort,
+        bool expectedHttps = false)
     {
         if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
             return false;
 
-        if (!uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
-            && !uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        var scheme = expectedHttps ? Uri.UriSchemeHttps : Uri.UriSchemeHttp;
+        if (!uri.Scheme.Equals(scheme, StringComparison.OrdinalIgnoreCase))
             return false;
 
-        var loopbackHost =
-            uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
-            || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
-            || uri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase);
-
-        return loopbackHost && uri.Port == expectedPort;
+        return IsLoopbackHostname(uri.Host)
+            && uri.Port == expectedPort
+            && string.IsNullOrEmpty(uri.UserInfo)
+            && uri.AbsolutePath == "/"
+            && string.IsNullOrEmpty(uri.Query)
+            && string.IsNullOrEmpty(uri.Fragment);
     }
 
     public static WebApplication UseAegisFrontend(this WebApplication app)
