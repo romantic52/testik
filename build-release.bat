@@ -35,6 +35,8 @@ copy /y "%~dp0scripts\install-service.ps1" "%~dp0dist\AEGIS\scripts\install-serv
 copy /y "%~dp0scripts\uninstall-service.ps1" "%~dp0dist\AEGIS\scripts\uninstall-service.ps1" >nul
 copy /y "%~dp0install-service.bat" "%~dp0dist\AEGIS\install-service.bat" >nul
 copy /y "%~dp0uninstall-service.bat" "%~dp0dist\AEGIS\uninstall-service.bat" >nul
+copy /y "%~dp0Start AEGIS.cmd" "%~dp0dist\AEGIS\Start AEGIS.cmd" >nul
+copy /y "%~dp0scripts\start-aegis.ps1" "%~dp0dist\AEGIS\scripts\start-aegis.ps1" >nul
 
 echo [AEGIS] Running packaged smoke test...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\smoke-agent.ps1" -Executable "%~dp0dist\AEGIS\Aegis.Agent.exe"
@@ -43,7 +45,7 @@ if errorlevel 1 goto :fail
 echo.
 echo [AEGIS] Release verified successfully.
 echo [AEGIS] Output: dist\AEGIS\Aegis.Agent.exe
-echo [AEGIS] Start it with run-agent.bat.
+echo [AEGIS] Double-click dist\AEGIS\Start AEGIS.cmd to run.
 pause
 exit /b 0
 
