@@ -16,7 +16,6 @@
       <div class="nav-section-label">РАБОЧЕЕ МЕСТО</div>
       <button class="nav active" data-view="overview"><span class="nav-symbol">▦</span>Обзор</button>
       <button class="nav" data-view="monitoring"><span class="nav-symbol">◫</span>Мониторинг</button>
-      <button class="nav" data-view="lab"><span class="nav-symbol">◉</span>Лаборатория VM</button>
       <button class="nav" data-view="incidents"><span class="nav-symbol">⚑</span>Инциденты <i id="incidentBadge">0</i></button>
       <button class="nav" data-view="assets"><span class="nav-symbol">▤</span>Оборудование</button>
       <div class="nav-section-label">АНАЛИТИКА</div>
@@ -277,48 +276,7 @@
       </article>
     </section>
 
-    <section class="view" id="lab">
-      <article class="card lab-intro">
-        <div class="lab-intro-heading">
-          <div><small>AEGIS / WINDOWS 10–11</small><h2>Лаборатория нагрузки</h2>
-            <p class="muted">Реальные тестовые нагрузки на процессор и оперативную память. Ползунки регулируют интенсивность; индикаторы показывают измеренные значения Windows.</p></div>
-          <span id="labRunningPill" class="lab-running-pill">ОСТАНОВЛЕНО</span>
-        </div>
-        <div class="lab-lights" aria-label="Индикаторы ресурсов">
-          <div class="lab-light"><i id="labCpuLed" class="lab-led"></i><div><b>CPU</b><span id="labCpuMeasured">—</span></div></div>
-          <div class="lab-light"><i id="labRamLed" class="lab-led"></i><div><b>RAM</b><span id="labRamMeasured">—</span></div></div>
-          <div class="lab-light"><i id="labTempLed" class="lab-led"></i><div><b>Температура CPU</b><span id="labTempMeasured">—</span></div></div>
-        </div>
-      </article>
-      <div class="lab-controls">
-        <article class="card">
-          <div class="lab-control-title"><small>STRESS / CPU</small><h2>Нагрузка процессора</h2></div>
-          <div class="lab-range-label"><span>Целевая интенсивность работы потоков</span><b id="labCpuSetting">0%</b></div>
-          <input id="labCpuRange" class="lab-range" type="range" min="0" max="95" value="0" step="5" aria-label="Интенсивность нагрузки CPU">
-          <div class="lab-range-ends"><span>0%</span><span>95%</span></div>
-          <p class="muted">AEGIS выполняет настоящие вычисления в фоновых потоках. Итоговая загрузка зависит от количества ядер и задач Windows.</p>
-        </article>
-        <article class="card">
-          <div class="lab-control-title"><small>STRESS / MEMORY</small><h2>Заполнение оперативной памяти</h2></div>
-          <div class="lab-range-label"><span>Цель по общей занятости RAM</span><b id="labRamSetting">0%</b></div>
-          <input id="labRamRange" class="lab-range" type="range" min="0" max="95" value="0" step="5" aria-label="Целевой процент занятой оперативной памяти">
-          <div class="lab-range-ends"><span>Отключено</span><span>До 95%</span></div>
-          <p class="muted">Память выделяется и физически затрагивается порциями. Агент оставляет Windows минимум 512 МБ или 1/12 RAM — что больше.</p>
-        </article>
-      </div>
-      <article class="card lab-actions-card">
-        <label class="lab-confirm"><input id="labAck" type="checkbox"> Я запускаю тест в собственной VM и понимаю, что высокая нагрузка замедлит приложения.</label>
-        <div class="lab-buttons"><button class="primary" id="labApply" type="button">Применить нагрузку</button><button class="lab-stop" id="labStop" type="button">■ Остановить всё</button></div>
-        <p id="labFeedback" role="status">Агент должен быть запущен. До подтверждения никакая нагрузка не создаётся.</p>
-        <div class="lab-stats"><span>Выделено RAM: <b id="labHeldMemory">0 MB</b></span><span>RAM Windows: <b id="labMemoryActual">—</b></span><span>Защищённый резерв: <b id="labReserve">—</b></span></div>
-      </article>
-      <article class="card lab-crash-card">
-        <div><small>VM CRASH DIAGNOSTICS</small><h2>Настоящий системный сбой Windows</h2>
-          <p class="muted">Для тестирования настоящего BugCheck Microsoft предоставляет Sysinternals NotMyFault. Это отдельная административная утилита: AEGIS не вызывает аварийное завершение ядра автоматически.</p>
-        </div>
-        <a href="https://learn.microsoft.com/sysinternals/downloads/notmyfault" target="_blank" rel="noreferrer noopener" class="report-download">Официальный NotMyFault ↗</a>
-      </article>
-    </section>
+
 
   </main>
 
@@ -417,7 +375,6 @@
 <script src="frontend/automation.js"></script>
 <script src="frontend/monitoring.js"></script>
 <script src="frontend/crash-demo.js"></script>
-<script src="frontend/lab.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
