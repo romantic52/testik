@@ -231,3 +231,58 @@ header{align-items:flex-start;gap:20px;margin-bottom:28px}
 @keyframes lab-signal-flash{50%{opacity:.25;box-shadow:none}}
 @media(max-width:680px){.lab-telemetry-lights{grid-template-columns:1fr}.lab-light-item{padding:12px 14px}}
 @media(prefers-reduced-motion:reduce){.lab-signal{animation:none!important}}
+
+
+/* Roulette laboratory – readable desktop panel, theme-matched to AEGIS SOC. */
+.lab-intro-card{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:15px}
+.lab-intro-card h2{font-size:22px;margin:7px 0 8px}
+.lab-intro-card p{max-width:720px;line-height:1.6;margin:0}
+.lab-mini-badge{font-size:11px;font-weight:750;letter-spacing:.08em;white-space:nowrap;color:#9fcab9;background:#152920;border:1px solid #2b654c;border-radius:8px;padding:9px 11px}
+.lab-mini-badge.is-running{color:#ffe6aa;background:#42321c;border-color:#aa7a36}
+.lab-layout{display:grid;grid-template-columns:minmax(290px,.9fr) minmax(340px,1.1fr);gap:15px}
+.lab-wheel-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:19px;min-height:460px}
+.lab-wheel-wrap{position:relative;width:min(100%,340px);aspect-ratio:1;display:grid;place-items:center}
+.lab-wheel-wrap:before{content:"";position:absolute;inset:-7px;border:1px solid #324764;border-radius:50%;box-shadow:0 0 45px rgba(62,105,196,.12)}
+.lab-pointer{position:absolute;z-index:4;top:-18px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:28px solid #e8f0ff;filter:drop-shadow(0 3px 3px rgba(0,0,0,.45))}
+.lab-wheel{height:100%;width:100%;border-radius:50%;position:relative;border:8px solid #18263b;outline:2px solid #4e6285;transition:transform 3.5s cubic-bezier(.14,.76,.08,1);background:conic-gradient(from -36deg,#567ef0 0deg 72deg,#2a9a98 72deg 144deg,#744fd2 144deg 216deg,#c1843a 216deg 288deg,#2b6aab 288deg 360deg);box-shadow:inset 0 0 28px rgba(3,8,21,.22),0 15px 55px rgba(0,0,0,.24)}
+.lab-wheel-label{position:absolute;top:calc(50% - 14px);left:calc(50% - 28px);display:grid;place-items:center;width:56px;height:28px;font-size:13px;font-weight:800;color:white;text-shadow:0 2px 6px #071021;letter-spacing:.07em;transform:rotate(calc(var(--sector) * 72deg)) translateY(-106px) rotate(calc(var(--sector) * -72deg))}
+.lab-wheel-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;place-items:center;width:56px;height:56px;border-radius:50%;border:4px solid #a9b8d2;background:#142236;box-shadow:0 3px 18px rgba(0,0,0,.55);font-size:25px;font-weight:700;color:#eef6ff}
+.lab-wheel-spin{font-size:12px;min-width:205px;min-height:43px}
+.lab-wheel-spin:disabled{opacity:.5;cursor:not-allowed}
+.lab-wheel-note{text-align:center;max-width:330px;font-size:11px}
+.lab-control-panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+.lab-chosen-header{display:flex;align-items:center;gap:14px}
+.lab-chosen-header small{font-size:10px;letter-spacing:.12em;color:#8ba7cc}
+.lab-chosen-header h2{margin:5px 0 0;font-size:20px}
+.lab-choice-icon{flex:none;display:grid;place-items:center;width:51px;height:51px;border:1px solid #44648f;border-radius:12px;background:#1c3150;color:#a9cdff;font-size:25px}
+.lab-control-panel>.muted{min-height:49px}
+.lab-control-panel [hidden]{display:none!important}
+.lab-tuning{padding:15px;background:#111d2d;border:1px solid #2d4160;border-radius:10px}
+.lab-tuning label{display:flex;justify-content:space-between;align-items:center;gap:9px;font-size:12px;font-weight:550;color:#b7c8df}
+.lab-tuning b{color:#a8caff}
+.lab-tuning input[type=range]{margin-top:14px;display:block;width:100%;accent-color:#6593fc}
+.lab-tuning p{font-size:10px;margin:7px 0 0}
+.lab-consent{display:flex;align-items:flex-start;gap:10px;padding:9px 0;font-size:11px;line-height:1.5;color:#b6c5dc}
+.lab-consent input{margin-top:1px;accent-color:#779ffc;flex:none}
+.lab-action-buttons{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.lab-action-buttons button{font-size:11px;min-height:40px;padding:9px 13px;border-radius:9px}
+.lab-action-buttons #labStop{background:#311b28;border:1px solid #774151;color:#ffa3b1;cursor:pointer}
+.lab-action-buttons #labStop:disabled{opacity:.4;cursor:not-allowed}
+.lab-action-buttons #labTimer{font-variant-numeric:tabular-nums;font-size:14px;color:#aabbd1;padding:0 5px}
+#labOutcome{border-top:1px solid #2e3e54;padding-top:14px;margin:0;min-height:32px;font-size:12px;line-height:1.5;color:#a9bad1}
+.lab-readings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:auto}
+.lab-readings>div{border:1px solid #304158;background:#111b2a;border-radius:9px;display:flex;align-items:center;gap:9px;padding:11px 12px;min-width:0}
+.lab-readings i{display:inline-block;width:9px;height:9px;border-radius:50%;background:#58c39d;box-shadow:0 0 9px rgba(88,195,157,.35);flex:none}
+.lab-readings i.warn{background:#ffbd59;animation:lab-blink 1.15s ease-in-out infinite}
+.lab-readings i.high{background:#ff687a;animation:lab-blink .5s ease-in-out infinite}
+.lab-readings span{font-size:10px;letter-spacing:.06em;font-weight:650;color:#94a8c1}
+.lab-readings strong{margin-left:auto;font-variant-numeric:tabular-nums;font-size:11px;color:#dbe7f7;white-space:nowrap}
+.lab-bsod-info{margin-top:15px;display:flex;align-items:center;justify-content:space-between;gap:25px;border-color:#38465a}
+.lab-bsod-info h2{margin:5px 0 8px}
+.lab-bsod-info p{max-width:670px;font-size:11px}
+.lab-bsod-info a{white-space:nowrap;padding:11px 15px;text-decoration:none;border:1px solid #3a5880;border-radius:8px;background:#1b2e49;color:#adccff;font-size:11px;font-weight:650}
+.lab-bsod-info a:hover{background:#273f60}
+@keyframes lab-blink{50%{opacity:.25;box-shadow:none}}
+@media(max-width:1320px){.lab-layout{grid-template-columns:1fr}.lab-wheel-panel{min-height:430px}}
+@media(max-width:680px){.lab-intro-card{flex-direction:column}.lab-wheel-wrap{width:min(100%,280px)}.lab-wheel-label{transform:rotate(calc(var(--sector) * 72deg)) translateY(-86px) rotate(calc(var(--sector) * -72deg))}.lab-control-panel{padding:15px}.lab-bsod-info{flex-direction:column;align-items:flex-start}.lab-readings{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.lab-readings i{animation:none}}
