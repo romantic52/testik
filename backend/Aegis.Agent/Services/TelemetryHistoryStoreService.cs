@@ -79,7 +79,7 @@ public sealed class TelemetryHistoryStoreService
             FROM telemetry_history
             WHERE timestamp >= $from
               AND timestamp <= $to
-            ORDER BY timestamp ASC
+            ORDER BY timestamp DESC
             LIMIT $limit;
             """;
 
@@ -103,6 +103,7 @@ public sealed class TelemetryHistoryStoreService
                 reader.GetDouble(7)));
         }
 
+        result.Reverse();
         return result;
     }
 
