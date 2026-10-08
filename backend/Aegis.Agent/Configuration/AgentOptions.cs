@@ -15,6 +15,9 @@ public sealed class AgentOptions
     public int AuditRetentionDays { get; init; } = 90;
     public int AuditMaxRows { get; init; } = 100_000;
     public int StateMaintenanceMinutes { get; init; } = 360;
+    public int TelemetryPersistenceSeconds { get; init; } = 5;
+    public int TelemetryRetentionHours { get; init; } = 24;
+    public int TelemetryMaxRows { get; init; } = 100_000;
 
     public int SafeSampleIntervalMs => Math.Clamp(SampleIntervalMs, 500, 10_000);
     public int SafeProcessLimit => Math.Clamp(ProcessLimit, 10, 200);
@@ -23,6 +26,9 @@ public sealed class AgentOptions
     public int SafeAuditRetentionDays => Math.Clamp(AuditRetentionDays, 1, 3650);
     public int SafeAuditMaxRows => Math.Clamp(AuditMaxRows, 100, 1_000_000);
     public int SafeStateMaintenanceMinutes => Math.Clamp(StateMaintenanceMinutes, 5, 1440);
+    public int SafeTelemetryPersistenceSeconds => Math.Clamp(TelemetryPersistenceSeconds, 1, 60);
+    public int SafeTelemetryRetentionHours => Math.Clamp(TelemetryRetentionHours, 1, 24 * 365);
+    public int SafeTelemetryMaxRows => Math.Clamp(TelemetryMaxRows, 100, 2_000_000);
 
     public static bool IsLoopbackListenUrl(string? value)
     {
