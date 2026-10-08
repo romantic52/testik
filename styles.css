@@ -31,3 +31,138 @@
 
 .connection-process{color:#8d9aab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.process-detail-grid b{user-select:text}.process-detail-grid>div:has(span:first-child){min-width:0}
 \n.history-controls{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.history-controls>label{color:#69778b;font-size:9px}.history-controls select{border:1px solid #30425c;border-radius:7px;background:#111b2a;color:#e7eefb;font-size:10px;padding:6px;cursor:pointer}.history-controls .legend{margin-left:3px}@media(max-width:650px){.history-controls{gap:6px}.history-controls .legend{display:none}}\n
+
+/* AEGIS embedded AETHER: scoped mini-messenger, not a cloned external web UI. */
+@media(min-width:1181px){
+  .shell{grid-template-columns:210px minmax(0,1fr) 380px}
+}
+.aether-embedded{
+  background:linear-gradient(180deg,#111927,#0c121b 38%,#0c1119);
+  border-left:1px solid #2c3b51;
+  padding:17px 14px 12px;
+  gap:0; min-width:0;
+  box-shadow:-10px 0 38px rgba(0,0,0,.14);
+}
+.aether-embedded .chat-head{padding:3px 3px 14px;min-height:60px;gap:10px}
+.aether-embedded .mini-brand{display:flex;align-items:center;gap:11px;min-width:0}
+.aether-embedded .mini-brand-icon{
+  width:36px;height:36px;display:grid;place-items:center;flex:none;border-radius:11px;
+  background:linear-gradient(145deg,#667eff,#344fc5 60%,#253b79);
+  color:#fff;font-size:21px;font-weight:700;box-shadow:0 8px 19px rgba(58,90,203,.22)
+}
+.aether-embedded .mini-brand small{color:#647b9d;letter-spacing:.14em;font-size:9px;margin:0 0 5px}
+.aether-embedded .mini-brand h2{font-size:17px;line-height:1;font-weight:700;letter-spacing:.01em}
+.aether-embedded .mini-brand h2 span{color:#7ea1ff;font:inherit}
+.aether-embedded .chat-head-actions{gap:7px;flex-shrink:0}
+.aether-embedded .chat-head-actions button{
+  width:28px;height:28px;font-size:17px;color:#aab8cf;
+  background:#171f2e;border-color:#303e54;transition:background .18s;
+}
+.aether-embedded .chat-head-actions button:hover{background:#26354e}
+.aether-embedded .chat-head-actions>b{font-size:9px;padding:7px 8px;color:#7faaff;background:#18253a;border-color:#354d75}
+.aether-embedded .mini-connection{width:8px;height:8px;display:inline-block;border-radius:50%;background:#667387}
+.aether-embedded .mini-connection.online{background:#51d6a2;box-shadow:0 0 0 4px rgba(81,214,162,.09)}
+.aether-embedded .secure{
+  background:#111e2a;border-color:#243b4d;border-radius:11px;
+  padding:11px 12px;margin-bottom:12px;gap:10px;align-items:flex-start
+}
+.aether-embedded .secure>b{color:#6dc7ff;font-size:14px}
+.aether-embedded .secure strong{font-size:11px;color:#e2eef9}
+.aether-embedded .secure span{font-size:9px;color:#7890a8;line-height:1.4}
+.aether-embedded .aether-config{padding:14px;gap:11px;border-radius:12px;border-color:#304058;background:#131c29}
+.aether-embedded .mini-form-heading{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.aether-embedded .mini-form-heading strong{font-size:13px}
+.aether-embedded .mini-form-heading span{color:#6d8cae;font-size:9px}
+.aether-embedded .aether-config label>span{font-size:9px;letter-spacing:0;text-transform:none;color:#93a4bc}
+.aether-embedded .aether-config input{height:36px;font-size:12px;background:#0c1420;border-color:#293c54}
+.aether-embedded .aether-connect,.aether-embedded .aether-disconnect{padding:10px;font-size:11px}
+.aether-embedded .aether-config>p{font-size:9px;line-height:1.4}
+.aether-embedded .aether-config:not(.open){display:none}
+.aether-embedded .mini-messenger{flex:1;display:flex;flex-direction:column;min-height:0}
+.aether-embedded:not(.is-connected) .mini-messenger{display:none}
+.aether-embedded.is-connected .aether-config.open{max-height:50%;overflow:auto;flex-shrink:0}
+.aether-embedded .mini-roster-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:7px;padding:0 3px}
+.aether-embedded .mini-roster-heading>div{display:flex;align-items:baseline;gap:9px}
+.aether-embedded .mini-roster-heading span{font-size:10px;letter-spacing:.13em;font-weight:700;color:#8aa1c5}
+.aether-embedded .mini-roster-heading small{font-size:10px;color:#607c99;margin:0}
+.aether-embedded .mini-roster-heading button{width:28px;height:28px;border-radius:8px;font-size:20px;line-height:1;border:1px solid #344868;background:#1b2940;color:#a8c6ff;cursor:pointer}
+.aether-embedded .mini-roster-heading button:hover{background:#243959}
+.aether-embedded .mini-new-peer{display:flex;gap:6px;margin-bottom:9px}
+.aether-embedded .mini-new-peer[hidden]{display:none}
+.aether-embedded .mini-new-peer input{min-width:0;flex:1;padding:8px;border:1px solid #304158;border-radius:8px;background:#101827;color:#e7eef9;font-size:11px}
+.aether-embedded .mini-new-peer button{border:0;border-radius:8px;background:#416dda;color:#fff;font-size:10px;padding:0 9px;cursor:pointer}
+.aether-embedded .mini-contacts{display:flex;align-items:stretch;gap:7px;overflow-x:auto;scrollbar-width:thin;padding:0 1px 11px;flex:0 0 auto;min-height:67px}
+.aether-embedded .mini-contacts-empty{font-size:10px;color:#677f99;align-self:center;padding:10px 3px}
+.aether-embedded .mini-contact{
+  display:flex;align-items:center;gap:8px;text-align:left;min-width:134px;max-width:182px;
+  padding:8px 9px;border:1px solid #27364b;border-radius:10px;
+  background:#131d2b;color:#ced9ea;cursor:pointer;position:relative
+}
+.aether-embedded .mini-contact:hover{border-color:#466392}
+.aether-embedded .mini-contact.selected{background:#1c2d47;border-color:#5174b5;box-shadow:inset 0 0 0 1px rgba(105,152,232,.12)}
+.aether-embedded .mini-contact-avatar{
+  width:28px;height:28px;flex:0 0 auto;border-radius:9px;display:grid;place-items:center;
+  background:#293f66;color:#bdd5ff;font-size:12px;font-weight:700
+}
+.aether-embedded .mini-contact.selected .mini-contact-avatar{background:#4166a7;color:#fff}
+.aether-embedded .mini-contact-details{display:block;min-width:0;flex:1}
+.aether-embedded .mini-contact-details strong{display:block;font-size:10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.aether-embedded .mini-contact-details small{display:block;color:#778aa2;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px}
+.aether-embedded .mini-unread-count{min-width:17px;height:17px;padding:2px 4px;border-radius:20px;background:#668ffd;color:#061328;font-size:9px;font-weight:700;text-align:center}
+.aether-embedded .mini-thread-header{display:flex;align-items:center;gap:10px;padding:12px 9px;border-top:1px solid #25344a;border-bottom:1px solid #25344a;min-height:58px}
+.aether-embedded .mini-peer-avatar{width:30px;height:30px;display:grid;place-items:center;border-radius:10px;background:#233959;color:#aaceff;font-size:13px;font-weight:700}
+.aether-embedded .mini-thread-title{min-width:0;flex:1}
+.aether-embedded .mini-thread-title strong{display:block;font-size:12px;color:#e5ecf8;overflow:hidden;text-overflow:ellipsis}
+.aether-embedded .mini-thread-title span{display:block;font-size:9px;color:#71859e;margin-top:4px}
+.aether-embedded .mini-encryption-mark{font-size:19px;color:#75bde8}
+.aether-embedded .mini-messages{min-height:90px;flex:1;padding:12px 4px 8px;overflow-y:auto;scrollbar-width:thin;display:flex;flex-direction:column;gap:9px}
+.aether-embedded .mini-empty{margin:auto;text-align:center;display:flex;flex-direction:column;align-items:center;gap:9px;padding:24px 17px;max-width:260px}
+.aether-embedded .mini-empty:before{content:"✦";font-size:25px;color:#618cf4;background:#1a2945;border-radius:16px;width:52px;height:52px;display:grid;place-items:center}
+.aether-embedded .mini-empty strong{font-size:12px;line-height:1.4}
+.aether-embedded .mini-empty span{font-size:10px;color:#72849b;line-height:1.5}
+.aether-embedded .mini-date-separator{align-self:center;font-size:9px;color:#6d8098;background:#141f2e;border:1px solid #26364b;padding:4px 9px;border-radius:30px}
+.aether-embedded .mini-bubble{max-width:88%;align-self:flex-start;min-width:68px;border:1px solid #29374b;border-radius:13px 13px 13px 4px;padding:10px 12px;background:#192333}
+.aether-embedded .mini-bubble.outgoing{align-self:flex-end;border-radius:13px 13px 4px 13px;background:#21375b;border-color:#365b91}
+.aether-embedded .mini-bubble-meta{display:flex;align-items:center;justify-content:space-between;gap:16px;color:#7790af}
+.aether-embedded .mini-bubble-meta strong{color:#a7c5ec;font-size:9px}
+.aether-embedded .mini-bubble-meta time{font-size:9px}
+.aether-embedded .mini-bubble p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;line-height:1.55;margin:6px 0 0;color:#e2e9f3}
+.aether-embedded .quick{padding:10px 2px 5px;gap:7px}
+.aether-embedded .quick button{border-color:#2c3e57;background:#182438;color:#95aed2;font-size:9px;padding:7px 9px}
+.aether-embedded .quick button:hover{background:#273b5d}
+.aether-embedded .quick.disabled{opacity:.45;pointer-events:none}
+.aether-embedded .mini-compose{display:grid;grid-template-columns:minmax(0,1fr) 39px;gap:8px;padding:8px 1px 5px}
+.aether-embedded #chatInput{height:64px;min-height:64px;max-height:115px;resize:vertical;background:#111c2d;border:1px solid #334560;border-radius:11px;color:#edf5ff;padding:10px 12px;font-size:11px;line-height:1.45}
+.aether-embedded #chatInput::placeholder{color:#607998}
+.aether-embedded #chatInput:focus{outline:0;border-color:#628fe4}
+.aether-embedded .mini-compose button{border-radius:10px;background:linear-gradient(145deg,#5b8dff,#3d69e0);font-size:22px}
+.aether-embedded .mini-compose button:disabled{opacity:.4;cursor:not-allowed}
+.aether-embedded .mini-compose-note{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:8px;color:#697f9b;padding:1px 4px 6px}
+.aether-embedded .mini-compose-note span:last-child{white-space:nowrap}
+.aether-embedded footer{padding-top:10px;border-top:1px solid #26364a;color:#7286a0;font-size:9px}
+.aether-embedded footer i{width:6px;height:6px}
+#aetherCollapseToggle{display:none}
+@media(max-width:1180px) and (min-width:901px){
+  .main{padding-right:405px}
+  .chat.aether-embedded{width:386px}
+}
+@media(max-width:900px){
+  .main{padding-bottom:100px}
+  .chat.aether-embedded{
+    width:min(390px,calc(100vw - 24px));height:min(620px,calc(100dvh - 90px));
+    right:12px;bottom:12px;top:auto;position:fixed;z-index:30;
+    border:1px solid #3b4e69;border-radius:17px;padding:11px 12px;
+    box-shadow:0 24px 90px rgba(0,0,0,.65)
+  }
+  .aether-embedded .chat-head,.aether-embedded .secure,.aether-embedded .quick,.aether-embedded footer{display:flex}
+  .aether-embedded .chat-head{padding-bottom:7px}
+  #aetherCollapseToggle{display:block}
+  .chat.aether-embedded.is-collapsed{height:62px;overflow:hidden}
+  .chat.aether-embedded.is-collapsed .secure,
+  .chat.aether-embedded.is-collapsed .aether-config,
+  .chat.aether-embedded.is-collapsed .mini-messenger,
+  .chat.aether-embedded.is-collapsed footer{display:none}
+  .chat.aether-embedded.is-collapsed .chat-head{min-height:38px}
+  .aether-embedded .mini-messages{min-height:40px}
+  .aether-embedded.is-connected .aether-config.open{max-height:60%;overflow:auto}
+}
