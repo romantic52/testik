@@ -597,7 +597,8 @@
         text: String(text),
         createdAt: new Date().toISOString()
       });
-      this.peerId = peer;
+      // Sending a queued/older conversation must not silently switch the active peer.
+      if (!this.peerId) this.peerId = peer;
       this.emit("aether-state", {
         connected: true,
         userId: this.userId,
