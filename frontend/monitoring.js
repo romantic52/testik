@@ -66,18 +66,6 @@ function renderTelemetry(payload){
   const system=payload?.system;
   if(!system)return;
   lastTelemetryPayload=payload;
-  // Visual LEDs mirror actual Windows telemetry; no simulated resource usage.
-  for(const [ledId,valueId,current,suffix,warn,critical] of [
-    ["signalCpu","signalCpuValue",numeric(system.cpuLoadPercent),"%",65,85],
-    ["signalRam","signalRamValue",numeric(system.memory?.loadPercent),"%",75,90],
-    ["signalTemp","signalTempValue",numeric(system.cpuTemperatureC),"°C",75,88]
-  ]){
-    const led=q("#"+ledId),value=q("#"+valueId);
-    if(!led||!value)continue;
-    led.classList.toggle("warm",current!==null&&current>=warn);
-    led.classList.toggle("critical",current!==null&&current>=critical);
-    value.textContent=current===null?"Нет датчика":current.toFixed(1)+suffix;
-  }
   pushHistory(system);
   updateOverview(payload);
 
