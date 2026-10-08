@@ -25,10 +25,10 @@ function formatDuration(seconds){
   return secs+"s";
 }
 function fmtPercent(v){
-  return Number.isFinite(Number(v))?Number(v).toFixed(1)+"%":"—";
+  return numeric(v)!==null?Number(v).toFixed(1)+"%":"—";
 }
 function fmtTemp(v){
-  return Number.isFinite(Number(v))?Number(v).toFixed(1)+" °C":"—";
+  return numeric(v)!==null?Number(v).toFixed(1)+" °C":"—";
 }
 function formatFileSize(v){
   const n=Number(v);
