@@ -173,14 +173,29 @@ public sealed class StateDatabase
                 updated_at TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS telemetry_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                cpu_load_percent REAL NULL,
+                cpu_temperature_c REAL NULL,
+                memory_load_percent REAL NULL,
+                gpu_load_percent REAL NULL,
+                gpu_temperature_c REAL NULL,
+                receive_bytes_per_second REAL NOT NULL,
+                send_bytes_per_second REAL NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_telemetry_history_timestamp
+                ON telemetry_history(timestamp ASC);
+
             CREATE TABLE IF NOT EXISTS metadata (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
 
             INSERT INTO metadata(key, value)
-            VALUES ('schema_version', '1')
-            ON CONFLICT(key) DO NOTHING;
+            VALUES ('schema_version', '2')
+            ON CONFLICT(key) DO UPDATE SET value = '2';
 
             INSERT INTO metadata(key, value)
             VALUES ('revision', '0')
