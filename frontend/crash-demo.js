@@ -150,7 +150,7 @@ async function cancelRealShutdown() {
     toast("Выключение Windows отменено");
   } catch (error) {
     q("#bsodModeLabel").textContent = "Ошибка отмены: " + (error.message || "проверь Windows");
-    toast("Не удалось отменить выключение. Используй shutdown /a в Windows.");
+    toast("Не удалось отменить выключение. Проверь состояние Windows.");
   } finally {
     buttons.forEach(button => { button.disabled = false; button.textContent = "Отменить выключение Windows"; });
   }
