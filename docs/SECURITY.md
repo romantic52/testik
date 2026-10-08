@@ -91,17 +91,18 @@ The Security log is not exposed, and AEGIS does not escalate privileges to acces
 
 Service inventory is read-only. There is no HTTP endpoint to start, stop, restart or reconfigure arbitrary Windows Services.
 
-## No destructive remediation
+## Local system power action
 
-AEGIS currently exposes no API for:
-- process termination;
-- OS shutdown/reboot;
-- arbitrary command execution;
-- firewall changes;
-- service mutation;
-- credential changes.
+AEGIS exposes a narrow, **operator-confirmed Windows shutdown**, not a remote-management shell:
+- Visual-only BSOD demo is the default and does not request OS power operations.
+- A separate real-shutdown action requires a second choice, the exact typed phrase `ВЫКЛЮЧИТЬ`, an acknowledgement and a custom intent header.
+- Windows schedules a shutdown after 45 seconds, without forced process termination.
+- The operator may cancel the scheduled shutdown in the interface before the timeout.
+- The local loopback origin/security headers are still enforced; this is not authorization for arbitrary hosts or users.
 
-`CRASH SYSTEM` is a visual demonstration only.
+This is a **high-impact local action**. Do not expose the agent to untrusted local applications/users, and keep unsaved documents closed before using it. A passing CI test confirms input validation, not that a real desktop machine has actually been switched off.
+
+There is no API for process termination, arbitrary commands, firewall changes, service mutation or credentials.
 
 ## Windows Service privilege boundary
 
