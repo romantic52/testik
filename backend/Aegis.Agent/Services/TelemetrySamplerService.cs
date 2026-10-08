@@ -10,22 +10,26 @@ public sealed class TelemetrySamplerService : BackgroundService
     private readonly ProcessMonitorService _processes;
     private readonly NetworkMonitorService _network;
     private readonly AgentOptions _options;
+    private readonly TelemetryHistoryStoreService _historyStore;
     private readonly ILogger<TelemetrySamplerService> _logger;
     private readonly object _sync = new();
     private readonly Queue<TelemetryHistoryPoint> _history = new();
 
     private TelemetryFrame? _latest;
+    private DateTimeOffset? _lastPersistedAt;
 
     public TelemetrySamplerService(
         HardwareMonitorService hardware,
         ProcessMonitorService processes,
         NetworkMonitorService network,
+        TelemetryHistoryStoreService historyStore,
         IOptions<AgentOptions> options,
         ILogger<TelemetrySamplerService> logger)
     {
         _hardware = hardware;
         _processes = processes;
         _network = network;
+        _historyStore = historyStore;
         _options = options.Value;
         _logger = logger;
     }
@@ -55,7 +59,7 @@ public sealed class TelemetrySamplerService : BackgroundService
             await SampleSafeAsync(stoppingToken);
     }
 
-    private Task SampleSafeAsync(CancellationToken cancellationToken)
+    private async Task SampleSafeAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -81,6 +85,7 @@ public sealed class TelemetrySamplerService : BackgroundService
                 frame.System.Network.TotalReceiveBytesPerSecond,
                 frame.System.Network.TotalSendBytesPerSecond);
 
+            var persist = false;
             lock (_sync)
             {
                 _latest = frame;
@@ -89,6 +94,25 @@ public sealed class TelemetrySamplerService : BackgroundService
                 var cutoff = DateTimeOffset.UtcNow.AddMinutes(-_options.SafeHistoryMinutes);
                 while (_history.Count > 0 && _history.Peek().Timestamp < cutoff)
                     _history.Dequeue();
+
+                if (_lastPersistedAt is null ||
+                    point.Timestamp - _lastPersistedAt.Value >= TimeSpan.FromSeconds(_options.SafeTelemetryPersistenceSeconds))
+                {
+                    _lastPersistedAt = point.Timestamp;
+                    persist = true;
+                }
+            }
+
+            if (persist)
+            {
+                try
+                {
+                    await _historyStore.AppendAsync(point, cancellationToken);
+                }
+                catch (Exception error)
+                {
+                    _logger.LogWarning(error, "Telemetry history persistence failed");
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -99,6 +123,5 @@ public sealed class TelemetrySamplerService : BackgroundService
             _logger.LogWarning(error, "Telemetry sampling failed");
         }
 
-        return Task.CompletedTask;
     }
 }
