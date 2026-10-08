@@ -7,6 +7,9 @@
     return new Promise((resolve, reject) => {
       const worker = new Worker("frontend/lab-worker.js");
       task.worker = worker;
+      task.controller.signal.addEventListener("abort", () => {
+        reject(new DOMException("Aborted", "AbortError"));
+      }, { once: true });
       worker.onmessage = event => {
         if (task.controller.signal.aborted) return;
         const data = event.data || {};
@@ -121,7 +124,7 @@
     return body;
   }
 
-  async function networkTest(task, report) {
+  async function networkTest(task, settings, report) {
     const started = performance.now();
     let bytes = 0;
     for (let i = 0; i < 48; i++) {
