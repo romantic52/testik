@@ -37,6 +37,9 @@ public sealed class StateMaintenanceService : BackgroundService
         var cutoff = DateTimeOffset.UtcNow
             .AddDays(-_options.SafeAuditRetentionDays)
             .ToString("O");
+        var telemetryCutoff = DateTimeOffset.UtcNow
+            .AddHours(-_options.SafeTelemetryRetentionHours)
+            .ToString("O");
 
         await using var connection = _database.OpenConnection();
         await using var transaction =
@@ -68,6 +71,32 @@ public sealed class StateMaintenanceService : BackgroundService
             removedByCount = await byCount.ExecuteNonQueryAsync(cancellationToken);
         }
 
+        int telemetryRemovedByAge;
+        await using (var telemetryByAge = connection.CreateCommand())
+        {
+            telemetryByAge.Transaction = transaction;
+            telemetryByAge.CommandText = "DELETE FROM telemetry_history WHERE timestamp < $cutoff;";
+            telemetryByAge.Parameters.AddWithValue("$cutoff", telemetryCutoff);
+            telemetryRemovedByAge = await telemetryByAge.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        int telemetryRemovedByCount;
+        await using (var telemetryByCount = connection.CreateCommand())
+        {
+            telemetryByCount.Transaction = transaction;
+            telemetryByCount.CommandText = """
+                DELETE FROM telemetry_history
+                WHERE id NOT IN (
+                    SELECT id
+                    FROM telemetry_history
+                    ORDER BY id DESC
+                    LIMIT $maxRows
+                );
+                """;
+            telemetryByCount.Parameters.AddWithValue("$maxRows", _options.SafeTelemetryMaxRows);
+            telemetryRemovedByCount = await telemetryByCount.ExecuteNonQueryAsync(cancellationToken);
+        }
+
         await transaction.CommitAsync(cancellationToken);
 
         await using (var checkpoint = connection.CreateCommand())
@@ -81,13 +110,23 @@ public sealed class StateMaintenanceService : BackgroundService
         var remaining = Convert.ToInt64(
             await count.ExecuteScalarAsync(cancellationToken));
 
+        await using var telemetryCount = connection.CreateCommand();
+        telemetryCount.CommandText = "SELECT COUNT(*) FROM telemetry_history;";
+        var remainingTelemetry = Convert.ToInt64(
+            await telemetryCount.ExecuteScalarAsync(cancellationToken));
+
         return new StateMaintenanceResult(
             DateTimeOffset.UtcNow,
             removedByAge,
             removedByCount,
             remaining,
             _options.SafeAuditRetentionDays,
-            _options.SafeAuditMaxRows);
+            _options.SafeAuditMaxRows,
+            telemetryRemovedByAge,
+            telemetryRemovedByCount,
+            remainingTelemetry,
+            _options.SafeTelemetryRetentionHours,
+            _options.SafeTelemetryMaxRows);
     }
 
     private async Task RunSafeAsync(CancellationToken cancellationToken)
@@ -99,9 +138,11 @@ public sealed class StateMaintenanceService : BackgroundService
             if (result.RemovedTotal > 0)
             {
                 _logger.LogInformation(
-                    "AEGIS SQLite maintenance removed {Removed} audit rows; {Remaining} remain",
+                    "AEGIS SQLite maintenance removed {AuditRemoved} audit rows and {TelemetryRemoved} telemetry rows; {AuditRemaining} audit / {TelemetryRemaining} telemetry remain",
                     result.RemovedTotal,
-                    result.RemainingAuditRows);
+                    result.TelemetryRemovedTotal,
+                    result.RemainingAuditRows,
+                    result.RemainingTelemetryRows);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -120,7 +161,13 @@ public sealed record StateMaintenanceResult(
     int RemovedByCount,
     long RemainingAuditRows,
     int RetentionDays,
-    int MaxRows)
+    int MaxRows,
+    int TelemetryRemovedByAge,
+    int TelemetryRemovedByCount,
+    long RemainingTelemetryRows,
+    int TelemetryRetentionHours,
+    int TelemetryMaxRows)
 {
     public int RemovedTotal => RemovedByAge + RemovedByCount;
+    public int TelemetryRemovedTotal => TelemetryRemovedByAge + TelemetryRemovedByCount;
 }
