@@ -211,6 +211,16 @@ Windows can deny access to protected processes. AEGIS does not bypass access con
 
 IPv4 owner mapping uses Windows IP Helper. IPv6 is preserved but may not have owner PID in the current implementation.
 
+## One-click desktop launch
+
+Use `Start AEGIS.cmd` from the repo or a downloaded Windows package. It launches the backend, waits for the local agent health check and opens the interface in a standalone Microsoft Edge app window where Edge is installed, otherwise in your default browser. The release contains the self-contained .NET runtime, so end users need no SDK.
+
+If startup fails, the launcher prints an error; to inspect backend details run `Aegis.Agent.exe` in a terminal. The UI is a web-based desktop shell on loopback, not a WinUI native window.
+
+## BSOD and Windows shutdown
+
+`CRASH SYSTEM` offers a harmless BSOD simulation by default. A second mode can schedule Windows shutdown only after manual typed consent; it provides a 45-second cancellation period and does not use forced-close mode. Avoid triggering the real mode during production work, remote sessions or while files are unsaved.
+
 ## CI/release verification
 
 Main CI validates:
