@@ -41,6 +41,8 @@ jobs:
           Copy-Item ./scripts/uninstall-service.ps1 ./dist/AEGIS/scripts/uninstall-service.ps1
           Copy-Item ./install-service.bat ./dist/AEGIS/install-service.bat
           Copy-Item ./uninstall-service.bat ./dist/AEGIS/uninstall-service.bat
+          Copy-Item "./Start AEGIS.cmd" "./dist/AEGIS/Start AEGIS.cmd"
+          Copy-Item ./scripts/start-aegis.ps1 ./dist/AEGIS/scripts/start-aegis.ps1
 
       - name: Smoke packaged executable
         shell: pwsh
