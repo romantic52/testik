@@ -1,4 +1,4 @@
-param([switch]$NoConsole)
+﻿param([switch]$NoConsole)
 . (Join-Path $PSScriptRoot 'common.ps1')
 $mutex=[Threading.Mutex]::new($false,'Local\AEGIS-PostgreSQL-'+[Security.Principal.WindowsIdentity]::GetCurrent().User.Value)
 $locked=$false
@@ -35,7 +35,7 @@ try {
   $null=Run-Tool (Join-Path $pgBin 'psql.exe') ($connection+@('-d','aether_demo','-v','ON_ERROR_STOP=1','--single-transaction','-f',(Q (Join-Path $kitRoot 'data\aether.sql')))) 'restore'
   @{restored=(Get-Date).ToString('o');source='data/aether.sql';sample='Original AETHER schema without account or message data'} | ConvertTo-Json | Set-Content $marker -Encoding UTF8
  }elseif(-not(Test-Path $marker)){
-  throw 'A database without a successful restore marker already exists. It was preserved; inspect the restore log.'
+  throw 'База aether_demo есть, но импорт схемы ранее не завершился (нет restored.json). Данные сохранены. Запусти Repair PostgreSQL.cmd: он переименует неполную базу и создаст новую.'
  }
  $null=Run-Tool (Join-Path $pgBin 'psql.exe') ($connection+@('-d','aether_demo','-v','ON_ERROR_STOP=1','-f',(Q (Join-Path $kitRoot 'sql\overview.sql')))) 'overview'
  @{database='aether_demo';user='demo';host='127.0.0.1';port=$dbPort;data=$dataDir;logs=$logs} | ConvertTo-Json | Set-Content (Join-Path $stateDir 'connection.json') -Encoding UTF8

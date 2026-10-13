@@ -1,5 +1,6 @@
-$ErrorActionPreference='Stop'
-if($env:USERNAME -ne 'WDAGUtilityAccount'){throw 'Open Start Database Sandbox.cmd from the outer folder. Database tools run inside Windows Sandbox.'}
+﻿$ErrorActionPreference='Stop'
+# Loopback-only PostgreSQL (127.0.0.1:54331) in %LOCALAPPDATA%\AEGIS-PostgreSQL.
+# Works for any Windows user; the outer Sandbox launcher is only a convenient isolated way to demo it.
 $componentRoot=Split-Path -Parent $PSScriptRoot
 $kitRoot=Split-Path -Parent $componentRoot
 $stateDir=Join-Path $env:LOCALAPPDATA 'AEGIS-PostgreSQL'
@@ -25,4 +26,14 @@ function Set-DatabasePassword {
  if(-not(Test-Path $secretFile)){throw "Database credential is missing. Existing data has been preserved: $stateDir"}
  $credential=Import-Clixml $secretFile
  $env:PGPASSWORD=$credential.GetNetworkCredential().Password
+}
+
+function Get-PsqlScalar([string]$db,[string]$sql,[string]$name){
+ $null=Run-Tool (Join-Path $pgBin 'psql.exe') @('-h','127.0.0.1','-p',"$dbPort",'-U','demo','-w','-d',$db,'-At','-c',('"'+$sql+'"')) $name
+ $v=Get-Content (Join-Path $logs ($name+'.log')) -Raw
+ if([string]::IsNullOrWhiteSpace($v)){return ''};return $v.Trim()
+}
+function Assert-Running {
+ $status=Run-Tool (Join-Path $pgBin 'pg_ctl.exe') @('-D',(Q $dataDir),'status') 'status-check' -AllowNonzero
+ if($status -ne 0){throw 'PostgreSQL не запущен. Сначала Start PostgreSQL.cmd.'}
 }
