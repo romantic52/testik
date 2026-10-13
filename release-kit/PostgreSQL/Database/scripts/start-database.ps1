@@ -40,5 +40,5 @@ try {
  $null=Run-Tool (Join-Path $pgBin 'psql.exe') ($connection+@('-d','aether_demo','-v','ON_ERROR_STOP=1','-f',(Q (Join-Path $kitRoot 'sql\overview.sql')))) 'overview'
  @{database='aether_demo';user='demo';host='127.0.0.1';port=$dbPort;data=$dataDir;logs=$logs} | ConvertTo-Json | Set-Content (Join-Path $stateDir 'connection.json') -Encoding UTF8
  Write-Output "PostgreSQL ready: 127.0.0.1:$dbPort / aether_demo. AEGIS and AETHER relay are not started by this launcher."
-} finally {$env:PGPASSWORD=$null;if($locked){$mutex.ReleaseMutex()};$mutex.Dispose()}
+} catch {Write-Output "ОШИБКА: $($_.Exception.Message)";if($locked){$mutex.ReleaseMutex();$locked=$false};$mutex.Dispose();$mutex=$null;exit 1} finally {$env:PGPASSWORD=$null;if($mutex){if($locked){$mutex.ReleaseMutex()};$mutex.Dispose()}}
 if(-not $NoConsole){& (Join-Path $PSScriptRoot 'open-postgresql.ps1') -AlreadyStarted}

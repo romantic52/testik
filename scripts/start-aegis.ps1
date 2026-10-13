@@ -13,7 +13,8 @@ function Open-Window {
  Start-Process $AegisBaseUrl | Out-Null
 }
 function Ask([string]$text){
- if($NoBrowser){return [bool]$ReplaceOther}
+ if($ReplaceOther){return $true}
+ if($NoBrowser){return $false}
  Add-Type -AssemblyName PresentationFramework
  return [Windows.MessageBox]::Show($text,'AEGIS','YesNo','Warning') -eq 'Yes'
 }
