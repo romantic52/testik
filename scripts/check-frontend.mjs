@@ -13,6 +13,7 @@ const runtimeFiles = [
   "frontend/crash-demo.js",
   "frontend/lab-tests.js",
   "frontend/lab.js",
+  "frontend/security.js",
   "app.js"
 ];
 

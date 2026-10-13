@@ -3,6 +3,7 @@
 const AGENT_HTTP=location.protocol.startsWith("http")?location.origin:"http://127.0.0.1:8765";
 const AGENT_WS=(location.protocol==="https:"?"wss://":"ws://")+(location.protocol.startsWith("http")?location.host:"127.0.0.1:8765")+"/ws/monitor";
 let lastFrameAt=0;
+let sensorHint="",sensorHintRequested=false;
 let agentVersion=null;
 function showConnectionBanner(title,text){
   const banner=q("#connectionBanner");if(!banner)return;
@@ -102,7 +103,12 @@ function renderTelemetry(payload){
   q("#machineMeta").textContent=(system.os||"Windows")+" • "+(system.logicalProcessors||"?")+" logical CPU";
 
   q("#cpuLoad").textContent=fmtPercent(system.cpuLoadPercent);
-  q("#cpuTemp").textContent="Температура: "+(numeric(system.cpuTemperatureC)===null?"недоступна (нужен запуск от администратора или это VM)":fmtTemp(system.cpuTemperatureC));
+  q("#cpuTemp").textContent="Температура: "+(numeric(system.cpuTemperatureC)===null?"недоступна":fmtTemp(system.cpuTemperatureC));
+  q("#cpuTemp").title=numeric(system.cpuTemperatureC)===null?(sensorHint||"Датчик не отдаёт значение."):"";
+  if(numeric(system.cpuTemperatureC)===null&&!sensorHintRequested){
+    sensorHintRequested=true;
+    apiJson("/api/v1/sensors/capabilities").then(c=>{sensorHint=c.cpuTemperatureHint||"";if(sensorHint)q("#cpuTemp").textContent="Температура: недоступна — "+(c.pawnIoDriver?"нужна служба AEGIS":"нужен драйвер PawnIO")}).catch(()=>{});
+  }else if(sensorHint&&numeric(system.cpuTemperatureC)===null)q("#cpuTemp").textContent="Температура: недоступна — "+(sensorHint.includes("PawnIO (")?"нужен драйвер PawnIO":"нужна служба AEGIS");
   setBar("#cpuBar",system.cpuLoadPercent);
 
   q("#ramLoad").textContent=fmtPercent(system.memory?.loadPercent);

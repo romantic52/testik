@@ -1,8 +1,8 @@
 ﻿param([switch]$Lan,[switch]$NoBrowser)
 $ErrorActionPreference='Stop'
-# LAN mode trusts a self-made test CA and listens on the network: Sandbox only.
-# Local mode (127.0.0.1:8766, no certificate changes) works for any Windows user.
-if($Lan -and $env:USERNAME -ne 'WDAGUtilityAccount'){throw 'Режим LAN (тестовый сертификат + доступ из сети) запускается только в Windows Sandbox. Без -Lan relay работает локально на 127.0.0.1:8766.'}
+# Local mode: 127.0.0.1:8766 only. LAN mode (-Lan): HTTPS on this PC's IPv4 with a
+# self-made CA; the CA is trusted system-wide only inside the disposable Sandbox.
+$sandbox=$env:USERNAME -eq 'WDAGUtilityAccount'
 $root=Split-Path -Parent $PSScriptRoot
 $stateDir=Join-Path $env:LOCALAPPDATA 'AETHER-LAN'
 $logs=Join-Path $stateDir 'logs';New-Item -ItemType Directory -Force -Path $stateDir,$logs | Out-Null
@@ -14,7 +14,7 @@ function Get-AsciiPath([string]$path,[string]$fallbackName){
  if($path -notmatch '[^\x00-\x7F]'){return $path}
  try{$short=(New-Object -ComObject Scripting.FileSystemObject).GetFolder($path).ShortPath;if($short -notmatch '[^\x00-\x7F]'){return $short}}catch{}
  if(-not $fallbackName){throw "Путь содержит не-ASCII символы и не имеет короткого имени: $path. Перенеси папку в путь из латинских букв."}
- $cache=Join-Path $env:ProgramData ('AEGIS\'+$fallbackName)
+ $cache=Join-Path $env:ProgramData ('AEGIS-runtime\'+$fallbackName)
  if(-not(Test-Path (Join-Path $cache 'bin\initdb.exe'))){New-Item -ItemType Directory -Force -Path $cache | Out-Null;Copy-Item (Join-Path (Split-Path -Parent $path) '*') $cache -Recurse -Force}
  return (Join-Path $cache 'bin')
 }
@@ -79,18 +79,22 @@ try {
   $pem=Join-Path $tls 'server.pem'
   if(Test-Path $pem){
    $valid=$false
-   try{$cert=New-Object Security.Cryptography.X509Certificates.X509Certificate2 $pem;$san=($cert.Extensions | Where-Object {$_.Oid.Value -eq '2.5.29.17'}).Format($false);$valid=($san -match [regex]::Escape($ip)) -and $cert.NotAfter -gt (Get-Date).AddDays(7)}catch{}
+   try{$cert=New-Object Security.Cryptography.X509Certificates.X509Certificate2 $pem;$san=($cert.Extensions | Where-Object {$_.Oid.Value -eq '2.5.29.17'}).Format($false);$valid=($san -match [regex]::Escape($ip)) -and $cert.NotAfter -gt (Get-Date).AddDays(3)}catch{}
    if(-not $valid){Move-Item $tls ($tls+'-old-'+(Get-Date).ToString('yyyyMMddHHmmss'));Write-Output "TLS-сертификат не подходит для $ip или истекает — выпускаю новый."}
   }
-  if(-not(Test-Path (Join-Path $tls 'server.pem'))){$null=Run-Tool $python @((Q (Join-Path $PSScriptRoot 'make-tls.py')),(Q $tls),$ip) 'tls';Import-Certificate (Join-Path $tls 'root.cer') -CertStoreLocation Cert:\LocalMachine\Root | Out-Null}
+  if(-not(Test-Path (Join-Path $tls 'server.pem'))){$null=Run-Tool $python @((Q (Join-Path $PSScriptRoot 'make-tls.py')),(Q $tls),$ip) 'tls'
+   # Only the disposable Sandbox trusts the test CA system-wide. On a real PC the
+   # server does not need to trust its own CA: other computers import root.cer.
+   if($sandbox){Import-Certificate (Join-Path $tls 'root.cer') -CertStoreLocation Cert:\LocalMachine\Root | Out-Null}}
   $url="https://${ip}:8443"
-  try{$secure=Invoke-RestMethod "$url/health" -TimeoutSec 2}catch{$secure=$null}
-  if($secure -and -not ($secure.status -eq 'ok' -and $secure.e2e)){throw "$url отвечает, но это не AETHER relay."}
+  # Verify HTTPS against our own CA file (no system trust change needed).
+  function Test-Https{ $code="import ssl,urllib.request,sys;ctx=ssl.create_default_context(cafile=sys.argv[2]);print(urllib.request.urlopen(sys.argv[1]+'/health',context=ctx,timeout=3).read().decode())"; $r=& $python -c $code $url (Join-Path $tls 'root.pem') 2>$null; if($LASTEXITCODE -eq 0 -and $r -match 'server_never_sees_plaintext'){return $r}; return $null }
+  $secure=Test-Https
   if(-not $secure){
    $p=Start-Process $python -ArgumentList @('-m','uvicorn','server.main:app','--host',$ip,'--port','8443','--ssl-keyfile',(Q (Join-Path $tls 'server.key')),'--ssl-certfile',(Q (Join-Path $tls 'server.pem'))) -WorkingDirectory (Join-Path $root 'relay') -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $logs 'relay-https.log') -RedirectStandardError (Join-Path $logs 'relay-https-error.log')
    $pids+=@{pid=$p.Id;started=$p.StartTime.ToUniversalTime().ToString('o');executable=$python}
   }
-  for($i=0;$i -lt 45;$i++){try{$secure=Invoke-RestMethod "$url/health" -TimeoutSec 2;break}catch{Start-Sleep -Seconds 1}}
+  for($i=0;$i -lt 45 -and -not $secure;$i++){Start-Sleep -Seconds 1;$secure=Test-Https}
   if(-not $secure){throw "HTTPS validation failed. Logs: $logs"}
  }
  $recordFile=Join-Path $stateDir 'processes.json'

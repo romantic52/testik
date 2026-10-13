@@ -14,7 +14,7 @@ function Get-AsciiPath([string]$path,[string]$fallbackName){
  if($path -notmatch '[^\x00-\x7F]'){return $path}
  try{$short=(New-Object -ComObject Scripting.FileSystemObject).GetFolder($path).ShortPath;if($short -notmatch '[^\x00-\x7F]'){return $short}}catch{}
  if(-not $fallbackName){throw "Путь содержит не-ASCII символы и не имеет короткого имени: $path. Перенеси папку в путь из латинских букв."}
- $cache=Join-Path $env:ProgramData ('AEGIS\'+$fallbackName)
+ $cache=Join-Path $env:ProgramData ('AEGIS-runtime\'+$fallbackName)
  if(-not(Test-Path (Join-Path $cache 'bin\initdb.exe'))){New-Item -ItemType Directory -Force -Path $cache | Out-Null;Copy-Item (Join-Path (Split-Path -Parent $path) '*') $cache -Recurse -Force}
  return (Join-Path $cache 'bin')
 }$pgBin=Get-AsciiPath $pgBin 'postgresql-16-demo'

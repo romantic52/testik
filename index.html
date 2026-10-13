@@ -18,6 +18,7 @@
       <div class="nav-section-label">РАБОЧЕЕ МЕСТО</div>
       <button class="nav active" data-view="overview"><span class="nav-symbol">▦</span>Обзор</button>
       <button class="nav" data-view="monitoring"><span class="nav-symbol">◫</span>Мониторинг</button>
+      <button class="nav" data-view="network"><span class="nav-symbol">⌁</span>Сеть</button>
       <button class="nav" data-view="lab"><span class="nav-symbol">◉</span>Лаборатория</button>
       <button class="nav" data-view="incidents"><span class="nav-symbol">⚑</span>Инциденты <i id="incidentBadge">0</i></button>
       <button class="nav" data-view="assets"><span class="nav-symbol">▤</span>Оборудование</button>
@@ -129,18 +130,77 @@
     </section>
 
     <section class="view" id="access">
-      <article class="card tall connector-card">
-        <small>СКУД / CONNECTOR</small><h2>Контроль физического доступа</h2>
-        <div class="connector-state"><b>NOT CONFIGURED</b><span>Реальный контроллер доступа не подключён.</span></div>
-        <p class="muted">AEGIS не генерирует фиктивные проходы. Для production сюда подключается API/SDK конкретной СКУД, а её события идут в общий incident/audit pipeline.</p>
+      <article class="card connector-card">
+        <div class="card-head"><div><small>КОНТРОЛЬ ДОСТУПА · ЭТОТ КОМПЬЮТЕР</small><h2>Входы в Windows</h2></div><b class="access-status" id="accessStatus">…</b></div>
+        <p class="muted" id="accessStatusText">Загрузка…</p>
+        <div class="access-tiles">
+          <div><b id="accessOk">—</b><span>успешных входов за 24 ч</span></div>
+          <div><b id="accessFail">—</b><span>неудачных входов за 24 ч</span></div>
+          <div><b id="accessLock">—</b><span>блокировок учётных записей</span></div>
+          <div><b id="accessCtl">—</b><span>событий от СКУД за 24 ч</span></div>
+        </div>
+        <p class="muted">Правила: 5 и более неудачных входов за 5 минут → инцидент «Подбор пароля»; блокировка учётной записи → инцидент; 3 отказа в проходе на одной точке СКУД за 5 минут → инцидент.</p>
+      </article>
+      <article class="card tall">
+        <div class="card-head"><div><small>ЖУРНАЛ ДОСТУПА</small><h2>События</h2></div>
+          <div class="event-controls"><select id="accessSource"><option value="">Все источники</option><option value="windows">Windows</option><option value="controller">СКУД</option></select><button class="primary" id="accessRefresh">Обновить</button></div></div>
+        <div class="access-list" id="accessRows"><p class="muted">Загрузка…</p></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>ФИЗИЧЕСКАЯ СКУД</small><h2>Подключение контроллера</h2></div><span class="muted" id="accessCtlState">—</span></div>
+        <p class="muted">Контроллер дверей или его программа-шлюз отправляет события на локальный API AEGIS. Пример запроса (токен уникален для этой установки):</p>
+        <pre class="code-box" id="accessIntake">…</pre>
+        <p class="muted">Поля: <b>eventId</b> (уникальный номер, повтор не дублируется), <b>door</b>, <b>person</b>, <b>granted</b> (true/false), <b>reason</b>, <b>timestamp</b> (необязательно, ISO 8601). AEGIS принимает запросы только с этого компьютера.</p>
       </article>
     </section>
 
     <section class="view" id="cameras">
-      <article class="card tall connector-card">
-        <small>VIDEO / CONNECTOR</small><h2>Видеонаблюдение</h2>
-        <div class="connector-state"><b>NOT CONFIGURED</b><span>RTSP/VMS connector не настроен.</span></div>
-        <p class="muted">Фейковые LIVE-камеры удалены. Реальная интеграция должна получать stream/status/events от VMS или камер.</p>
+      <article class="card">
+        <div class="card-head"><div><small>ВИДЕОНАБЛЮДЕНИЕ</small><h2>Камеры</h2></div><button class="secondary" id="cameraLocal" type="button">◉ Камера этого компьютера</button></div>
+        <form class="camera-form" id="cameraForm">
+          <label>Название<input id="cameraName" maxlength="80" placeholder="Вход, склад…"></label>
+          <label class="camera-url">Адрес снимка или MJPEG<input id="cameraUrl" required placeholder="http://192.168.1.64/ISAPI/Streaming/channels/101/picture"></label>
+          <label class="camera-check"><input type="checkbox" id="cameraMotion" checked> Детектор движения</label>
+          <label>Чувствительность<input type="range" id="cameraSensitivity" min="1" max="100" value="40"></label>
+          <button class="primary" type="submit">+ Добавить</button>
+        </form>
+        <p class="muted" id="cameraFeedback">Поддерживаются IP-камеры этого компьютера и локальной сети по HTTP: JPEG-снимок или поток MJPEG. Для RTSP-камер укажи их HTTP-адрес снимка (есть у Hikvision, Dahua, Axis, Reolink и др.). Логин и пароль можно указать в адресе: http://логин:пароль@IP/… — они хранятся в локальной базе AEGIS.</p>
+      </article>
+      <div class="camera-grid" id="cameraGrid"><p class="muted">Загрузка…</p></div>
+    </section>
+
+    <section class="view" id="network">
+      <div class="net-tiles">
+        <article class="card"><span>Внешних соединений</span><strong id="netActive">—</strong></article>
+        <article class="card"><span>В интернет</span><strong id="netInternet">—</strong></article>
+        <article class="card"><span>В локальной сети</span><strong id="netLan">—</strong></article>
+        <article class="card"><span>Входящих</span><strong id="netInbound">—</strong></article>
+        <article class="card"><span>Подсчёт трафика</span><strong id="netCounters">—</strong></article>
+      </div>
+      <article class="card">
+        <div class="card-head"><div><small>LIVE · КАЖДЫЕ 3 СЕКУНДЫ</small><h2>Активные соединения</h2></div><span class="muted" id="netLiveCount">—</span></div>
+        <div class="list-tools">
+          <input id="netSearch" type="search" placeholder="Процесс, адрес, имя хоста, сервис, порт…">
+          <select id="netScope"><option value="">Все, кроме этого ПК</option><option value="internet">Интернет</option><option value="lan">Локальная сеть</option><option value="provider">Сеть провайдера</option><option value="loopback">Только этот ПК</option><option value="all">Все</option></select>
+          <select id="netDirection"><option value="">Любое направление</option><option value="outbound">Исходящие</option><option value="inbound">Входящие</option></select>
+        </div>
+        <div class="net-table"><div class="net-row net-head"><span>Процесс</span><span>Удалённый узел</span><span>Сервис</span><span>Зона</span><span>Направление</span><span>Состояние</span><span>Трафик</span></div><div id="netLiveRows"><div class="empty-process">Загрузка…</div></div></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>ПО ПРОЦЕССАМ</small><h2>Кто пользуется сетью</h2></div></div>
+        <p class="muted" id="netCountersNote"></p>
+        <div class="net-proc-list" id="netProcessRows"></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>ЖУРНАЛ · SQLITE · 7 ДНЕЙ</small><h2>История соединений</h2></div><span class="muted" id="netJournalCount"></span></div>
+        <div class="list-tools net-journal-tools">
+          <input id="netJournalSearch" type="search" placeholder="Процесс, IP, хост, сервис или порт — Enter">
+          <select id="netJournalScope"><option value="">Все зоны</option><option value="internet">Интернет</option><option value="lan">Локальная сеть</option><option value="provider">Сеть провайдера</option></select>
+          <select id="netJournalHours"><option value="1">1 час</option><option value="6">6 часов</option><option value="24" selected>24 часа</option><option value="168">7 дней</option></select>
+          <button class="primary" id="netJournalRefresh" type="button">Показать</button>
+          <a class="report-download" id="netJournalCsv" href="/api/v1/network/journal.csv" download>↓ CSV</a>
+        </div>
+        <div class="net-journal" id="netJournalRows"></div>
       </article>
     </section>
 
@@ -223,7 +283,7 @@
           <button class="secondary" id="refreshConnections">Обновить</button>
         </div>
         <div class="list-tools compact"><input id="connectionSearch" type="search" placeholder="IP, порт или state…"></div>
-        <p class="muted">On-demand снимок активных TCP endpoints Windows с owner PID/process через Windows IP Helper API.</p>
+        <p class="muted">Краткий снимок. Подробно — с зонами, именами узлов, трафиком и журналом — во вкладке <button type="button" class="link" data-go="network">Сеть →</button></p>
         <div class="connection-table">
           <div class="connection-row connection-head"><span>Local</span><span>Remote</span><span>State</span><span>Process</span></div>
           <div id="networkConnectionRows"><div class="empty-process">Нет данных.</div></div>
@@ -253,6 +313,11 @@
         <div class="list-tools compact"><input id="auditSearch" type="search" placeholder="Фильтр audit…"></div>
         <p class="muted">Локальный журнал действий AEGIS: создание, изменение и удаление инцидентов, системные события и операторские действия.</p>
         <div class="audit-list" id="auditList"><p class="muted">Нет данных.</p></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>ЛОГИ АГЕНТА</small><h2>Технический журнал AEGIS</h2></div><button class="secondary" id="refreshAgentLog" type="button">Обновить</button></div>
+        <p class="muted">Файл: <code id="agentLogFile">—</code>. Хранится 14 дней, новый файл каждый день.</p>
+        <pre class="code-box agent-log" id="agentLogBox">…</pre>
       </article>
     </section>
     <section class="view" id="events">
@@ -482,6 +547,7 @@
 <script src="frontend/crash-demo.js"></script>
 <script src="frontend/lab-tests.js"></script>
 <script src="frontend/lab.js"></script>
+<script src="frontend/security.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
