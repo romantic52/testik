@@ -438,8 +438,8 @@ function toast(t){const e=q("#toast");e.textContent=t;e.classList.add("show");cl
 // Main shell navigation and integrated secure chat shortcut.
 const pageSummaries={
   overview:"Контроль компонентов, процессов и событий Windows в реальном времени.",
-  monitoring:"Реальные показания CPU, GPU, RAM, сети, дисков и датчиков.",
-  lab:"Рулетка проверки ресурсов и короткие ограниченные тесты.",
+  monitoring:"Живые показания CPU, RAM, GPU, сети, дисков, датчиков и процессов этого компьютера.",
+  lab:"Пять реальных тестов CPU, RAM, GPU, диска и сети с живым графиком; демонстрация синего экрана.",
   incidents:"Расследования, приоритеты, статусы и отправка через AETHER.",
   assets:"Обнаруженное оборудование этого Windows-компьютера.",
   access:"Подключение СКУД. Источники данных не симулируются.",

@@ -31,7 +31,7 @@
       <button class="nav" data-view="cameras"><span class="nav-symbol">▣</span>Камеры</button>
     </nav>
     <div class="side-bottom">
-      <button class="crash-button" id="crashButton" type="button">⏻ &nbsp; Управление питанием</button>
+      <button class="crash-button" id="crashButton" type="button">▣ &nbsp; Синий экран / питание</button>
       <div class="health" id="sidebarAgentHealth"><i></i> Ожидаем подключение агента</div>
       <div class="operator agent-identity"><div class="avatar">⌂</div><div><b id="sidebarMachine">Компьютер не определён</b><span id="sidebarVersion">AEGIS Agent: нет связи</span></div></div>
     </div>
@@ -412,11 +412,11 @@
 
 <div class="crash-confirm" id="crashConfirm" aria-hidden="true" role="dialog" aria-labelledby="powerDialogTitle">
   <div class="confirm-box power-dialog">
-    <div class="power-dialog-header"><div class="power-dialog-icon">⏻</div><div><small>AEGIS / ЛОКАЛЬНОЕ УПРАВЛЕНИЕ</small><h2 id="powerDialogTitle">Действия с системой</h2></div></div>
+    <div class="power-dialog-header"><div class="power-dialog-icon">▣</div><div><small>AEGIS / ЛОКАЛЬНОЕ УПРАВЛЕНИЕ</small><h2 id="powerDialogTitle">Действия с системой</h2></div></div>
     <p>Выбери действие. Имитация сбоя безопасна. Реальное выключение Windows запускается только после явного подтверждения.</p>
     <div class="power-options">
       <button class="power-option" id="confirmCrash" type="button"><strong>▣ &nbsp; Показать синий экран (демо)</strong><span>Полноэкранная имитация. Windows не выключается.</span></button>
-      <button class="power-option power-option-warning" id="realShutdownButton" type="button"><strong>⏻ &nbsp; Выключить Windows после BSOD</strong><span>Реальное завершение работы через 45 секунд. Можно отменить.</span></button>
+      <button class="power-option power-option-warning" id="realShutdownButton" type="button"><strong>⚠ &nbsp; Выключить Windows по-настоящему</strong><span>Реальное завершение работы через 45 секунд. Можно отменить.</span></button>
     </div>
     <form id="powerConfirmForm" class="power-confirm-form" hidden>
       <div class="power-warning">⚠ Сохрани открытые документы. После запуска Windows действительно завершит работу. Принудительное закрытие приложений не используется.</div>

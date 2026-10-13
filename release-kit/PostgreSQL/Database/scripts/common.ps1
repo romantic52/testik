@@ -3,12 +3,14 @@
 # Works for any Windows user; the outer Sandbox launcher is only a convenient isolated way to demo it.
 $componentRoot=Split-Path -Parent $PSScriptRoot
 $kitRoot=Split-Path -Parent $componentRoot
-$stateDir=Join-Path $env:LOCALAPPDATA 'AEGIS-PostgreSQL'
+$stateDir=$(if($env:AEGIS_PG_STATE){$env:AEGIS_PG_STATE}else{Join-Path $env:LOCALAPPDATA 'AEGIS-PostgreSQL'})
 $dataDir=Join-Path $stateDir 'pgdata'
 $logs=Join-Path $stateDir 'logs'
 $secretFile=Join-Path $stateDir 'credential.xml'
 $pgBin=Join-Path $componentRoot 'postgresql\bin'
 $dbPort=54331
+# Test fixtures may run an isolated second cluster; the product always uses 54331.
+if($env:AEGIS_PG_PORT){$dbPort=[int]$env:AEGIS_PG_PORT}
 function Q([string]$value){return '"'+$value+'"'}
 function Run-Tool([string]$exe,[string[]]$arguments,[string]$name,[switch]$AllowNonzero){
  New-Item -ItemType Directory -Path $logs -Force | Out-Null
