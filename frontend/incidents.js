@@ -22,8 +22,15 @@ function renderIncidents(){
 
   const i=state.incidents.find(x=>x.id===state.current)||visible[0]||state.incidents[0];
   const detail=q("#incidentDetail");if(!i){if(detail)detail.innerHTML='<p class="muted">Инцидентов нет.</p>';updateOverview();return}
-  detail.innerHTML=`<h3 class="detail-title">${escapeHtml(i.title)}</h3><div class="detail-meta"><span>${escapeHtml(i.id)}</span><span>${escapeHtml(i.source)}</span><span>${escapeHtml(i.severity)}</span><span>${escapeHtml(i.status)}</span></div><p class="muted">${escapeHtml(i.description)}</p><div class="timeline">${(i.events||[]).map(e=>{const p=String(e).split(" — ");return `<div class="event"><b>${escapeHtml(p[0]||"")}</b><p>${escapeHtml(p.slice(1).join(" — "))}</p></div>`}).join("")}</div><div class="incident-actions"><button class="primary" id="shareIncident">Отправить в AETHER.chat</button>${i.status!=="Закрыт"?'<button class="secondary" id="closeIncident">Закрыть</button>':""}<button class="danger-mini" id="deleteIncident">Удалить</button></div>`;
+  detail.innerHTML=`<h3 class="detail-title">${escapeHtml(i.title)}</h3><div class="detail-meta"><span>${escapeHtml(i.id)}</span><span>${escapeHtml(i.source)}</span><span>${escapeHtml(i.severity)}</span><span>${escapeHtml(i.status)}</span></div><p class="muted">${escapeHtml(i.description)}</p><div class="timeline">${(i.events||[]).map(e=>{const p=String(e).split(" — ");return `<div class="event"><b>${escapeHtml(p[0]||"")}</b><p>${escapeHtml(p.slice(1).join(" — "))}</p></div>`}).join("")}</div><div class="incident-actions"><label class="incident-status-control">Статус <select id="incidentStatusSelect">${["Новый","Авто","Расследование","В работе","Закрыт"].map(s=>`<option${s===i.status?" selected":""}>${s}</option>`).join("")}</select></label><button class="primary" id="shareIncident">Отправить в AETHER.chat</button>${i.status!=="Закрыт"?'<button class="secondary" id="closeIncident">Закрыть</button>':""}<button class="danger-mini" id="deleteIncident">Удалить</button></div>`;
   q("#shareIncident").onclick=()=>shareIncident(i);
+  q("#incidentStatusSelect").onchange=async event=>{
+    const previous=i.status,next=event.target.value;
+    if(next===previous)return;
+    i.status=next;i.events=[...(i.events||[]),alertClock()+" — статус: "+previous+" → "+next];
+    await saveIncidentApi(i);await appendAudit("incident.status",i.id,previous+" → "+next);
+    renderIncidents();toast("Статус: "+next);
+  };
   q("#closeIncident")?.addEventListener("click",async()=>{
     i.status="Закрыт";i.events=[...(i.events||[]),alertClock()+" — инцидент закрыт оператором"];
     await saveIncidentApi(i);await appendAudit("incident.closed",i.id,i.title);
@@ -31,7 +38,9 @@ function renderIncidents(){
   });
   updateOverview();
   q("#deleteIncident").onclick=async()=>{
-    try{await fetch("/api/v1/incidents/"+encodeURIComponent(i.id),{method:"DELETE"});}catch{}
+    if(!confirm("Удалить инцидент "+i.id+" «"+i.title+"»? Запись в журнале аудита останется."))return;
+    try{await apiJson("/api/v1/incidents/"+encodeURIComponent(i.id),{method:"DELETE"});}
+    catch(error){toast("Не удалось удалить: "+error.message);return}
     state.incidents=state.incidents.filter(x=>x.id!==i.id);state.current=state.incidents[0]?.id||"";
     persistAutoIncidents();renderIncidents();toast("Инцидент удалён");
   };

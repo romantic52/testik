@@ -8,6 +8,18 @@ $dataDir=Join-Path $stateDir 'pgdata'
 $logs=Join-Path $stateDir 'logs'
 $secretFile=Join-Path $stateDir 'credential.xml'
 $pgBin=Join-Path $componentRoot 'postgresql\bin'
+# PostgreSQL on Windows cannot initdb from a non-ASCII install path (cp1251 bytes in
+# the share path break UTF8 bootstrap). Use the 8.3 short path, or an ASCII runtime copy.
+function Get-AsciiPath([string]$path,[string]$fallbackName){
+ if($path -notmatch '[^\x00-\x7F]'){return $path}
+ try{$short=(New-Object -ComObject Scripting.FileSystemObject).GetFolder($path).ShortPath;if($short -notmatch '[^\x00-\x7F]'){return $short}}catch{}
+ if(-not $fallbackName){throw "Путь содержит не-ASCII символы и не имеет короткого имени: $path. Перенеси папку в путь из латинских букв."}
+ $cache=Join-Path $env:ProgramData ('AEGIS\'+$fallbackName)
+ if(-not(Test-Path (Join-Path $cache 'bin\initdb.exe'))){New-Item -ItemType Directory -Force -Path $cache | Out-Null;Copy-Item (Join-Path (Split-Path -Parent $path) '*') $cache -Recurse -Force}
+ return (Join-Path $cache 'bin')
+}$pgBin=Get-AsciiPath $pgBin 'postgresql-16-demo'
+New-Item -ItemType Directory -Force -Path $stateDir | Out-Null
+$dataDir=Join-Path (Get-AsciiPath $stateDir $null) 'pgdata'
 $dbPort=54331
 # Test fixtures may run an isolated second cluster; the product always uses 54331.
 if($env:AEGIS_PG_PORT){$dbPort=[int]$env:AEGIS_PG_PORT}

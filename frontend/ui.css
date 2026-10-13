@@ -93,3 +93,21 @@
 .bsod-exit,.bsod .bsod-cancel{padding:11px 18px;font:inherit;font-size:14px;color:#fff;background:transparent;border:2px solid #fff;border-radius:4px;cursor:pointer;margin:0}
 .bsod-exit:hover,.bsod .bsod-cancel:hover{background:rgba(255,255,255,.15)}
 .bsod-exit[hidden]{display:none}
+
+/* ---- medium windows (901–1180px): chat floats and collapses instead of eating 40% of the width ---- */
+@media(max-width:1180px) and (min-width:901px){
+  .main{padding-right:28px!important}
+  .chat.aether-embedded{position:fixed;top:auto;right:12px;bottom:12px;width:min(390px,calc(100vw - 24px));height:min(620px,calc(100dvh - 90px));z-index:30;border:1px solid #4c4c4c;border-radius:17px;padding:11px 12px;box-shadow:0 24px 90px rgba(0,0,0,.65)}
+  #aetherCollapseToggle{display:block}
+  .chat.aether-embedded.is-collapsed{height:62px;overflow:hidden}
+  .chat.aether-embedded.is-collapsed .secure,
+  .chat.aether-embedded.is-collapsed .aether-config,
+  .chat.aether-embedded.is-collapsed .mini-messenger,
+  .chat.aether-embedded.is-collapsed footer{display:none}
+  .chat.aether-embedded.is-collapsed .chat-head{min-height:38px}
+}
+
+.incident-status-control{display:inline-flex;align-items:center;gap:8px;font-size:11px;color:#bdbdbd;margin-right:auto}
+.incident-status-control select{background:#111;color:#fff;border:1px solid #555;border-radius:7px;padding:7px 9px;font:inherit}
+.incident-actions{flex-wrap:wrap}
+.aether-register-link{font-size:11px;color:#fff;text-decoration:underline;cursor:pointer;background:none;border:0;padding:0;font:inherit}

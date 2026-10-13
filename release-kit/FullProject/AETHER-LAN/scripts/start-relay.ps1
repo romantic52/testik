@@ -1,11 +1,23 @@
 ﻿param([switch]$Lan,[switch]$NoBrowser)
 $ErrorActionPreference='Stop'
-if($env:USERNAME -ne 'WDAGUtilityAccount'){throw 'Run this test kit inside Windows Sandbox.'}
+# LAN mode trusts a self-made test CA and listens on the network: Sandbox only.
+# Local mode (127.0.0.1:8766, no certificate changes) works for any Windows user.
+if($Lan -and $env:USERNAME -ne 'WDAGUtilityAccount'){throw 'Режим LAN (тестовый сертификат + доступ из сети) запускается только в Windows Sandbox. Без -Lan relay работает локально на 127.0.0.1:8766.'}
 $root=Split-Path -Parent $PSScriptRoot
 $stateDir=Join-Path $env:LOCALAPPDATA 'AETHER-LAN'
 $logs=Join-Path $stateDir 'logs';New-Item -ItemType Directory -Force -Path $stateDir,$logs | Out-Null
 $pgBin=Join-Path $root 'postgresql\bin';$python=Join-Path $root 'python\python.exe';$data=Join-Path $stateDir 'pgdata';$secretFile=Join-Path $stateDir 'db-password.xml';$adminFile=Join-Path $stateDir 'db-admin-password.xml'
 function Q([string]$value){return '"'+$value+'"'}
+# PostgreSQL on Windows cannot initdb from a non-ASCII install path (cp1251 bytes in
+# the share path break UTF8 bootstrap). Use the 8.3 short path, or an ASCII runtime copy.
+function Get-AsciiPath([string]$path,[string]$fallbackName){
+ if($path -notmatch '[^\x00-\x7F]'){return $path}
+ try{$short=(New-Object -ComObject Scripting.FileSystemObject).GetFolder($path).ShortPath;if($short -notmatch '[^\x00-\x7F]'){return $short}}catch{}
+ if(-not $fallbackName){throw "Путь содержит не-ASCII символы и не имеет короткого имени: $path. Перенеси папку в путь из латинских букв."}
+ $cache=Join-Path $env:ProgramData ('AEGIS\'+$fallbackName)
+ if(-not(Test-Path (Join-Path $cache 'bin\initdb.exe'))){New-Item -ItemType Directory -Force -Path $cache | Out-Null;Copy-Item (Join-Path (Split-Path -Parent $path) '*') $cache -Recurse -Force}
+ return (Join-Path $cache 'bin')
+}
 function Get-RelayRecords($value){
  foreach($item in $value){if($null -ne $item.pid){$item}elseif($null -ne $item.value){Get-RelayRecords $item.value}}
 }
@@ -15,6 +27,7 @@ function Run-Tool([string]$exe,[string[]]$arguments,[string]$name,[switch]$Allow
  $code=$p.ExitCode;if($null -eq $code -or ($code -ne 0 -and -not $AllowNonzero)){throw "$name failed: $code. Logs: $logs"};return $code
 }
 try {
+ $pgBin=Get-AsciiPath $pgBin 'postgresql-16-relay';$data=Join-Path (Get-AsciiPath $stateDir $null) 'pgdata'
  if(-not(Test-Path (Join-Path $data 'PG_VERSION'))){
   if(Test-Path $data){throw "Incomplete database directory: $data. Existing files have been preserved."}
   $bytes=New-Object byte[] 32;$rng=[Security.Cryptography.RandomNumberGenerator]::Create();$rng.GetBytes($bytes);$admin=[Convert]::ToBase64String($bytes);$rng.GetBytes($bytes);$password=[Convert]::ToBase64String($bytes);$rng.Dispose()

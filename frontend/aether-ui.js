@@ -264,11 +264,25 @@ q("#aetherCollapseToggle").addEventListener("click", () => {
   q("#aetherCollapseToggle").setAttribute("aria-expanded", String(!collapsed));
   q("#aetherCollapseToggle").setAttribute("aria-label", collapsed ? "Развернуть чат" : "Свернуть чат");
 });
-if (window.matchMedia("(max-width: 900px)").matches) {
+if (window.matchMedia("(max-width: 1180px)").matches) {
   aetherPanel.classList.add("is-collapsed");
   q("#aetherCollapseToggle").textContent = "+";
   q("#aetherCollapseToggle").setAttribute("aria-expanded", "false");
 }
+// Accounts belong to one relay database: registration happens in the original
+// AETHER web client of the chosen server, which generates the device keys itself.
+q("#aetherRegister").addEventListener("click", () => {
+  const raw = q("#aetherServer").value.trim();
+  let url;
+  try { url = new URL(raw); } catch { url = null; }
+  if (!url || !/^https?:$/.test(url.protocol)) {
+    q("#aetherLoginStatus").textContent = "Сначала укажи адрес AETHER relay (например http://127.0.0.1:8766).";
+    q("#aetherServer").focus();
+    return;
+  }
+  window.open(url.origin + "/", "_blank", "noopener");
+  q("#aetherLoginStatus").textContent = "Открыт клиент AETHER на " + url.origin + ": вкладка «Регистрация», затем войди здесь тем же именем и паролем.";
+});
 q("#aetherSetupToggle").addEventListener("click", () => {
   aetherConfig.classList.toggle("open");
   if (aetherConfig.classList.contains("open")) q("#aetherServer").focus();

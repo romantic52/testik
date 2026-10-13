@@ -32,7 +32,12 @@ Invoke-WebRequest http://127.0.0.1:8765/api/v1/reports/bundle.zip -OutFile aegis
 .\AEGIS\install-service.bat
 .\AEGIS\uninstall-service.bat
 
-=== AETHER relay (только внутри песочницы) ===
+=== AETHER relay локально (любая Windows) ===
+& '.\AETHER-LAN\Start AETHER Local.cmd'
+& '.\AETHER-LAN\Stop AETHER LAN.cmd'
+Invoke-RestMethod http://127.0.0.1:8766/health
+
+=== AETHER relay в режиме LAN (только внутри песочницы) ===
 & "$env:USERPROFILE\AEGIS-kit\AETHER-LAN\Start AETHER LAN.cmd"
 & "$env:USERPROFILE\AEGIS-kit\AETHER-LAN\Stop AETHER LAN.cmd"
 Get-Content "$env:LOCALAPPDATA\AETHER-LAN\connection.json"

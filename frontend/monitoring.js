@@ -102,7 +102,7 @@ function renderTelemetry(payload){
   q("#machineMeta").textContent=(system.os||"Windows")+" • "+(system.logicalProcessors||"?")+" logical CPU";
 
   q("#cpuLoad").textContent=fmtPercent(system.cpuLoadPercent);
-  q("#cpuTemp").textContent="Температура: "+(numeric(system.cpuTemperatureC)===null?"датчик недоступен":fmtTemp(system.cpuTemperatureC));
+  q("#cpuTemp").textContent="Температура: "+(numeric(system.cpuTemperatureC)===null?"недоступна (нужен запуск от администратора или это VM)":fmtTemp(system.cpuTemperatureC));
   setBar("#cpuBar",system.cpuLoadPercent);
 
   q("#ramLoad").textContent=fmtPercent(system.memory?.loadPercent);

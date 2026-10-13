@@ -138,7 +138,7 @@
     switch (kind) {
       case "cpu": return m.threads + " потоков × " + m.dutyPercent + "%: " + Math.round(m.iterationsPerSecond).toLocaleString("ru-RU") + " вычислений/с";
       case "ram": return m.allocatedMiB + " МиБ выделено и удержано; содержимое " + (m.verified ? "проверено" : "ПОВРЕЖДЕНО");
-      case "gpu": return m.fps.toFixed(1) + " FPS, " + m.frames + " кадров " + m.resolution + "; рендерер: " + m.renderer + (m.softwareRenderer ? " (программный — нагрузка шла на CPU)" : "");
+      case "gpu": return m.fps.toFixed(1) + " FPS × " + (m.passes || 1) + " проходов, " + m.frames + " кадров " + m.resolution + "; рендерер: " + m.renderer + (m.softwareRenderer ? " (программный — нагрузка шла на CPU)" : "");
       case "disk": return m.sizeMiB + " МиБ: запись " + m.writeMiBps.toFixed(0) + " МиБ/с, чтение " + m.readMiBps.toFixed(0) + " МиБ/с; содержимое " + (m.verified ? "проверено" : "не проверено");
       case "network": return m.totalMiB.toFixed(0) + " МиБ за " + m.seconds.toFixed(1) + " с = " + m.mibps.toFixed(0) + " МиБ/с по loopback";
       default: return "Результат получен.";
@@ -290,6 +290,11 @@
     labChart.render(liveSamples, { from: now - 90000, to: now, band: band && (band.to ?? now) > now - 90000 ? band : null });
   }
 
+  // A hidden/minimised window gets no animation frames: the GPU test cannot run there.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && active?.kind === "gpu")
+      complete("Прерван", {}, "Окно AEGIS свёрнуто или скрыто — браузер останавливает отрисовку. Разверни окно и запусти GPU-тест снова.");
+  });
   addEventListener("pagehide", () => {
     if (active) complete("Прерван", {}, "Окно AEGIS закрыто.");
     if (spinTimer) clearTimeout(spinTimer);

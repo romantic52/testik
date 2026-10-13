@@ -112,6 +112,7 @@ const dynamicallyCreatedIds = new Set([
   "shareIncident",
   "closeIncident",
   "deleteIncident",
+  "incidentStatusSelect",
   "processIncidentButton"
 ]);
 for (const pattern of [

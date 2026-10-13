@@ -110,29 +110,50 @@
       const uTime = gl.getUniformLocation(program, "uTime");
       const uSize = gl.getUniformLocation(program, "uSize");
       const started = performance.now();
-      task.cleanup = cleanup;
       report("Рендер: " + info.renderer + (info.software ? " — ПРОГРАММНЫЙ (CPU), не видеокарта" : ""));
       return await new Promise((resolve, reject) => {
         task.controller.signal.addEventListener("abort", () => reject(abortError()), { once: true });
-        let frames = 0, lastReport = started;
+        // At most one frame in flight: a fence tells when the GPU really finished,
+        // so FPS is GPU throughput and the work per frame can grow safely.
+        let frames = 0, lastReport = started, passes = 2, lastAdjust = started, adjustFrames = 0, fence = null;
+        task.cleanup = () => { if (fence) gl.deleteSync(fence); fence = null; cleanup(); };
+        // Some hosts report the page as visible but deliver no animation frames (hidden pane,
+        // occluded window): fail fast instead of waiting for the watchdog.
+        let ticks = 0;
+        const stall = setTimeout(() => { if (!ticks && !task.controller.signal.aborted) reject(new Error("Браузер не отрисовывает кадры: окно AEGIS свёрнуто или закрыто другим окном. Разверни его и запусти GPU-тест снова.")); }, 3000);
+        task.controller.signal.addEventListener("abort", () => clearTimeout(stall), { once: true });
         function tick(now) {
+          ticks++;
           if (task.controller.signal.aborted) return;
           const seconds = (now - started) / 1000;
+          if (fence) {
+            if (gl.getSyncParameter(fence, gl.SYNC_STATUS) !== gl.SIGNALED) {
+              if (seconds * 1000 < settings.durationMs + 5000) { frame = requestAnimationFrame(tick); return; }
+            }
+            gl.deleteSync(fence); fence = null;
+            frames++; adjustFrames++;
+          }
           if (seconds * 1000 >= settings.durationMs) {
-            gl.finish();
-            resolve({ frames, fps: frames / Math.max(0.001, seconds), durationSeconds: seconds,
+            resolve({ frames, passes, fps: frames / Math.max(0.001, seconds), durationSeconds: seconds,
               resolution: canvas.width + "x" + canvas.height, iterations: loops,
               renderer: info.renderer, softwareRenderer: info.software });
             return;
           }
+          if (now - lastAdjust > 500) {
+            const fps = adjustFrames * 1000 / (now - lastAdjust);
+            if (fps > 40 && passes < 1024) passes = Math.min(1024, Math.ceil(passes * 1.5));
+            else if (fps < 20 && passes > 1) passes = Math.max(1, Math.floor(passes / 1.5));
+            lastAdjust = now; adjustFrames = 0;
+          }
           gl.viewport(0, 0, canvas.width, canvas.height);
           gl.uniform1f(uTime, seconds);
           gl.uniform2f(uSize, canvas.width, canvas.height);
-          for (let pass = 0; pass < 4; pass++) gl.drawArrays(gl.TRIANGLES, 0, 3);
-          frames++;
+          for (let pass = 0; pass < passes; pass++) gl.drawArrays(gl.TRIANGLES, 0, 3);
+          fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+          gl.flush();
           if (now - lastReport > 1000) {
             lastReport = now;
-            report((frames / seconds).toFixed(1) + " FPS · " + info.renderer + (info.software ? " (программный)" : ""));
+            report((frames / seconds).toFixed(1) + " FPS · " + passes + " проходов/кадр · " + info.renderer + (info.software ? " (программный)" : ""));
           }
           frame = requestAnimationFrame(tick);
         }

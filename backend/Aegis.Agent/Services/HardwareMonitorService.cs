@@ -119,7 +119,8 @@ public sealed class HardwareMonitorService : IDisposable
     {
         foreach (var sensor in hardware.Sensors)
         {
-            // Guest MSR reads can return zero without exposing a physical sensor.
+            // A running CPU is never at 0 °C: VM guests and non-elevated sessions on
+            // physical AMD/Intel CPUs return 0 when the ring-0 sensor driver is unavailable.
             var unavailable = IsUnreliableVirtualReading(_virtualHardware, hardware.HardwareType.ToString(), sensor.SensorType.ToString(), sensor.Value);
             result.Add(new SensorReading(
                 hardware.Name,
@@ -136,7 +137,7 @@ public sealed class HardwareMonitorService : IDisposable
     }
 
     public static bool IsUnreliableVirtualReading(bool virtualMachine, string hardwareType, string sensorType, float? value) =>
-        virtualMachine && hardwareType == "Cpu" && sensorType == "Temperature" && value == 0;
+        hardwareType == "Cpu" && sensorType == "Temperature" && value is <= 0;
 
     public static bool IsVirtualMachineModel(string? model) =>
         model is not null && new[] { "Virtual Machine", "VirtualBox", "VMware", "KVM", "QEMU", "HVM domU" }
