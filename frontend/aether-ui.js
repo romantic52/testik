@@ -452,3 +452,17 @@ q("#incidentForm")?.addEventListener("submit", async event => {
 });
 q("#notify").onclick = () => toast(state.incidents.filter(i => i.status !== "Закрыт").length + " активных инцидентов");
 clearAetherMiniSession();
+
+window.addEventListener("aether-transport", event => {
+  if (!window.aether.connected) return;
+  const online = !!event.detail?.online;
+  aetherOnline = online;
+  updateOverview();
+  q("#aetherConnectionDot").classList.toggle("online", online);
+  q("#aetherConnectionDot").title = online ? "Relay online" : "Relay unavailable; reconnecting";
+  q("#aetherRelayState").classList.toggle("relay-offline", !online);
+  q("#aetherRelayState").classList.toggle("relay-online", online);
+  q("#aetherRelayState").textContent = online ? "Relay \u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d" : "Relay \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d";
+  if (online) updateAetherComposer();
+  else setAetherUiStatus("\u0418\u0434\u0451\u0442 \u043f\u0435\u0440\u0435\u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u043a relay");
+});

@@ -7,6 +7,7 @@
   <title>AEGIS SOC</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="frontend/app-shell.css">
+  <link rel="stylesheet" href="frontend/monochrome.css">
 </head>
 <body>
 <div class="shell">
@@ -73,7 +74,7 @@
             <div class="history-controls"><label for="historyRange">Период</label><select id="historyRange" aria-label="Период истории"><option value="900">15 мин</option><option value="3600">1 час</option><option value="21600">6 часов</option><option value="86400">24 часа</option></select><div class="legend"><span><i class="blue"></i>CPU</span><span><i class="ram-dot"></i>RAM</span><span><i class="gpu-dot"></i>GPU</span></div></div>
           </div>
           <svg class="chart" viewBox="0 0 760 230" aria-label="История нагрузки CPU RAM GPU">
-            <defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5f8fff" stop-opacity=".25"/><stop offset="1" stop-color="#5f8fff" stop-opacity="0"/></linearGradient></defs>
+            <defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".25"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient></defs>
             <g class="gridlines"><line x1="20" y1="35" x2="740" y2="35"/><line x1="20" y1="85" x2="740" y2="85"/><line x1="20" y1="135" x2="740" y2="135"/><line x1="20" y1="185" x2="740" y2="185"/></g>
             <path class="area" id="cpuHistoryArea" d=""/>
             <path class="line" id="cpuHistoryLine" d=""/>
@@ -289,11 +290,11 @@
           <div class="lab-wheel-wrap">
             <div class="lab-pointer" aria-hidden="true"></div>
             <div class="lab-wheel" id="labWheel" aria-label="Рулетка CPU, RAM, GPU, диск, сеть">
-              <span class="lab-wheel-label" style="--sector:0">CPU</span>
-              <span class="lab-wheel-label" style="--sector:1">RAM</span>
-              <span class="lab-wheel-label" style="--sector:2">GPU</span>
-              <span class="lab-wheel-label" style="--sector:3">DISK</span>
-              <span class="lab-wheel-label" style="--sector:4">NET</span>
+              <span class="lab-wheel-label">CPU</span>
+              <span class="lab-wheel-label">RAM</span>
+              <span class="lab-wheel-label">GPU</span>
+              <span class="lab-wheel-label">DISK</span>
+              <span class="lab-wheel-label">NET</span>
               <span class="lab-wheel-center">Æ</span>
             </div>
           </div>

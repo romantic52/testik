@@ -1,0 +1,10 @@
+FullProject/AEGIS/
+FullProject/Source/
+FullProject/Evidence/
+FullProject/AETHER-LAN/python/
+FullProject/AETHER-LAN/postgresql/
+FullProject/AETHER-LAN/relay/
+FullProject/RunData/
+PostgreSQL/Database/postgresql/
+PostgreSQL/RunData/
+*.zip

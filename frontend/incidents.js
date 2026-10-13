@@ -55,11 +55,4 @@ async function shareIncident(i){
   }catch(error){toast(error.message||"AETHER: ошибка отправки")}
 }
 qa(".incident-jump").forEach(r=>r.onclick=()=>{state.current=r.dataset.id;view("incidents")});qa("[data-open]").forEach(b=>b.onclick=()=>{state.current=b.dataset.open;view("incidents")});
-q("#chatForm").onsubmit=async e=>{
-  e.preventDefault();const input=q("#chatInput"),text=input.value.trim();if(!text)return;
-  try{
-    await window.aether.sendMessage({text});
-    addMessage(text);input.value="";
-  }catch(error){toast(error.message||"AETHER: ошибка отправки")}
-};
-qa("[data-text]").forEach(b=>b.onclick=()=>{q("#chatInput").value=b.dataset.text;q("#chatInput").focus()});
+// The native messenger owns chatForm and quick-message handlers in aether-ui.js.

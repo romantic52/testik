@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Aegis.Agent</RootNamespace>
     <AssemblyName>Aegis.Agent</AssemblyName>
-    <Version>0.5.0</Version>
+    <Version>0.6.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,6 +27,11 @@
     </Content>
     <Content Include="..\..\frontend\app-shell.css">
       <Link>wwwroot\frontend\app-shell.css</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\frontend\monochrome.css">
+      <Link>wwwroot\frontend\monochrome.css</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>

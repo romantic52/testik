@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$Executable = ""
 )
 
@@ -79,7 +79,7 @@ try {
     $null = Invoke-RestMethod "$api/windows/services?limit=5" -TimeoutSec 5
 
     # Confirm packaged frontend contains the real five-mode lab engines.
-    $labScript = Invoke-WebRequest "$baseUrl/frontend/lab-tests.js" -TimeoutSec 5
+    $labScript = Invoke-WebRequest -UseBasicParsing "$baseUrl/frontend/lab-tests.js" -TimeoutSec 5
     if ($labScript.StatusCode -ne 200 -or $labScript.Content -notmatch "AegisLabTests") {
         throw "Resource lab engines are not served by AEGIS"
     }
@@ -89,7 +89,7 @@ try {
         "aegis-loopback-" + [Guid]::NewGuid().ToString("N") + ".bin"
     )
     try {
-        Invoke-WebRequest "$api/lab/loopback-sample" -OutFile $loopbackPath -TimeoutSec 5
+        Invoke-WebRequest -UseBasicParsing "$api/lab/loopback-sample" -OutFile $loopbackPath -TimeoutSec 5
         if ((Get-Item -LiteralPath $loopbackPath).Length -ne 65536) {
             throw "AEGIS loopback sample must be exactly 64 KiB"
         }
@@ -102,7 +102,7 @@ try {
     $bundlePath = Join-Path $env:TEMP (
         "aegis-smoke-bundle-" + [Guid]::NewGuid().ToString("N") + ".zip"
     )
-    Invoke-WebRequest "$api/reports/bundle.zip" -OutFile $bundlePath -TimeoutSec 15
+    Invoke-WebRequest -UseBasicParsing "$api/reports/bundle.zip" -OutFile $bundlePath -TimeoutSec 15
     if ((Get-Item -LiteralPath $bundlePath).Length -lt 100) {
         throw "AEGIS support bundle is unexpectedly empty"
     }

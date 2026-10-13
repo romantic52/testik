@@ -1,4 +1,6 @@
-# AEGIS SOC 0.5.0
+# AEGIS SOC 0.6.0
+
+Готовая версия: [релиз v0.6.0](https://github.com/romantic52/testik/releases/tag/v0.6.0). В архиве две папки: **FullProject** с полным приложением и **PostgreSQL** с отдельной базой. В каждой есть **ЗАПУСК.md** с командами. Запуск и проверки выполняются в Windows Sandbox. Подробности — [release-kit/README.md](release-kit/README.md).
 
 AEGIS — local-first Windows monitoring/SOC application for a coursework project that has grown into a production-like local agent: .NET 8 backend, real telemetry, SQLite state, backend correlation rules, Windows Event Log correlation, reports, Windows Service mode and E2E AETHER.chat integration.
 

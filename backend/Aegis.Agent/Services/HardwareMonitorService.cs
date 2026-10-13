@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Management;
 using LibreHardwareMonitor.Hardware;
 
 namespace Aegis.Agent.Services;
@@ -7,6 +8,7 @@ public sealed class HardwareMonitorService : IDisposable
 {
     private readonly object _sync = new();
     private readonly Computer _computer;
+    private readonly bool _virtualHardware = DetectVirtualHardware();
     private readonly UpdateVisitor _visitor = new();
 
     public HardwareMonitorService()
@@ -113,22 +115,49 @@ public sealed class HardwareMonitorService : IDisposable
         return candidates.Count > 0 ? Math.Round(candidates[0].Value!.Value, 1) : null;
     }
 
-    private static void CollectHardware(IHardware hardware, List<SensorReading> result)
+    private void CollectHardware(IHardware hardware, List<SensorReading> result)
     {
         foreach (var sensor in hardware.Sensors)
         {
+            // Guest MSR reads can return zero without exposing a physical sensor.
+            var unavailable = IsUnreliableVirtualReading(_virtualHardware, hardware.HardwareType.ToString(), sensor.SensorType.ToString(), sensor.Value);
             result.Add(new SensorReading(
                 hardware.Name,
                 hardware.HardwareType.ToString(),
                 sensor.Name,
                 sensor.SensorType.ToString(),
-                sensor.Value,
-                sensor.Min,
-                sensor.Max));
+                unavailable ? null : sensor.Value,
+                unavailable ? null : sensor.Min,
+                unavailable ? null : sensor.Max));
         }
 
         foreach (var subHardware in hardware.SubHardware)
             CollectHardware(subHardware, result);
+    }
+
+    public static bool IsUnreliableVirtualReading(bool virtualMachine, string hardwareType, string sensorType, float? value) =>
+        virtualMachine && hardwareType == "Cpu" && sensorType == "Temperature" && value == 0;
+
+    public static bool IsVirtualMachineModel(string? model) =>
+        model is not null && new[] { "Virtual Machine", "VirtualBox", "VMware", "KVM", "QEMU", "HVM domU" }
+            .Any(marker => model.Contains(marker, StringComparison.OrdinalIgnoreCase));
+
+    private static bool DetectVirtualHardware()
+    {
+        try
+        {
+            using var query = new ManagementObjectSearcher("SELECT Model FROM Win32_ComputerSystem");
+            query.Options.Timeout = TimeSpan.FromSeconds(2);
+            using var machines = query.Get();
+            foreach (ManagementObject machine in machines)
+            {
+                using (machine)
+                    if (IsVirtualMachineModel(machine["Model"]?.ToString())) return true;
+            }
+        }
+        catch (ManagementException) { }
+        catch (UnauthorizedAccessException) { }
+        return false;
     }
 
     private static MemorySnapshot ReadMemory()

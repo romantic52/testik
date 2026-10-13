@@ -614,7 +614,7 @@ public static class AegisEndpoints
                         incidentRevision = incidents.Revision
                     };
 
-                    var json = JsonSerializer.Serialize(payload);
+                    var json = TelemetryJson.Serialize(payload);
                     var bytes = Encoding.UTF8.GetBytes(json);
 
                     await socket.SendAsync(

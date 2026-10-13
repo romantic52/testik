@@ -1,0 +1,78 @@
+/* AEGIS monochrome theme: neutral surfaces and contrast without colour cues. */
+:root {
+  color-scheme: dark;
+  --bg: #000;
+  --panel: #0d0d0d;
+  --panel2: #151515;
+  --line: #333;
+  --text: #fff;
+  --muted: #aaa;
+  --blue: #fff;
+  --red: #fff;
+  --green: #ddd;
+  --amber: #bbb;
+}
+html, body { background: #000; }
+html { scrollbar-color: #777 #111; }
+body { color: #fff; }
+::selection { background: #fff; color: #000; }
+.sidebar, .chat.aether-embedded { background: #050505; border-color: #333; }
+.card { background: #0d0d0d; border-color: #333; box-shadow: none; }
+.card:hover { border-color: #555; }
+.logo { background: #fff; color: #000; border-color: #fff; box-shadow: none; }
+.avatar { background: #222; color: #fff; }
+.app-navigation .nav { color: #bbb; }
+.app-navigation .nav:hover { background: #202020; color: #fff; }
+.app-navigation .nav.active { background: #fff; color: #000; border-color: #fff; box-shadow: none; }
+.app-navigation .nav.active .nav-symbol { color: #000; }
+.app-navigation .nav i { background: #222; color: #fff; }
+.primary { background: #fff; color: #000; border: 1px solid #fff; }
+.primary:hover { background: #ddd; color: #000; }
+.secondary, .report-download, .crash-button, .danger-mini,
+.header-actions #notify, .topbar-button, .lab-action-buttons #labStop {
+  background: #111; color: #fff; border-color: #777;
+}
+.secondary:hover, .report-download:hover, .crash-button:hover,
+.danger-mini:hover, .topbar-button:hover { background: #222; border-color: #fff; }
+button:focus-visible, a:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible { outline-color: #fff; }
+input, select, textarea { accent-color: #fff; }
+.metric-top em, .metric-top em.bad, .pill, .pill.danger, .pill.work,
+.agent-state, .live, .health, .lab-mini-badge, .lab-mini-badge.is-running {
+  background: #171717; color: #fff; border-color: #666;
+}
+.metric-top em.bad, .pill.danger, .lab-mini-badge.is-running { border-style: dashed; }
+.line { stroke: #fff; }
+.history-line { stroke: #aaa; stroke-dasharray: 5 4; }
+.legend .blue { background: #fff; }
+.legend .red { background: #aaa; }
+.gridlines line { stroke: #333; }
+.labels text { fill: #aaa; }
+.sev.critical { background: #fff; outline: 1px solid #fff; }
+.sev.medium { background: #aaa; }
+.sev.low { background: #666; }
+.lab-wheel {
+  background: conic-gradient(from -36deg, #252525 0deg 72deg, #444 72deg 144deg,
+    #191919 144deg 216deg, #555 216deg 288deg, #333 288deg 360deg);
+  border-color: #111; outline-color: #777; box-shadow: none;
+}
+.lab-wheel-label { color: #fff; text-shadow: 0 2px 4px #000; }
+.lab-wheel-center { background: #000; color: #fff; border-color: #fff; }
+.lab-pointer { border-top-color: #fff; }
+.lab-signal, .lab-readings i { background: #bbb; border-color: #666; box-shadow: none; }
+.lab-signal.warm, .lab-readings i.warn { background: #ddd; border-color: #fff; box-shadow: none; }
+.lab-signal.critical, .lab-readings i.high { background: #fff; border-color: #fff; box-shadow: none; }
+.lab-choice-icon { background: #111; color: #fff; border-color: #777; }
+.lab-tuning, .lab-light-item, .lab-readings > div, .lab-run-row { background: #111; border-color: #444; }
+.lab-test-summary { background: #111; border-color: #777; }
+.lab-test-summary strong, .lab-run-row .lab-good, .lab-run-row .lab-warning { color: #fff; }
+.lab-bsod-info a { background: #fff; color: #000; border-color: #fff; }
+.lab-bsod-info a:hover { background: #ddd; }
+.power-dialog, .modal-card { background: #0d0d0d; color: #fff; border-color: #777; }
+.power-dialog-icon, .power-option, .power-warning { background: #151515; color: #fff; border-color: #777; }
+.power-option:hover { background: #222; border-color: #fff; }
+.power-option.danger { border-style: dashed; }
+/* User avatars, emoji and the actual GPU shader can contain external colours. */
+img, canvas, .mini-avatar, .mini-bubble, .mini-brand, .power-warning { filter: grayscale(1); }
+.aether-connect, .chat-send, .mini-brand-icon { background: #fff; color: #000; border-color: #fff; }
+.aether-connect:hover, .chat-send:hover { background: #ddd; color: #000; }

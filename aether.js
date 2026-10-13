@@ -128,11 +128,21 @@
       this.ws = null;
       this.pollTimer = null;
       this.pollBusy = false;
+      this.relayReachable = false;
+      this.heartbeatTimer = null;
+      this.reconnectTimer = null;
+      this.pingTimer = null;
       this.cryptoQueue = Promise.resolve();
     }
 
     emit(name, detail = {}) {
       window.dispatchEvent(new CustomEvent(name, { detail }));
+    }
+
+    setTransport(online) {
+      if (this.relayReachable === online) return;
+      this.relayReachable = online;
+      if (this.connected) this.emit("aether-transport", { online });
     }
 
     stateNamespace() {
@@ -207,11 +217,13 @@
       }
 
       if (!response.ok) {
+        if (response.status >= 500) this.setTransport(false);
         const error = new Error(data?.detail || ("AETHER HTTP " + response.status));
         error.status = response.status;
         error.data = data;
         throw error;
       }
+      this.setTransport(true);
       return data || {};
     }
 
@@ -289,6 +301,12 @@
     }
 
     async disconnect(callServer = true) {
+      for (const name of ["heartbeatTimer", "reconnectTimer", "pingTimer"]) {
+        clearTimeout(this[name]);
+        clearInterval(this[name]);
+        this[name] = null;
+      }
+      this.relayReachable = false;
       if (this.pollTimer) clearInterval(this.pollTimer);
       this.pollTimer = null;
 
@@ -450,7 +468,7 @@
     async heartbeat() {
       if (!this.connected) return;
       await this.relay("POST", "/users/me/heartbeat", {});
-      setTimeout(() => this.heartbeat().catch(() => {}), 30000);
+      clearTimeout(this.heartbeatTimer); this.heartbeatTimer = setTimeout(() => this.heartbeat().catch(() => {}), 30000);
     }
 
     async getPeerDevices(peerId, force = false) {
@@ -763,7 +781,8 @@
         this.ws = ws;
 
         ws.onopen = () => {
-          const ping = setInterval(() => {
+          clearInterval(this.pingTimer);
+          const ping = this.pingTimer = setInterval(() => {
             if (ws.readyState === WebSocket.OPEN) ws.send("ping");
             else clearInterval(ping);
           }, 25000);
@@ -779,7 +798,7 @@
 
         ws.onclose = () => {
           if (!this.connected || this.ws !== ws) return;
-          setTimeout(() => this.connectRealtime(), 3000);
+          clearTimeout(this.reconnectTimer); this.reconnectTimer = setTimeout(() => this.connectRealtime(), 3000);
         };
         ws.onerror = () => { try { ws.close(); } catch {} };
       } catch {

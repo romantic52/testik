@@ -1,79 +1,45 @@
-param([switch]$NoBrowser)
-$ErrorActionPreference = "Stop"
-$root = Split-Path -Parent $PSScriptRoot
-$baseUrl = "http://127.0.0.1:8765"
-$healthUrl = "$baseUrl/api/v1/version"
-
-function Test-AegisRunning {
-    try {
-        $response = Invoke-RestMethod -Uri $healthUrl -TimeoutSec 2
-        return $response.service -eq "AEGIS Agent"
-    }
-    catch { return $false }
+﻿param([switch]$NoBrowser)
+$ErrorActionPreference='Stop'
+$root=Split-Path -Parent $PSScriptRoot
+$baseUrl='http://127.0.0.1:8765'
+$logDir=Join-Path $env:LOCALAPPDATA 'AEGIS\logs'
+New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+function Test-Ready {
+ try {$version=Invoke-RestMethod "$baseUrl/api/v1/version" -TimeoutSec 2;$ready=Invoke-RestMethod "$baseUrl/api/v1/health/ready" -TimeoutSec 2;return $version.service -eq 'AEGIS Agent' -and $ready.status -eq 'ready'}catch{return $false}
 }
-
-function Open-AegisWindow {
-    $edgeCandidates = @(
-        "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
-        "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
-    )
-    foreach ($edge in $edgeCandidates) {
-        if ($edge -and (Test-Path -LiteralPath $edge)) {
-            Start-Process -FilePath $edge -ArgumentList @("--app=$baseUrl", "--window-size=1450,900") | Out-Null
-            return
-        }
-    }
-    # Use the default browser if Edge is not installed.
-    Start-Process $baseUrl | Out-Null
+function Open-Window {
+ $profile=Join-Path $env:LOCALAPPDATA 'AEGIS\EdgeProfile'
+ foreach($edge in @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe","$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe")) {
+  if(Test-Path -LiteralPath $edge){Start-Process $edge -ArgumentList @("--app=$baseUrl",('--user-data-dir="'+$profile+'"'),'--no-first-run','--no-default-browser-check','--window-size=1450,900') | Out-Null;return}
+ }
+ Start-Process $baseUrl | Out-Null
 }
-
+$mutex=[Threading.Mutex]::new($false,'Local\AEGIS-Launcher-'+[Security.Principal.WindowsIdentity]::GetCurrent().User.Value)
+$locked=$false
 try {
-    if (Test-AegisRunning) {
-        Write-Host "[AEGIS] Agent already running. Opening dashboard..."
-        if (-not $NoBrowser) { Open-AegisWindow }
-        exit 0
-    }
-
-    $exe = Join-Path $root "Aegis.Agent.exe"
-    if (-not (Test-Path $exe)) {
-        $exe = Join-Path $root "dist\AEGIS\Aegis.Agent.exe"
-    }
-
-    if (Test-Path $exe) {
-        Write-Host "[AEGIS] Starting packaged agent..."
-        $child = Start-Process -FilePath $exe -WorkingDirectory (Split-Path -Parent $exe) -WindowStyle Minimized -PassThru
-    }
-    else {
-        $project = Join-Path $root "backend\Aegis.Agent\Aegis.Agent.csproj"
-        if (-not (Test-Path $project)) {
-            throw "No packaged agent found. Download the Windows release or clone the full source repository."
-        }
-        $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
-        if (-not $dotnet) {
-            throw ".NET 8 SDK is missing. Use the packaged Windows build or install: winget install Microsoft.DotNet.SDK.8"
-        }
-        Write-Host "[AEGIS] Starting agent from source..."
-        $child = Start-Process -FilePath $dotnet.Source -ArgumentList @("run", "--project", ('"' + $project + '"')) -WorkingDirectory $root -WindowStyle Minimized -PassThru
-    }
-
-    $ready = $false
-    for ($attempt = 0; $attempt -lt 80; $attempt++) {
-        Start-Sleep -Milliseconds 750
-        if (Test-AegisRunning) { $ready = $true; break }
-        if ($child.HasExited) {
-            throw "AEGIS Agent exited unexpectedly (exit code $($child.ExitCode))."
-        }
-    }
-
-    if (-not $ready) {
-        throw "AEGIS Agent did not start within 60 seconds. Check the Windows Event Log or run Aegis.Agent.exe in a terminal."
-    }
-
-    Write-Host "[AEGIS] Ready: $baseUrl"
-    if (-not $NoBrowser) { Open-AegisWindow }
-    exit 0
-}
-catch {
-    Write-Host "[AEGIS] Startup failed: $($_.Exception.Message)" -ForegroundColor Red
-    exit 1
-}
+ $locked=$mutex.WaitOne(60000)
+ if(-not $locked){throw 'Another AEGIS launch is still running.'}
+ if(-not(Test-Ready)) {
+  $exe=Join-Path $root 'Aegis.Agent.exe'
+  if(-not(Test-Path -LiteralPath $exe)){$exe=Join-Path $root 'dist\AEGIS\Aegis.Agent.exe'}
+  if(-not(Test-Path -LiteralPath $exe)){throw 'This is a source folder. Open Start AEGIS.cmd from the ready Windows bundle containing Aegis.Agent.exe. The Windows bundle includes .NET and needs no SDK.'}
+  $stamp=(Get-Date).ToString('yyyyMMdd-HHmmss')
+  $child=Start-Process $exe -WorkingDirectory (Split-Path $exe) -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $logDir "$stamp-agent.log") -RedirectStandardError (Join-Path $logDir "$stamp-agent-error.log")
+  $handle=$child.Handle
+  $ready=$false
+  for($i=0;$i -lt 80;$i++) {
+   if(Test-Ready){$ready=$true;break}
+   if($child.HasExited){throw "AEGIS exited with code $($child.ExitCode). Logs: $logDir"}
+   Start-Sleep -Milliseconds 750
+  }
+  if(-not $ready){throw "AEGIS did not become ready. Logs: $logDir"}
+  @{pid=$child.Id;started=$child.StartTime.ToUniversalTime().ToString('o');executable=$exe} | ConvertTo-Json | Set-Content (Join-Path $env:LOCALAPPDATA 'AEGIS\agent-process.json') -Encoding UTF8
+ }
+ if(-not $NoBrowser){Open-Window}
+ Write-Output "AEGIS ready: $baseUrl"
+}catch{
+ $message=$_.Exception.Message
+ $message | Set-Content (Join-Path $logDir 'startup-error.txt') -Encoding UTF8
+ if(-not $NoBrowser){Add-Type -AssemblyName PresentationFramework;[Windows.MessageBox]::Show($message,'AEGIS startup error') | Out-Null}
+ exit 1
+}finally{if($locked){$mutex.ReleaseMutex()};$mutex.Dispose()}
