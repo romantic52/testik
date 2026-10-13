@@ -259,6 +259,7 @@ public static class AegisEndpoints
         MapAetherEndpoints(api);
         MapOperatorShutdownEndpoints(api);
         MapResourceLabEndpoints(api);
+        SecurityEndpoints.Map(api);
     }
 
     private static void MapIncidentEndpoints(RouteGroupBuilder api)
@@ -535,10 +536,7 @@ public static class AegisEndpoints
             HttpContext context,
             CancellationToken cancellationToken) =>
         {
-            if (!Environment.UserInteractive)
-                return Results.Json(new { detail = "Лаборатория доступна только в интерактивной сессии." },
-                    statusCode: StatusCodes.Status403Forbidden);
-
+            // Bounded temp-file check: allowed in service mode too (no user paths are accepted).
             if (!string.Equals(context.Request.Headers["X-AEGIS-Lab-Intent"].ToString(),
                 "bounded-resource-check", StringComparison.Ordinal))
                 return Results.BadRequest(new { detail = "Требуется подтверждение локального теста." });
