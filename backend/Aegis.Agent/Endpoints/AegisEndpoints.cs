@@ -544,7 +544,7 @@ public static class AegisEndpoints
                 return Results.BadRequest(new { detail = "Требуется подтверждение локального теста." });
 
             if (!LabDiagnosticsService.ValidSize(request.SizeMiB))
-                return Results.BadRequest(new { detail = "Максимальный тестовый файл: 32 МиБ." });
+                return Results.BadRequest(new { detail = $"Размер тестового файла: {LabDiagnosticsService.MinSizeMiB}–{LabDiagnosticsService.MaxSizeMiB} МиБ." });
 
             try
             {
@@ -557,11 +557,19 @@ public static class AegisEndpoints
             }
         });
 
-        api.MapGet("/lab/loopback-sample", (HttpContext context) =>
+        api.MapGet("/lab/loopback-sample", (int? sizeKiB, HttpContext context) =>
         {
             context.Response.Headers.CacheControl = "no-store, no-cache";
             // Same-origin, loopback only. This does not generate external network traffic.
-            return Results.Bytes(LoopbackSample, contentType: "application/octet-stream");
+            // Response size is bounded to 64 KiB … 4 MiB and built from a fixed random block.
+            var kib = Math.Clamp(sizeKiB ?? 64, 64, 4096);
+            if (kib == 64)
+                return Results.Bytes(LoopbackSample, contentType: "application/octet-stream");
+            return Results.Stream(async stream =>
+            {
+                for (var i = 0; i < kib / 64; i++)
+                    await stream.WriteAsync(LoopbackSample, context.RequestAborted);
+            }, "application/octet-stream");
         });
     }
 

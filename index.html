@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="frontend/app-shell.css">
   <link rel="stylesheet" href="frontend/monochrome.css">
+  <link rel="stylesheet" href="frontend/ui.css">
 </head>
 <body>
 <div class="shell">
@@ -32,7 +33,7 @@
     <div class="side-bottom">
       <button class="crash-button" id="crashButton" type="button">⏻ &nbsp; Управление питанием</button>
       <div class="health" id="sidebarAgentHealth"><i></i> Ожидаем подключение агента</div>
-      <div class="operator"><div class="avatar">RM</div><div><b>Оператор SOC</b><span>Смена №42</span></div></div>
+      <div class="operator agent-identity"><div class="avatar">⌂</div><div><b id="sidebarMachine">Компьютер не определён</b><span id="sidebarVersion">AEGIS Agent: нет связи</span></div></div>
     </div>
   </aside>
 
@@ -41,13 +42,14 @@
       <div class="page-identity"><small>AEGIS / ЛОКАЛЬНАЯ СИСТЕМА МОНИТОРИНГА</small><h1 id="pageTitle">Обзор инфраструктуры</h1><p id="pageDescription">Контроль компонентов, процессов и событий Windows в реальном времени.</p></div>
       <div class="header-actions"><span class="agent-state offline" id="agentState"><i></i> AGENT OFFLINE</span><span class="live"><i></i> LIVE</span><span id="clock">--:--:--</span><button class="topbar-button" id="headerChat" type="button" title="Открыть AETHER" aria-label="Открыть чат AETHER">✉</button><button id="notify" title="Активные инциденты">0</button></div>
     </header>
+    <div class="connection-banner" id="connectionBanner" role="alert" hidden><b id="connectionBannerTitle">⚠ Нет связи с AEGIS Agent</b><span id="connectionBannerText">Показания не обновляются.</span><button type="button" class="secondary" id="connectionBannerRetry">Переподключить</button></div>
 
     <section class="view active" id="overview">
       <div class="metrics">
         <article class="card metric">
           <div class="metric-top"><span>Риск системы</span><em id="riskLabel">ожидание</em></div>
           <strong><span id="riskValue">—</span><small>/100</small></strong>
-          <div class="bar"><i id="riskBar" style="width:0%"></i></div>
+          <div class="bar"><i id="riskBar"></i></div>
           <p id="riskMeta">Расчёт из live telemetry и активных инцидентов</p>
         </article>
         <article class="card metric">
@@ -71,17 +73,11 @@
         <article class="card">
           <div class="card-head">
             <div><small>ИСТОРИЯ ТЕЛЕМЕТРИИ · SQLITE</small><h2>История нагрузки</h2></div>
-            <div class="history-controls"><label for="historyRange">Период</label><select id="historyRange" aria-label="Период истории"><option value="900">15 мин</option><option value="3600">1 час</option><option value="21600">6 часов</option><option value="86400">24 часа</option></select><div class="legend"><span><i class="blue"></i>CPU</span><span><i class="ram-dot"></i>RAM</span><span><i class="gpu-dot"></i>GPU</span></div></div>
+            <div class="history-controls"><label for="historyRange">Период</label><select id="historyRange" aria-label="Период истории"><option value="900">15 мин</option><option value="3600">1 час</option><option value="21600">6 часов</option><option value="86400">24 часа</option></select></div>
           </div>
-          <svg class="chart" viewBox="0 0 760 230" aria-label="История нагрузки CPU RAM GPU">
-            <defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".25"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient></defs>
-            <g class="gridlines"><line x1="20" y1="35" x2="740" y2="35"/><line x1="20" y1="85" x2="740" y2="85"/><line x1="20" y1="135" x2="740" y2="135"/><line x1="20" y1="185" x2="740" y2="185"/></g>
-            <path class="area" id="cpuHistoryArea" d=""/>
-            <path class="line" id="cpuHistoryLine" d=""/>
-            <path class="history-line ram-history" id="ramHistoryLine" d=""/>
-            <path class="history-line gpu-history" id="gpuHistoryLine" d=""/>
-            <g class="labels"><text id="historyLabel0" x="20" y="226">−15м</text><text id="historyLabel1" x="250" y="226">−10м</text><text id="historyLabel2" x="480" y="226">−5м</text><text id="historyLabel3" x="700" y="226">Сейчас</text></g>
-          </svg>
+          <div class="chart-host" id="historyChart"></div>
+          <div class="chart-subhead"><small>СЕТЬ · ВСЕ АДАПТЕРЫ</small></div>
+          <div class="chart-host" id="historyNetChart"></div>
         </article>
         <article class="card">
           <div class="card-head"><div><small>LOCAL STACK</small><h2>Состояние подсистем</h2></div><b class="ok" id="systemOverallStatus">Ожидание</b></div>
@@ -150,7 +146,7 @@
 
     <section class="view" id="monitoring">
       <div class="monitor-hero card">
-        <div><small>WINDOWS LOCAL AGENT</small><h2 id="machineName">Ожидание подключения…</h2><p class="muted" id="machineMeta">Запусти run-agent.bat на этом компьютере.</p></div>
+        <div><small>WINDOWS LOCAL AGENT</small><h2 id="machineName">Ожидание подключения…</h2><p class="muted" id="machineMeta">Нет связи с AEGIS Agent. Запусти «Start AEGIS.cmd» из готового пакета.</p></div>
         <button class="primary" id="reconnectAgent">Переподключить</button>
       </div>
 
@@ -178,6 +174,17 @@
         <article class="card telemetry-card"><span>GPU</span><strong id="gpuLoad">—</strong><div class="telemetry-bar"><i id="gpuBar"></i></div><small id="gpuMeta">Температура: —</small></article>
         <article class="card telemetry-card"><span>NETWORK</span><strong id="networkRate">—</strong><div class="network-pair"><small id="networkDown">↓ —</small><small id="networkUp">↑ —</small></div></article>
       </div>
+
+      <article class="card live-charts-card">
+        <div class="card-head">
+          <div><small>LIVE · КАЖДУЮ СЕКУНДУ</small><h2>Нагрузка в реальном времени</h2></div>
+          <div class="history-controls"><label for="liveRange">Окно</label><select id="liveRange" aria-label="Окно живого графика"><option value="60">1 мин</option><option value="120" selected>2 мин</option><option value="300">5 мин</option><option value="600">10 мин</option></select></div>
+        </div>
+        <div class="chart-host" id="liveLoadChart"></div>
+        <div class="chart-subhead"><small>СЕТЬ · ВСЕ АДАПТЕРЫ</small></div>
+        <div class="chart-host" id="liveNetChart"></div>
+        <p class="muted chart-note">Значения берутся напрямую из AEGIS Agent (WebSocket /ws/monitor). Если датчик недоступен — линия отсутствует и в легенде написано «нет данных», числа не подставляются.</p>
+      </article>
 
       <article class="card automation-card">
         <div class="automation-main"><div><small>AUTO RESPONSE</small><h2>Автоматические инциденты</h2><p class="muted">Порог должен удерживаться заданное время; одинаковые тревоги ограничиваются cooldown.</p></div><label class="auto-switch"><input id="autoAlertsEnabled" type="checkbox" checked><span></span></label></div>
@@ -282,9 +289,16 @@
 
     <section class="view" id="lab">
       <article class="card lab-intro-card">
-        <div><small>AEGIS / TEST BENCH</small><h2>Рулетка испытаний</h2><p class="muted">Крути колесо, чтобы случайно выбрать ресурс Windows. CPU и RAM можно проверить коротким, ограниченным тестом. Для остальных ресурсов доступны реальные показатели мониторинга.</p></div>
+        <div><small>AEGIS / TEST BENCH</small><h2>Лаборатория испытаний</h2><p class="muted">Пять настоящих проверок этого компьютера: CPU, RAM, GPU, диск и сеть. Выбери тест кнопкой или рулеткой, задай параметры и запусти — нагрузка видна на живом графике. Любой тест можно остановить; ресурсы освобождаются сразу.</p></div>
         <span class="lab-mini-badge" id="labStatus">ГОТОВО</span>
       </article>
+      <div class="lab-picker" id="labPicker" role="group" aria-label="Выбор теста">
+        <button type="button" class="lab-pick" data-kind="cpu"><span>◉</span><b>CPU</b><small>Вычисления в N потоках</small></button>
+        <button type="button" class="lab-pick" data-kind="ram"><span>▦</span><b>RAM</b><small>Выделение и проверка памяти</small></button>
+        <button type="button" class="lab-pick" data-kind="gpu"><span>◈</span><b>GPU</b><small>Рендер WebGL2, FPS</small></button>
+        <button type="button" class="lab-pick" data-kind="disk"><span>▤</span><b>DISK</b><small>Запись/чтение файла TEMP</small></button>
+        <button type="button" class="lab-pick" data-kind="network"><span>⌁</span><b>NET</b><small>Обмен через loopback</small></button>
+      </div>
       <div class="lab-layout">
         <article class="card lab-wheel-panel">
           <div class="lab-wheel-wrap">
@@ -298,57 +312,68 @@
               <span class="lab-wheel-center">Æ</span>
             </div>
           </div>
-          <button class="primary lab-wheel-spin" type="button" id="labWheelButton">↻ Крутить рулетку</button>
-          <p class="muted lab-wheel-note">Каждый сектор выбирается случайно. Настоящий BSOD рулеткой никогда не запускается.</p>
+          <button class="secondary lab-wheel-spin" type="button" id="labWheelButton">↻ Случайный тест</button>
+          <p class="muted lab-wheel-note">Рулетка только выбирает тест. Запуск — всегда отдельной кнопкой.</p>
         </article>
         <article class="card lab-control-panel">
-          <div class="lab-chosen-header"><span class="lab-choice-icon" id="labSelectedIcon">?</span><div><small>ВЫБРАННОЕ ИСПЫТАНИЕ</small><h2 id="labSelectedTitle">Раскрути колесо</h2></div></div>
-          <p class="muted" id="labSelectedDescription">После остановки колеса появится выбранная категория и доступные действия.</p>
+          <div class="lab-chosen-header"><span class="lab-choice-icon" id="labSelectedIcon">?</span><div><small>ВЫБРАННОЕ ИСПЫТАНИЕ</small><h2 id="labSelectedTitle">Выбери тест</h2></div></div>
+          <p class="muted" id="labSelectedDescription">Нажми CPU, RAM, GPU, DISK или NET сверху либо крутани рулетку.</p>
           <div id="labActions" hidden>
             <div class="lab-tuning" id="labTuning">
               <div class="lab-setting-row" id="labDurationRow">
-                <label for="labDuration">Длительность теста</label>
-                <select id="labDuration"><option value="10">10 секунд</option><option value="20">20 секунд</option><option value="30">30 секунд</option></select>
+                <label for="labDuration">Длительность</label>
+                <select id="labDuration"><option value="10">10 секунд</option><option value="20" selected>20 секунд</option><option value="30">30 секунд</option><option value="60">60 секунд</option></select>
               </div>
               <div class="lab-setting-row" id="labCpuRow" hidden>
-                <label for="labCpuIntensity">Интенсивность одного потока <b id="labCpuAmount">50%</b></label>
-                <input id="labCpuIntensity" type="range" min="20" max="80" value="50" step="10">
+                <label for="labCpuThreads">Потоков <b id="labCpuThreadsAmount">1</b></label>
+                <input id="labCpuThreads" type="range" min="1" max="4" value="1" step="1">
+                <label for="labCpuIntensity">Загрузка каждого потока <b id="labCpuAmount">75%</b></label>
+                <input id="labCpuIntensity" type="range" min="10" max="100" value="75" step="5">
               </div>
               <div class="lab-setting-row" id="labRamRow" hidden>
-                <label for="labMemory">Объём выделяемой RAM <b id="labMemoryAmount">32 МиБ</b></label>
-                <input id="labMemory" type="range" min="16" max="128" value="32" step="16">
+                <label for="labMemory">Объём памяти <b id="labMemoryAmount">512 МиБ</b></label>
+                <input id="labMemory" type="range" min="64" max="2048" value="512" step="64">
+              </div>
+              <div class="lab-setting-row" id="labGpuRow" hidden>
+                <label for="labGpuIterations">Сложность шейдера <b id="labGpuAmount">64</b></label>
+                <input id="labGpuIterations" type="range" min="16" max="256" value="64" step="16">
               </div>
               <div class="lab-setting-row" id="labDiskRow" hidden>
-                <label for="labDiskSize">Временный тестовый файл</label>
-                <select id="labDiskSize"><option value="8">8 МиБ</option><option value="16" selected>16 МиБ</option><option value="32">32 МиБ</option></select>
+                <label for="labDiskSize">Тестовый файл</label>
+                <select id="labDiskSize"><option value="64">64 МиБ</option><option value="256" selected>256 МиБ</option><option value="512">512 МиБ</option><option value="1024">1 ГиБ</option></select>
               </div>
-              <p class="muted" id="labSafetyNotice">Нагрузка ограничена. Системные файлы и реальные сетевые адреса не затрагиваются.</p>
+              <p class="muted" id="labSafetyNotice"></p>
             </div>
-            <label class="lab-consent" id="labConsentLabel"><input type="checkbox" id="labConsent"> Подтверждаю запуск ограниченного теста на моём компьютере.</label>
-            <div class="lab-action-buttons"><button type="button" class="primary" id="labStart">▶ Запустить выбранный тест</button><button type="button" id="labStop" disabled>■ Стоп</button><b id="labTimer">00:00</b></div>
+            <label class="lab-consent" id="labConsentLabel"><input type="checkbox" id="labConsent"> Понимаю, что тест создаст реальную нагрузку на этот компьютер.</label>
+            <div class="lab-action-buttons"><button type="button" class="primary" id="labStart">▶ Запустить тест</button><button type="button" id="labStop" disabled>■ Стоп</button><b id="labTimer">00:00</b></div>
           </div>
-          <canvas id="labGpuCanvas" width="512" height="320" hidden aria-label="Визуальный GPU-тест"></canvas>
-          <p id="labOutcome" role="status" aria-live="polite">Сначала нажми «Крутить рулетку».</p>
+          <canvas id="labGpuCanvas" width="960" height="540" hidden aria-label="Визуальный GPU-тест"></canvas>
+          <p id="labOutcome" role="status" aria-live="polite">Тест не выбран.</p>
           <div class="lab-test-summary" id="labResultSummary" aria-live="polite" hidden></div>
-          <div class="lab-readings">
-            <div><i id="labIndicator-cpu"></i><span>CPU</span><strong id="labActual-cpu">—</strong></div>
-            <div><i id="labIndicator-ram"></i><span>RAM</span><strong id="labActual-ram">—</strong></div>
-            <div><i id="labIndicator-gpu"></i><span>GPU</span><strong id="labActual-gpu">—</strong></div>
-            <div><i id="labIndicator-disk"></i><span>DISK</span><strong id="labActual-disk">—</strong></div>
-            <div><i id="labIndicator-network"></i><span>NET RX</span><strong id="labActual-network">—</strong></div>
-          </div>
         </article>
       </div>
+      <article class="card lab-live-card">
+        <div class="card-head"><div><small>LIVE · ПОКАЗАНИЯ АГЕНТА</small><h2>Нагрузка во время теста</h2></div><span class="muted" id="labLiveNote">Последние 90 секунд. Светлая зона — время теста.</span></div>
+        <div class="chart-host" id="labLiveChart"></div>
+        <div class="lab-readings">
+          <div><i id="labIndicator-cpu"></i><span>CPU</span><strong id="labActual-cpu">—</strong></div>
+          <div><i id="labIndicator-ram"></i><span>RAM</span><strong id="labActual-ram">—</strong></div>
+          <div><i id="labIndicator-gpu"></i><span>GPU</span><strong id="labActual-gpu">—</strong></div>
+          <div><i id="labIndicator-disk"></i><span>DISK</span><strong id="labActual-disk">—</strong></div>
+          <div><i id="labIndicator-network"></i><span>NET RX</span><strong id="labActual-network">—</strong></div>
+        </div>
+      </article>
+      <article class="card lab-bsod-card">
+        <div><small>ДЕМОНСТРАЦИЯ · БЕЗОПАСНО</small><h2>Синий экран (BSOD)</h2>
+          <p class="muted">Полноэкранная имитация синего экрана Windows 10 внутри окна AEGIS. Windows не падает, не перезагружается и не выключается. Выход — кнопка на экране или Esc.</p>
+          <p class="muted">Настоящий сбой ядра AEGIS не вызывает. Для ручного испытания в отдельной виртуальной машине Microsoft предлагает <a href="https://learn.microsoft.com/sysinternals/downloads/notmyfault" target="_blank" rel="noopener noreferrer">NotMyFault ↗</a>.</p></div>
+        <button type="button" class="bsod-launch" id="labBsodButton">▣ Показать синий экран</button>
+      </article>
       <article class="card lab-results-card">
-        <div class="lab-results-head"><div><small>ИСТОРИЯ ТЕСТОВ</small><h2>Результаты и замеры</h2></div>
+        <div class="lab-results-head"><div><small>ИСТОРИЯ ТЕСТОВ · ЭТОТ БРАУЗЕР</small><h2>Результаты и замеры</h2></div>
           <div><button type="button" id="labExport" class="secondary">↓ JSON</button><button type="button" id="labClear" class="secondary">Очистить</button></div>
         </div>
         <div id="labRunHistory" class="lab-run-history"><p class="muted">Проверок пока не было.</p></div>
-      </article>
-      <article class="card lab-bsod-info">
-        <div><small>VM-ONLY / ADVANCED</small><h2>Настоящий синий экран смерти</h2>
-          <p class="muted">Для отдельного ручного испытания в виртуальной Windows Microsoft предоставляет NotMyFault. Рулетка не вызывает сбой ядра, не выключает компьютер и не выполняет опасных операций.</p></div>
-        <a href="https://learn.microsoft.com/sysinternals/downloads/notmyfault" target="_blank" rel="noopener noreferrer">Microsoft NotMyFault ↗</a>
       </article>
     </section>
   </main>
@@ -390,7 +415,7 @@
     <div class="power-dialog-header"><div class="power-dialog-icon">⏻</div><div><small>AEGIS / ЛОКАЛЬНОЕ УПРАВЛЕНИЕ</small><h2 id="powerDialogTitle">Действия с системой</h2></div></div>
     <p>Выбери действие. Имитация сбоя безопасна. Реальное выключение Windows запускается только после явного подтверждения.</p>
     <div class="power-options">
-      <button class="power-option" id="confirmCrash" type="button"><strong>▣ &nbsp; Показать фейковый BSOD</strong><span>Полноэкранная демонстрация. Windows не выключается.</span></button>
+      <button class="power-option" id="confirmCrash" type="button"><strong>▣ &nbsp; Показать синий экран (демо)</strong><span>Полноэкранная имитация. Windows не выключается.</span></button>
       <button class="power-option power-option-warning" id="realShutdownButton" type="button"><strong>⏻ &nbsp; Выключить Windows после BSOD</strong><span>Реальное завершение работы через 45 секунд. Можно отменить.</span></button>
     </div>
     <form id="powerConfirmForm" class="power-confirm-form" hidden>
@@ -405,15 +430,20 @@
   </div>
 </div>
 
-<div class="bsod" id="bsod" aria-hidden="true">
+<div class="bsod" id="bsod" aria-hidden="true" role="dialog" aria-label="Демонстрация синего экрана">
   <div class="bsod-content">
     <div class="sad">:(</div>
-    <h2>Your device ran into a problem and needs to restart.</h2>
-    <p>We're just collecting some error info, and then we'll restart for you.</p>
-    <div class="progress"><span id="crashProgress">0</span>% complete</div>
-    <div class="stopcode">Stop code: AEGIS_SIMULATED_SYSTEM_FAILURE</div>
-    <div class="demo-label" id="bsodModeLabel">DEMO MODE — no real system action</div>
-    <button id="cancelScheduledShutdown" class="bsod-cancel" type="button" hidden>Отменить выключение Windows</button>
+    <h2>На вашем ПК возникла проблема, и его необходимо перезагрузить. Мы лишь собираем некоторые сведения об ошибке, а затем будет автоматически выполнена перезагрузка.</h2>
+    <div class="progress"><span id="crashProgress">0</span>% завершено</div>
+    <div class="bsod-details">
+      <svg class="bsod-qr" viewBox="0 0 29 29" aria-hidden="true" id="bsodQr"></svg>
+      <div>
+        <p>Дополнительные сведения об этой ошибке и возможных способах её устранения см. на странице https://www.windows.com/stopcode</p>
+        <p>При обращении в службу поддержки предоставьте следующие сведения:<br>Код остановки: AEGIS_SIMULATED_SYSTEM_FAILURE</p>
+      </div>
+    </div>
+    <div class="demo-label" id="bsodModeLabel">ДЕМОНСТРАЦИЯ AEGIS — Windows работает. Esc или кнопка ниже — выход.</div>
+    <div class="bsod-buttons"><button id="bsodExit" class="bsod-exit" type="button">Выйти из демонстрации</button><button id="cancelScheduledShutdown" class="bsod-cancel" type="button" hidden>Отменить выключение Windows</button></div>
   </div>
 </div>
 
@@ -442,6 +472,7 @@
 <div class="toast" id="toast"></div>
 <script src="vendor/nacl.min.js"></script>
 <script src="aether.js"></script>
+<script src="frontend/charts.js"></script>
 <script src="frontend/core.js"></script>
 <script src="frontend/incidents.js"></script>
 <script src="frontend/aether-ui.js"></script>

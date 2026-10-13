@@ -15,19 +15,22 @@ public sealed class LabDiagnosticsService
 
     public LabDiagnosticsService(ILogger<LabDiagnosticsService> logger) => _logger = logger;
 
-    public static bool ValidSize(int sizeMiB) => sizeMiB is >= 8 and <= 32;
+    public const int MinSizeMiB = 8;
+    public const int MaxSizeMiB = 1024;
+
+    public static bool ValidSize(int sizeMiB) => sizeMiB is >= MinSizeMiB and <= MaxSizeMiB;
 
     public async Task<DiskLabResult> CheckDiskAsync(int sizeMiB, CancellationToken token)
     {
         if (!ValidSize(sizeMiB))
-            throw new ArgumentOutOfRangeException(nameof(sizeMiB), "Use 8 to 32 MiB.");
+            throw new ArgumentOutOfRangeException(nameof(sizeMiB), "Use 8 to 1024 MiB.");
         if (!await _exclusive.WaitAsync(0, token))
             throw new InvalidOperationException("Another disk check is running.");
 
         try
         {
-            if (DateTimeOffset.UtcNow - _lastStart < TimeSpan.FromSeconds(5))
-                throw new InvalidOperationException("Wait at least 5 seconds between disk checks.");
+            if (DateTimeOffset.UtcNow - _lastStart < TimeSpan.FromSeconds(2))
+                throw new InvalidOperationException("Подожди 2 секунды между проверками диска.");
             _lastStart = DateTimeOffset.UtcNow;
 
             const int blockSize = 1024 * 1024;
@@ -35,6 +38,12 @@ public sealed class LabDiagnosticsService
             var result = new byte[blockSize];
             var tempRoot = Path.Combine(Path.GetTempPath(), "AEGIS-lab");
             Directory.CreateDirectory(tempRoot);
+            // Keep a generous reserve so the check can never fill the volume.
+            var free = new DriveInfo(Path.GetPathRoot(tempRoot)!).AvailableFreeSpace;
+            var reserve = 2L * 1024 * 1024 * 1024;
+            if (free < (long)sizeMiB * 1024 * 1024 + reserve)
+                throw new InvalidOperationException(
+                    $"Недостаточно места на диске TEMP: свободно {free / 1048576} МиБ, нужно {sizeMiB} МиБ + 2 ГиБ резерва.");
             var name = Path.Combine(tempRoot, "bench-" + Guid.NewGuid().ToString("N") + ".tmp");
 
             try

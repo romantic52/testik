@@ -37,7 +37,12 @@ jobs:
             "./scripts/smoke-agent.ps1",
             "./scripts/install-service.ps1",
             "./scripts/uninstall-service.ps1",
-            "./scripts/smoke-service.ps1"
+            "./scripts/smoke-service.ps1",
+            "./scripts/aegis-common.ps1",
+            "./scripts/start-aegis.ps1",
+            "./scripts/stop-aegis.ps1",
+            "./scripts/diagnose-aegis.ps1",
+            "./scripts/package-bundle.ps1"
           )
           foreach ($file in $files) {
             $tokens = $null

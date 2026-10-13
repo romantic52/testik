@@ -29,14 +29,9 @@ dotnet publish "%~dp0backend\Aegis.Agent\Aegis.Agent.csproj" ^
   -o "%~dp0dist\AEGIS"
 if errorlevel 1 goto :fail
 
-echo [AEGIS] Packaging service scripts...
-if not exist "%~dp0dist\AEGIS\scripts" mkdir "%~dp0dist\AEGIS\scripts"
-copy /y "%~dp0scripts\install-service.ps1" "%~dp0dist\AEGIS\scripts\install-service.ps1" >nul
-copy /y "%~dp0scripts\uninstall-service.ps1" "%~dp0dist\AEGIS\scripts\uninstall-service.ps1" >nul
-copy /y "%~dp0install-service.bat" "%~dp0dist\AEGIS\install-service.bat" >nul
-copy /y "%~dp0uninstall-service.bat" "%~dp0dist\AEGIS\uninstall-service.bat" >nul
-copy /y "%~dp0Start AEGIS.cmd" "%~dp0dist\AEGIS\Start AEGIS.cmd" >nul
-copy /y "%~dp0scripts\start-aegis.ps1" "%~dp0dist\AEGIS\scripts\start-aegis.ps1" >nul
+echo [AEGIS] Packaging launcher and service scripts...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\package-bundle.ps1" -Output "%~dp0dist\AEGIS"
+if errorlevel 1 goto :fail
 
 echo [AEGIS] Running packaged smoke test...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\smoke-agent.ps1" -Executable "%~dp0dist\AEGIS\Aegis.Agent.exe"

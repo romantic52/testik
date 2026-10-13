@@ -4,6 +4,7 @@ import path from "node:path";
 const html = fs.readFileSync("index.html", "utf8");
 const runtimeFiles = [
   "aether.js",
+  "frontend/charts.js",
   "frontend/core.js",
   "frontend/incidents.js",
   "frontend/aether-ui.js",
@@ -53,7 +54,12 @@ const requiredIds = [
   "processRows",
   "networkConnectionRows",
   "windowsEventList",
-  "cpuHistoryLine",
+  "historyChart",
+  "liveLoadChart",
+  "labLiveChart",
+  "labBsodButton",
+  "bsodExit",
+  "connectionBanner",
   "incidentModal",
   "processModal",
   "agentDiagnosticsGrid",

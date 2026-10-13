@@ -34,16 +34,9 @@ jobs:
           -p:PublishSingleFile=false
           -o dist/AEGIS
 
-      - name: Package service scripts
+      - name: Package launcher and service scripts
         shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path ./dist/AEGIS/scripts | Out-Null
-          Copy-Item ./scripts/install-service.ps1 ./dist/AEGIS/scripts/install-service.ps1
-          Copy-Item ./scripts/uninstall-service.ps1 ./dist/AEGIS/scripts/uninstall-service.ps1
-          Copy-Item ./install-service.bat ./dist/AEGIS/install-service.bat
-          Copy-Item ./uninstall-service.bat ./dist/AEGIS/uninstall-service.bat
-          Copy-Item "./Start AEGIS.cmd" "./dist/AEGIS/Start AEGIS.cmd"
-          Copy-Item ./scripts/start-aegis.ps1 ./dist/AEGIS/scripts/start-aegis.ps1
+        run: ./scripts/package-bundle.ps1 -Output ./dist/AEGIS
 
       - name: Smoke packaged executable
         shell: pwsh
