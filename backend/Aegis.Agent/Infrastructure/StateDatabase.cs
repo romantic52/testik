@@ -236,9 +236,61 @@ public sealed class StateDatabase
             CREATE INDEX IF NOT EXISTS ix_access_events_timestamp
                 ON access_events(timestamp DESC);
 
+            -- v4: control mode (baseline + pending approvals), device journal, AEGIS-made firewall rules.
+            CREATE TABLE IF NOT EXISTS control_baseline (
+                kind TEXT NOT NULL,
+                item_key TEXT NOT NULL,
+                label TEXT NOT NULL,
+                detail TEXT NULL,
+                approved_at TEXT NOT NULL,
+                approver TEXT NOT NULL,
+                PRIMARY KEY (kind, item_key)
+            );
+
+            CREATE TABLE IF NOT EXISTS control_pending (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kind TEXT NOT NULL,
+                item_key TEXT NOT NULL,
+                label TEXT NOT NULL,
+                detail TEXT NULL,
+                risk TEXT NOT NULL,
+                reason TEXT NULL,
+                first_seen TEXT NOT NULL,
+                last_seen TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                UNIQUE (kind, item_key)
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_control_pending_status
+                ON control_pending(status, last_seen DESC);
+
+            CREATE TABLE IF NOT EXISTS device_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                action TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                label TEXT NOT NULL,
+                detail TEXT NULL,
+                record_key TEXT NOT NULL UNIQUE
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_device_events_timestamp
+                ON device_events(timestamp DESC);
+
+            CREATE TABLE IF NOT EXISTS firewall_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                rule_name TEXT NOT NULL UNIQUE,
+                scope TEXT NOT NULL,
+                target TEXT NOT NULL,
+                direction TEXT NOT NULL,
+                note TEXT NULL,
+                active INTEGER NOT NULL DEFAULT 1
+            );
+
             INSERT INTO metadata(key, value)
-            VALUES ('schema_version', '3')
-            ON CONFLICT(key) DO UPDATE SET value = '3';
+            VALUES ('schema_version', '4')
+            ON CONFLICT(key) DO UPDATE SET value = '4';
 
             INSERT INTO metadata(key, value)
             VALUES ('revision', '0')

@@ -84,6 +84,67 @@ public static class TcpTableReader
         return IntPtr.Zero;
     }
 
+    public sealed record UdpRow(string LocalAddress, int LocalPort, int Pid, bool IsIPv4);
+
+    public static IReadOnlyList<UdpRow> ReadUdp()
+    {
+        var rows = new List<UdpRow>(128);
+        ReadUdpFamily(AfInet, rows);
+        ReadUdpFamily(AfInet6, rows);
+        return rows;
+    }
+
+    private static void ReadUdpFamily(int family, List<UdpRow> rows)
+    {
+        var size = 0;
+        var result = GetExtendedUdpTable(IntPtr.Zero, ref size, true, family, 1, 0); // UDP_TABLE_OWNER_PID
+        var buffer = IntPtr.Zero;
+        for (var attempt = 0; attempt < 3 && result == ErrorInsufficientBuffer; attempt++)
+        {
+            buffer = Marshal.AllocHGlobal(size);
+            result = GetExtendedUdpTable(buffer, ref size, true, family, 1, 0);
+            if (result != ErrorSuccess) { Marshal.FreeHGlobal(buffer); buffer = IntPtr.Zero; }
+        }
+        if (buffer == IntPtr.Zero) return;
+        try
+        {
+            var count = Marshal.ReadInt32(buffer);
+            var ptr = IntPtr.Add(buffer, 4);
+            if (family == AfInet)
+            {
+                var rowSize = Marshal.SizeOf<MibUdpRowOwnerPid>();
+                for (var i = 0; i < count; i++)
+                {
+                    var r = Marshal.PtrToStructure<MibUdpRowOwnerPid>(IntPtr.Add(ptr, i * rowSize));
+                    rows.Add(new UdpRow(new IPAddress(r.LocalAddress).ToString(), Port(r.LocalPort), unchecked((int)r.OwningPid), true));
+                }
+            }
+            else
+            {
+                var rowSize = Marshal.SizeOf<MibUdp6RowOwnerPid>();
+                for (var i = 0; i < count; i++)
+                {
+                    var r = Marshal.PtrToStructure<MibUdp6RowOwnerPid>(IntPtr.Add(ptr, i * rowSize));
+                    rows.Add(new UdpRow(new IPAddress(r.LocalAddress, r.LocalScopeId).ToString(), Port(r.LocalPort), unchecked((int)r.OwningPid), false));
+                }
+            }
+        }
+        finally { Marshal.FreeHGlobal(buffer); }
+    }
+
+    [DllImport("iphlpapi.dll")]
+    private static extern uint GetExtendedUdpTable(IntPtr table, ref int size, bool order, int family, int tableClass, uint reserved);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MibUdpRowOwnerPid { public uint LocalAddress, LocalPort, OwningPid; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MibUdp6RowOwnerPid
+    {
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)] public byte[] LocalAddress;
+        public uint LocalScopeId, LocalPort, OwningPid;
+    }
+
     /// <summary>Turns on byte counting for an established IPv4 connection (needs elevation).</summary>
     public static bool EnableByteCounters(Row row)
     {
