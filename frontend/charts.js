@@ -165,7 +165,7 @@
       }
       empty.hidden = anyValue;
       geometry = { width, plotW, from, span, visible, x };
-      el("line", { class: "aegis-cursor", x1: -10, x2: -10, y1: PAD.top, y2: PAD.top + plotH }, svg);
+      el("line", { class: "aegis-cursor", x1: PAD.left, x2: PAD.left, y1: PAD.top, y2: PAD.top + plotH, visibility: "hidden" }, svg);
     }
 
     function hover(event) {
@@ -180,6 +180,7 @@
       const cx = geometry.x(best.t);
       cursor.setAttribute("x1", cx);
       cursor.setAttribute("x2", cx);
+      cursor.setAttribute("visibility", "visible");
       tooltip.replaceChildren();
       const time = document.createElement("time");
       time.textContent = new Date(best.t).toLocaleTimeString("ru-RU");
@@ -202,7 +203,7 @@
     svg.addEventListener("mouseleave", () => {
       tooltip.hidden = true;
       const cursor = svg.querySelector(".aegis-cursor");
-      if (cursor) { cursor.setAttribute("x1", -10); cursor.setAttribute("x2", -10); }
+      if (cursor) cursor.setAttribute("visibility", "hidden");
     });
     if (typeof ResizeObserver === "function") new ResizeObserver(() => draw()).observe(host);
 
