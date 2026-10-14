@@ -21,8 +21,10 @@ function Get-AsciiPath([string]$path,[string]$fallbackName){
 function Get-RelayRecords($value){
  foreach($item in $value){if($null -ne $item.pid){$item}elseif($null -ne $item.value){Get-RelayRecords $item.value}}
 }
-function Run-Tool([string]$exe,[string[]]$arguments,[string]$name,[switch]$AllowNonzero){
- $p=Start-Process $exe -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $logs ($name+'.log')) -RedirectStandardError (Join-Path $logs ($name+'-error.log'))
+function Run-Tool([string]$exe,[string[]]$arguments,[string]$name,[switch]$AllowNonzero,[switch]$NoRedirect){
+ # -NoRedirect for pg_ctl start: redirected children inherit the caller's handles and postgres would hold a caller's pipe open.
+ if($NoRedirect){$p=Start-Process $exe -ArgumentList $arguments -WindowStyle Hidden -PassThru}
+ else{$p=Start-Process $exe -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $logs ($name+'.log')) -RedirectStandardError (Join-Path $logs ($name+'-error.log'))}
  $handle=$p.Handle;if(-not $p.WaitForExit(90000)){Stop-Process -Id $p.Id -Force;throw "$name timeout"}
  $code=$p.ExitCode;if($null -eq $code -or ($code -ne 0 -and -not $AllowNonzero)){throw "$name failed: $code. Logs: $logs"};return $code
 }
@@ -37,7 +39,7 @@ try {
   $pw=Join-Path $stateDir 'initdb.tmp';[IO.File]::WriteAllText($pw,$admin)
   try{$null=Run-Tool (Join-Path $pgBin 'initdb.exe') @('-D',(Q $data),'-U','postgres','--auth=scram-sha-256','--pwfile',(Q $pw),'--encoding=UTF8','--locale=C') 'initdb'}finally{Remove-Item -LiteralPath $pw -Force -ErrorAction SilentlyContinue}
   "`nlisten_addresses = '127.0.0.1'`nport = 54329`nmax_connections = 40`nshared_buffers = '64MB'" | Add-Content (Join-Path $data 'postgresql.conf') -Encoding ASCII
-  $null=Run-Tool (Join-Path $pgBin 'pg_ctl.exe') @('-D',(Q $data),'-l',(Q (Join-Path $logs 'postgresql.log')),'-w','start') 'pg-start'
+  $null=Run-Tool (Join-Path $pgBin 'pg_ctl.exe') @('-D',(Q $data),'-l',(Q (Join-Path $logs 'postgresql.log')),'-w','start') 'pg-start' -NoRedirect
   $env:PGPASSWORD=$admin
   $null=Run-Tool (Join-Path $pgBin 'psql.exe') @('-h','127.0.0.1','-p','54329','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-c',("`"CREATE ROLE aether_user LOGIN PASSWORD '$password';`"")) 'db-role'
   $null=Run-Tool (Join-Path $pgBin 'createdb.exe') @('-h','127.0.0.1','-p','54329','-U','postgres','-O','aether_user','aether_lan') 'db-create'
@@ -45,7 +47,7 @@ try {
  }else{
   if(-not(Test-Path $secretFile)){throw 'Database password backup is missing; existing database was not changed.'}
   $status=Run-Tool (Join-Path $pgBin 'pg_ctl.exe') @('-D',(Q $data),'status') 'pg-status' -AllowNonzero
-  if($status -ne 0){$null=Run-Tool (Join-Path $pgBin 'pg_ctl.exe') @('-D',(Q $data),'-l',(Q (Join-Path $logs 'postgresql.log')),'-w','start') 'pg-start'}
+  if($status -ne 0){$null=Run-Tool (Join-Path $pgBin 'pg_ctl.exe') @('-D',(Q $data),'-l',(Q (Join-Path $logs 'postgresql.log')),'-w','start') 'pg-start' -NoRedirect}
   # F3: finish a previously interrupted initialisation (role/database) without touching existing data.
   if(Test-Path $adminFile){
    $env:PGPASSWORD=[Net.NetworkCredential]::new('',(Import-Clixml $adminFile)).Password

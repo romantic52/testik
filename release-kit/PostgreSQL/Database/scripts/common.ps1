@@ -24,10 +24,13 @@ $dbPort=54331
 # Test fixtures may run an isolated second cluster; the product always uses 54331.
 if($env:AEGIS_PG_PORT){$dbPort=[int]$env:AEGIS_PG_PORT}
 function Q([string]$value){return '"'+$value+'"'}
-function Run-Tool([string]$exe,[string[]]$arguments,[string]$name,[switch]$AllowNonzero){
+function Run-Tool([string]$exe,[string[]]$arguments,[string]$name,[switch]$AllowNonzero,[switch]$NoRedirect){
  New-Item -ItemType Directory -Path $logs -Force | Out-Null
  $stdout=Join-Path $logs ($name+'.log');$stderr=Join-Path $logs ($name+'-error.log')
- $p=Start-Process $exe -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+ # -NoRedirect: for tools that leave a server running (pg_ctl start). Redirection makes the child inherit every
+ # inheritable handle of this PowerShell, including a caller's pipe, so the caller would wait for postgres to exit.
+ if($NoRedirect){$p=Start-Process $exe -ArgumentList $arguments -WindowStyle Hidden -PassThru}
+ else{$p=Start-Process $exe -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr}
  $handle=$p.Handle
  if(-not $p.WaitForExit(90000)){Stop-Process -Id $p.Id -Force;throw "$name timed out. Logs: $logs"}
  $code=$p.ExitCode

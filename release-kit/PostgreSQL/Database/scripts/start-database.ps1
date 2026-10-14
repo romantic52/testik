@@ -23,7 +23,7 @@ try {
   "`nlisten_addresses = '127.0.0.1'`nport = $dbPort`nmax_connections = 20`nshared_buffers = '32MB'" | Add-Content (Join-Path $dataDir 'postgresql.conf') -Encoding ASCII
  }
  $status=Run-Tool (Join-Path $pgBin 'pg_ctl.exe') @('-D',(Q $dataDir),'status') 'status' -AllowNonzero
- if($status -ne 0){$null=Run-Tool (Join-Path $pgBin 'pg_ctl.exe') @('-D',(Q $dataDir),'-l',(Q (Join-Path $logs 'postgresql.log')),'-w','start') 'start'}
+ if($status -ne 0){$null=Run-Tool (Join-Path $pgBin 'pg_ctl.exe') @('-D',(Q $dataDir),'-l',(Q (Join-Path $logs 'postgresql.log')),'-w','start') 'start' -NoRedirect}
  Set-DatabasePassword
  $connection=@('-h','127.0.0.1','-p',"$dbPort",'-U','demo','-w')
  $null=Run-Tool (Join-Path $pgBin 'psql.exe') ($connection+@('-d','postgres','-At','-c','"SELECT datname FROM pg_database WHERE datname=''aether_demo'';"')) 'database-exists'
