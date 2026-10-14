@@ -72,6 +72,31 @@ public sealed class ProtectionTests
             Assert.True(volume.TryGetProperty(name, out _), name);
     }
 
+    [Theory]
+    [InlineData("\"C:\\Program Files\\App\\app.exe\" --tray", @"C:\Program Files\App\app.exe")]
+    [InlineData(@"C:\Windows\system32\svchost.exe -k netsvcs -p", @"C:\Windows\system32\svchost.exe")]
+    [InlineData(@"C:\Tools\run.cmd /quiet", @"C:\Tools\run.cmd")]
+    [InlineData("", null)]
+    [InlineData(null, null)]
+    public void Executable_from_command_line(string? command, string? expected) =>
+        Assert.Equal(expected, ControlModeService.ExecutableOf(command));
+
+    [Fact]
+    public void Control_risk_levels()
+    {
+        Assert.Equal("low", ControlModeService.Risk(new FileTrust(true, true, "Microsoft", false, "signed")));
+        Assert.Equal("medium", ControlModeService.Risk(new FileTrust(true, false, null, false, "unsigned")));
+        Assert.Equal("high", ControlModeService.Risk(new FileTrust(true, false, null, true, "unsigned-user-writable")));
+        Assert.Equal("medium", ControlModeService.Risk(null));
+    }
+
+    [Theory]
+    [InlineData(@"C:\Windows\System32\lsass.exe", true)]
+    [InlineData(@"C:\Windows\explorer.exe", true)]
+    [InlineData(@"C:\Users\u\Downloads\tool.exe", false)]
+    public void System_processes_cannot_be_stopped_or_blocked(string path, bool expected) =>
+        Assert.Equal(expected, OperatorBlockService.IsProtected(path));
+
     [Fact]
     public void Port_key_ignores_pid_and_address()
     {

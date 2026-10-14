@@ -80,6 +80,83 @@ public static class SecurityEndpoints
         api.MapGet("/sensors/capabilities", () => Results.Ok(SensorCapabilities.Detect()));
 
         MapProtection(api);
+        MapControl(api);
+    }
+
+    private static void MapControl(RouteGroupBuilder api)
+    {
+        static bool Confirmed(HttpContext c) =>
+            string.Equals(c.Request.Headers[OperatorBlockService.IntentHeader].ToString(), OperatorBlockService.IntentValue, StringComparison.Ordinal);
+        static IResult NotConfirmed() => Results.BadRequest(new { detail = "Действие нужно подтвердить в окне AEGIS." });
+
+        api.MapGet("/control", async (string? status, ControlModeService control, OperatorBlockService block, CancellationToken token) =>
+            Results.Ok(new
+            {
+                summary = await control.SummaryAsync(token),
+                items = await control.PendingAsync(status, 500, token),
+                rules = await block.RulesAsync(token)
+            }));
+
+        api.MapPost("/control/mode", async (ControlModeRequest body, HttpContext context, ControlModeService control, IncidentStoreService incidents, CancellationToken token) =>
+        {
+            if (!Confirmed(context)) return NotConfirmed();
+            var baseline = await control.SetEnabledAsync(body.Enabled, token);
+            await incidents.AppendAuditAsync(new AuditRecord(DateTimeOffset.UtcNow, body.Enabled ? "control.enabled" : "control.disabled", Environment.MachineName,
+                body.Enabled ? $"Control mode on, baseline items added: {baseline}" : "Control mode off", "AEGIS local operator"), token);
+            return Results.Ok(await control.SummaryAsync(token));
+        });
+
+        api.MapPost("/control/baseline", async (HttpContext context, ControlModeService control, IncidentStoreService incidents, CancellationToken token) =>
+        {
+            if (!Confirmed(context)) return NotConfirmed();
+            var count = await control.CaptureBaselineAsync("operator", token);
+            await incidents.AppendAuditAsync(new AuditRecord(DateTimeOffset.UtcNow, "control.baseline", Environment.MachineName,
+                $"Operator accepted the current state as baseline ({count} items)", "AEGIS local operator"), token);
+            return Results.Ok(await control.SummaryAsync(token));
+        });
+
+        api.MapPost("/control/scan", async (ControlModeService control, CancellationToken token) =>
+            Results.Ok(new { added = await control.ScanAsync(token) }));
+
+        api.MapPost("/control/items/{id:long}/{decision}", async (long id, string decision, HttpContext context, ControlModeService control,
+            IncidentStoreService incidents, CancellationToken token) =>
+        {
+            if (decision is not ("allow" or "threat")) return Results.NotFound();
+            if (!Confirmed(context)) return NotConfirmed();
+            var item = await control.DecideAsync(id, decision, token);
+            if (item is null) return Results.NotFound();
+            await incidents.AppendAuditAsync(new AuditRecord(DateTimeOffset.UtcNow, "control.item." + item.Status, item.Label,
+                ControlModeService.KindName(item.Kind) + ": " + (item.Detail ?? item.Key), "AEGIS local operator"), token);
+            return Results.Ok(item);
+        });
+
+        api.MapPost("/control/stop-program", async (ProgramActionRequest body, HttpContext context, OperatorBlockService block, CancellationToken token) =>
+        {
+            if (!Confirmed(context)) return NotConfirmed();
+            try { return Results.Ok(new { stopped = await block.StopProgramAsync(body.Path, token) }); }
+            catch (ArgumentException error) { return Results.BadRequest(new { detail = error.Message }); }
+            catch (InvalidOperationException error) { return Results.Json(new { detail = error.Message }, statusCode: StatusCodes.Status409Conflict); }
+            catch (UnauthorizedAccessException error) { return Results.Json(new { detail = error.Message }, statusCode: StatusCodes.Status403Forbidden); }
+        });
+
+        api.MapPost("/control/firewall", async (ProgramActionRequest body, HttpContext context, OperatorBlockService block, CancellationToken token) =>
+        {
+            if (!Confirmed(context)) return NotConfirmed();
+            try { return Results.Ok(await block.BlockProgramAsync(body.Path, body.Note ?? "", token)); }
+            catch (ArgumentException error) { return Results.BadRequest(new { detail = error.Message }); }
+            catch (InvalidOperationException error) { return Results.Json(new { detail = error.Message }, statusCode: StatusCodes.Status409Conflict); }
+            catch (UnauthorizedAccessException error) { return Results.Json(new { detail = error.Message }, statusCode: StatusCodes.Status403Forbidden); }
+        });
+
+        api.MapDelete("/control/firewall/{id:long}", async (long id, HttpContext context, OperatorBlockService block, CancellationToken token) =>
+        {
+            if (!Confirmed(context)) return NotConfirmed();
+            try { return await block.UnblockAsync(id, token) ? Results.NoContent() : Results.NotFound(); }
+            catch (Exception error) when (error is UnauthorizedAccessException or InvalidOperationException)
+            {
+                return Results.Json(new { detail = error.Message }, statusCode: StatusCodes.Status403Forbidden);
+            }
+        });
     }
 
     public const string ScanIntentHeader = "X-AEGIS-Scan-Intent";
@@ -144,6 +221,8 @@ public static class SecurityEndpoints
 
 public sealed record MotionReport(double ChangedPercent);
 public sealed record DefenderScanRequest(string? Path);
+public sealed record ControlModeRequest(bool Enabled);
+public sealed record ProgramActionRequest(string Path, string? Note);
 
 /// <summary>Why a sensor may be missing: elevation, the PawnIO driver LibreHardwareMonitor needs for CPU/board sensors, VM.</summary>
 public static class SensorCapabilities

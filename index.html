@@ -20,6 +20,7 @@
       <button class="nav" data-view="monitoring"><span class="nav-symbol">◫</span>Мониторинг</button>
       <button class="nav" data-view="network"><span class="nav-symbol">⌁</span>Сеть</button>
 <button class="nav" data-view="protection"><span class="nav-symbol">⛨</span>Защита <i id="protectionBadge" hidden>!</i></button>
+<button class="nav" data-view="control"><span class="nav-symbol">◎</span>Контроль <i id="controlBadge" hidden>0</i></button>
       <button class="nav" data-view="lab"><span class="nav-symbol">◉</span>Лаборатория</button>
       <button class="nav" data-view="incidents"><span class="nav-symbol">⚑</span>Инциденты <i id="incidentBadge">0</i></button>
       <button class="nav" data-view="assets"><span class="nav-symbol">▤</span>Оборудование</button>
@@ -241,6 +242,34 @@
       <article class="card">
         <div class="card-head"><div><small>ФЛЕШКИ И ВНЕШНИЕ ДИСКИ · 30 ДНЕЙ</small><h2>Журнал устройств</h2></div><button class="secondary" id="protDevRefresh" type="button">Обновить</button></div>
         <div class="access-list" id="protDeviceRows"><p class="muted">Загрузка…</p></div>
+      </article>
+    </section>
+
+    <section class="view" id="control">
+      <article class="card">
+        <div class="card-head"><div><small>РЕЖИМ КОНТРОЛЯ · ЭТОТ КОМПЬЮТЕР</small><h2>Всё новое — на проверку оператору</h2></div><b class="access-status" id="ctlStatus">…</b></div>
+        <p class="muted" id="ctlText">Загрузка…</p>
+        <div class="access-tiles">
+          <div><b id="ctlBaseline">—</b><span>разрешено (базовое состояние)</span></div>
+          <div><b id="ctlPending">—</b><span>ждут решения</span></div>
+          <div><b id="ctlHigh">—</b><span>⚠ высокий риск</span></div>
+          <div><b id="ctlThreats">—</b><span>отмечено как угроза</span></div>
+        </div>
+        <div class="list-tools ctl-actions">
+          <button class="primary" id="ctlToggle" type="button">Включить режим контроля</button>
+          <button class="secondary" id="ctlScan" type="button">Проверить сейчас</button>
+          <button class="secondary" id="ctlRebase" type="button">Принять всё текущее как норму</button>
+        </div>
+        <p class="muted">Контролируются: запущенные программы (по пути к файлу), службы Windows, автозагрузка (реестр Run и папки автозагрузки), TCP-порты, открытые в сеть. Новые флешки — во вкладке «Защита». Сам режим ничего не блокирует: остановить программу или закрыть ей сеть можно только кнопкой с подтверждением.</p>
+      </article>
+      <article class="card tall">
+        <div class="card-head"><div><small>ОЧЕРЕДЬ</small><h2>Новое на компьютере</h2></div>
+          <div class="event-controls"><select id="ctlFilter"><option value="pending">Ждут решения</option><option value="threat">Угрозы</option><option value="allowed">Разрешённые</option><option value="all">Все</option></select></div></div>
+        <div class="ctl-list" id="ctlRows"><p class="muted">Загрузка…</p></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>БРАНДМАУЭР WINDOWS</small><h2>Правила, созданные AEGIS</h2></div></div>
+        <div class="access-list" id="ctlRules"><p class="muted">Правил нет.</p></div>
       </article>
     </section>
 
@@ -589,6 +618,7 @@
 <script src="frontend/lab.js"></script>
 <script src="frontend/security.js"></script>
 <script src="frontend/protection.js"></script>
+<script src="frontend/control.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

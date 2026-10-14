@@ -193,3 +193,18 @@
 .port-row.is-failure{background:#151515;border-left:3px solid #fff}
 #protectionBadge{font-style:normal;margin-left:6px;padding:0 6px;border:1px solid #fff;border-radius:6px}
 @media(max-width:900px){.protect-disk,.protect-volume{grid-template-columns:1fr 1fr}}
+/* Control mode */
+#control>.card{margin-bottom:15px}
+.ctl-actions{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 10px}
+.ctl-actions button{width:auto;padding:0 18px;min-height:37px}
+.ctl-list{display:grid;max-height:640px;overflow:auto}
+.ctl-row{display:grid;grid-template-columns:110px minmax(160px,1.2fr) minmax(200px,2fr) auto;gap:12px;align-items:center;padding:10px 6px;border-top:1px solid #242424;font-size:11px;color:#cfcfcf}
+.ctl-row b{color:#fff;display:block;overflow:hidden;text-overflow:ellipsis}
+.ctl-row small{display:block;color:#8a8a8a;margin-top:3px;word-break:break-all}
+.ctl-row.risk-high{background:#151515;border-left:3px solid #fff}
+.ctl-risk{display:inline-block;padding:3px 7px;border:1px solid #555;border-radius:6px;white-space:nowrap}
+.risk-high .ctl-risk{border:2px solid #fff;color:#fff;font-weight:700}
+.ctl-buttons{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+.ctl-buttons button{width:auto;min-height:30px;padding:0 10px;font-size:11px}
+#controlBadge{font-style:normal;margin-left:6px;padding:0 6px;border:1px solid #fff;border-radius:6px}
+@media(max-width:900px){.ctl-row{grid-template-columns:1fr 1fr}.ctl-buttons{grid-column:1/-1;justify-content:flex-start}}

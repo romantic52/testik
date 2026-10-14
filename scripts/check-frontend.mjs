@@ -15,6 +15,7 @@ const runtimeFiles = [
   "frontend/lab.js",
   "frontend/security.js",
   "frontend/protection.js",
+  "frontend/control.js",
   "app.js"
 ];
 
@@ -72,7 +73,9 @@ const requiredIds = [
   "labStop",
   "labActual-cpu",
   "protection",
-  "protPortRows"
+  "protPortRows",
+  "control",
+  "ctlRows"
 ];
 
 for (const id of requiredIds) {
