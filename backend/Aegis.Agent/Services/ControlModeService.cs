@@ -158,6 +158,7 @@ public sealed class ControlModeService : BackgroundService
             var baseline = await BaselineKeysAsync(token);
             var now = DateTimeOffset.UtcNow.ToString("O");
             var added = 0;
+            var queued = (await PendingAsync("all", 5000, token)).Select(p => p.Kind + "|" + p.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
             await using var connection = _database.OpenConnection();
             await using var tx = connection.BeginTransaction();
             foreach (var item in items.Where(i => !baseline.Contains(i.Kind + "|" + i.Key)))
@@ -168,7 +169,9 @@ public sealed class ControlModeService : BackgroundService
                 cmd.CommandText = """
                     INSERT INTO control_pending(kind,item_key,label,detail,risk,reason,first_seen,last_seen,status)
                     VALUES($k,$i,$l,$d,$r,$why,$t,$t,'pending')
-                    ON CONFLICT(kind,item_key) DO UPDATE SET last_seen=excluded.last_seen;
+                    ON CONFLICT(kind,item_key) DO UPDATE SET last_seen=excluded.last_seen,
+                        risk=CASE WHEN status='pending' THEN excluded.risk ELSE risk END,
+                        reason=CASE WHEN status='pending' THEN excluded.reason ELSE reason END;
                     """;
                 cmd.Parameters.AddWithValue("$k", item.Kind);
                 cmd.Parameters.AddWithValue("$i", item.Key);
@@ -177,7 +180,8 @@ public sealed class ControlModeService : BackgroundService
                 cmd.Parameters.AddWithValue("$r", Risk(trust));
                 cmd.Parameters.AddWithValue("$why", Reason(trust));
                 cmd.Parameters.AddWithValue("$t", now);
-                added += await cmd.ExecuteNonQueryAsync(token);
+                await cmd.ExecuteNonQueryAsync(token);
+                if (!queued.Contains(item.Kind + "|" + item.Key)) added++;
             }
             await tx.CommitAsync(token);
             LastScan = DateTimeOffset.UtcNow;
