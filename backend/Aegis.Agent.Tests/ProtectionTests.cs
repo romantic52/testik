@@ -29,6 +29,17 @@ public sealed class ProtectionTests
         Assert.Equal(expected, SignatureInspector.IsUserWritable(path));
 
     [Fact]
+    public void Windows_component_is_trusted_by_owner()
+    {
+        // dwm.exe has no embedded signature (catalog-signed) but belongs to TrustedInstaller.
+        var trust = SignatureInspector.Inspect(Path.Combine(Environment.SystemDirectory, "dwm.exe"));
+        if (!trust.Exists) return;
+        Assert.True(trust.Signed);
+        Assert.Contains(trust.Status, new[] { "signed", "windows-component" });
+        Assert.Equal("low", ControlModeService.Risk(trust));
+    }
+
+    [Fact]
     public void Signature_of_missing_and_unsigned_files()
     {
         Assert.Equal("no-path", SignatureInspector.Inspect(null).Status);

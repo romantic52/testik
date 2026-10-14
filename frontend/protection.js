@@ -6,7 +6,7 @@
   const time = v => v ? new Date(v).toLocaleString("ru-RU") : "—";
   const healthNames = { healthy: "✓ исправен", warning: "⚠ предупреждение", unhealthy: "✕ неисправен", unknown: "? неизвестно" };
   const smartNames = { ok: "✓ отказ не прогнозируется", failing: "✕ ПРОГНОЗ ОТКАЗА", unknown: "нет данных" };
-  const trustNames = { signed: "✓ подписан", unsigned: "нет встроенной подписи", "unsigned-user-writable": "⚠ без подписи, папка пользователя", missing: "файл не найден", "no-path": "—", "no-access": "путь скрыт (системный процесс)" };
+  const trustNames = { signed: "✓ подписан", "windows-component": "✓ компонент Windows", unsigned: "нет встроенной подписи", "unsigned-user-writable": "⚠ без подписи, папка пользователя", missing: "файл не найден", "no-path": "—", "no-access": "путь скрыт (системный процесс)" };
   const deviceKinds = { removable: "флешка / карта", fixed: "диск", optical: "оптический привод" };
   let active = false, timer = null, ports = [], scanning = false;
 

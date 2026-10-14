@@ -44,11 +44,26 @@ public static class SignatureInspector
         catch { signed = false; }
 
         var userWritable = IsUserWritable(path);
-        var trust = new FileTrust(true, signed, publisher, userWritable,
-            signed ? "signed" : userWritable ? "unsigned-user-writable" : "unsigned");
+        // Most Windows binaries carry no embedded signature (they are catalog-signed). Files owned by
+        // TrustedInstaller can only have been placed by Windows servicing, so they are Windows components.
+        var windows = !signed && !userWritable && IsWindowsComponent(path);
+        var trust = new FileTrust(true, signed || windows, signed ? publisher : windows ? "Windows (TrustedInstaller)" : null, userWritable,
+            signed ? "signed" : windows ? "windows-component" : userWritable ? "unsigned-user-writable" : "unsigned");
         if (Cache.Count > 8192) Cache.Clear();
         Cache[cacheKey] = trust;
         return trust;
+    }
+
+    private const string TrustedInstallerSid = "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464";
+
+    private static bool IsWindowsComponent(string path)
+    {
+        try
+        {
+            var owner = new FileInfo(path).GetAccessControl().GetOwner(typeof(System.Security.Principal.SecurityIdentifier));
+            return owner?.Value == TrustedInstallerSid;
+        }
+        catch { return false; }
     }
 
     public static bool IsUserWritable(string path)

@@ -143,6 +143,7 @@ public sealed class ControlModeService : BackgroundService
         : trust.Signed ? "low" : trust.UserWritable ? "high" : "medium";
 
     private static string Reason(FileTrust? trust) => trust is null || !trust.Exists ? "Файл программы не прочитан"
+        : trust.Status == "windows-component" ? "Компонент Windows (файл принадлежит TrustedInstaller)"
         : trust.Signed ? "Подписан: " + (trust.Publisher ?? "издатель неизвестен")
         : trust.UserWritable ? "Без цифровой подписи, лежит в папке пользователя (Temp/Downloads/AppData)" : "Без цифровой подписи";
 
