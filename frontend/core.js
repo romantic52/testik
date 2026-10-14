@@ -1,6 +1,6 @@
 // AEGIS frontend core: state, overview, API client, reports and read-only Windows views.
 const state={current:"",incidents:[]};
-const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",network:"Сетевые соединения",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",lab:"Лаборатория испытаний",audit:"Журнал аудита",events:"События Windows",services:"Службы Windows"};
+const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",network:"Сетевые соединения",protection:"Защита компьютера",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",lab:"Лаборатория испытаний",audit:"Журнал аудита",events:"События Windows",services:"Службы Windows"};
 const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
 let lastProcesses=[];
 let lastConnections=[];
@@ -445,6 +445,7 @@ const pageSummaries={
   access:"Входы в Windows этого компьютера и события физической СКУД. Ничего не симулируется.",
   cameras:"IP-камеры локальной сети и камера этого компьютера, детектор движения.",
   network:"Кто и куда подключается: процессы, узлы, зоны, трафик и журнал за 7 дней.",
+  protection:"Microsoft Defender, здоровье дисков, открытые порты и журнал флешек. AEGIS ничего не блокирует сам.",
   events:"Системный журнал Windows и события безопасности.",
   services:"Состояние установленных служб Windows.",
   audit:"Хронология действий оператора и автоматических правил.",
@@ -460,5 +461,5 @@ q("#headerChat")?.addEventListener("click",()=>{
   q("#aetherSetupToggle")?.focus();
 });
 
-function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(q("#pageDescription"))q("#pageDescription").textContent=pageSummaries[id]||"";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent();if(id==="monitoring")renderLiveCharts();if(id==="overview")renderHistoryChart();if(id==="audit")loadAudit();if(id==="reports")loadReportSummary();if(id==="events")loadWindowsEvents();if(id==="services")loadWindowsServices();window.AegisSecurity?.onView(id)}
+function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(q("#pageDescription"))q("#pageDescription").textContent=pageSummaries[id]||"";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent();if(id==="monitoring")renderLiveCharts();if(id==="overview")renderHistoryChart();if(id==="audit")loadAudit();if(id==="reports")loadReportSummary();if(id==="events")loadWindowsEvents();if(id==="services")loadWindowsServices();window.AegisSecurity?.onView(id);window.AegisProtection?.onView(id)}
 qa(".nav").forEach(b=>b.onclick=()=>view(b.dataset.view));

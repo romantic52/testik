@@ -42,6 +42,7 @@ public sealed class DefenderService
     public IReadOnlyList<DefenderDetection> GetDetections(int limit)
     {
         var result = new List<DefenderDetection>();
+        var names = ThreatNames();
         try
         {
             using var searcher = new ManagementObjectSearcher(Scope, "SELECT * FROM MSFT_MpThreatDetection");
@@ -53,7 +54,7 @@ public sealed class DefenderService
                     var resources = item["Resources"] as string[];
                     result.Add(new DefenderDetection(
                         S("ThreatID"), D("InitialDetectionTime") ?? DateTimeOffset.MinValue,
-                        ThreatName(S("ThreatID")), ActionName((uint?)Convert.ToUInt32(item["CleaningActionID"] ?? 0u)),
+                        S("ThreatID") is { } id && names.TryGetValue(id, out var name) ? name : ThreatName(S("ThreatID")),ActionName((uint?)Convert.ToUInt32(item["CleaningActionID"] ?? 0u)),
                         (uint?)Convert.ToUInt32(item["ThreatStatusID"] ?? 0u) == 2, resources is { Length: > 0 } ? string.Join("; ", resources) : null));
                 }
         }
@@ -83,10 +84,10 @@ public sealed class DefenderService
             var start = new ProcessStartInfo(exe, args) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
             using var process = Process.Start(start) ?? throw new InvalidOperationException("Не удалось запустить MpCmdRun.exe.");
             using var reg = token.Register(() => { try { if (!process.HasExited) process.Kill(true); } catch { } });
-            var stdout = await process.StandardOutput.ReadToEndAsync(token);
-            var stderr = await process.StandardError.ReadToEndAsync(token);
-            await process.WaitForExitAsync(token);
-            var output = (stdout + "\n" + stderr).Trim();
+            var stdout = process.StandardOutput.ReadToEndAsync(token);
+            var stderr = process.StandardError.ReadToEndAsync(token);
+            await Task.WhenAll(stdout, stderr, process.WaitForExitAsync(token));
+            var output = (stdout.Result + "\n" + stderr.Result).Trim();
             // MpCmdRun exit code 2 = threats found and handled, 0 = clean.
             return new DefenderScanResult(process.ExitCode == 0, process.ExitCode == 2, process.ExitCode, string.IsNullOrWhiteSpace(path) ? "Быстрая проверка" : path!, output.Length > 4000 ? output[^4000..] : output);
         }
@@ -106,6 +107,22 @@ public sealed class DefenderService
             if (candidate is not null && File.Exists(candidate)) return candidate;
         }
         return platform;
+    }
+
+    /// <summary>ThreatID → readable name ("Trojan:Win32/…") from MSFT_MpThreat.</summary>
+    private static Dictionary<string, string> ThreatNames()
+    {
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            using var searcher = new ManagementObjectSearcher(Scope, "SELECT ThreatID, ThreatName FROM MSFT_MpThreat");
+            foreach (ManagementObject item in searcher.Get())
+                using (item)
+                    if (item["ThreatID"]?.ToString() is { } id && item["ThreatName"]?.ToString() is { Length: > 0 } name)
+                        names[id] = name;
+        }
+        catch { /* can require elevation */ }
+        return names;
     }
 
     private static string ThreatName(string? id) => string.IsNullOrWhiteSpace(id) ? "Обнаружение" : "Угроза " + id;

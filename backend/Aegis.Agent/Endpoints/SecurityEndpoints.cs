@@ -78,6 +78,61 @@ public static class SecurityEndpoints
             Results.Ok(new { file = logs.CurrentFile, lines = logs.Tail(lines ?? 400) }));
 
         api.MapGet("/sensors/capabilities", () => Results.Ok(SensorCapabilities.Detect()));
+
+        MapProtection(api);
+    }
+
+    public const string ScanIntentHeader = "X-AEGIS-Scan-Intent";
+    public const string ScanIntentValue = "defender-scan";
+
+    private static void MapProtection(RouteGroupBuilder api)
+    {
+        api.MapGet("/disks", (DiskMonitorService disks) => Results.Ok(disks.GetReport()));
+
+        api.MapGet("/ports", (PortsService ports) =>
+            Results.Ok(ports.GetOpenPorts().Select(p => new
+            {
+                p.Protocol, p.Address, p.Port, p.Exposure, p.ProcessId, p.ProcessName, p.ProcessPath, p.Service,
+                trust = p.ProcessPath is null ? null : SignatureInspector.Inspect(p.ProcessPath)
+            })));
+
+        api.MapGet("/devices/events", async (int? limit, ProtectionWatchService watch, CancellationToken token) =>
+            Results.Ok(await watch.DeviceEventsAsync(limit ?? 200, token)));
+
+        api.MapGet("/defender/status", (DefenderService defender) => Results.Ok(defender.GetStatus()));
+
+        api.MapGet("/defender/detections", (int? limit, DefenderService defender) =>
+            Results.Ok(defender.GetDetections(limit ?? 100)));
+
+        // Asks Microsoft Defender to scan; AEGIS itself never deletes or quarantines anything.
+        api.MapPost("/defender/scan", async (DefenderScanRequest body, HttpContext context, DefenderService defender,
+            IncidentStoreService incidents, CancellationToken token) =>
+        {
+            if (!string.Equals(context.Request.Headers[ScanIntentHeader].ToString(), ScanIntentValue, StringComparison.Ordinal))
+                return Results.BadRequest(new { detail = "Требуется подтверждение проверки оператором." });
+            var target = string.IsNullOrWhiteSpace(body.Path) ? "Быстрая проверка" : body.Path.Trim();
+            await incidents.AppendAuditAsync(new AuditRecord(DateTimeOffset.UtcNow, "defender.scan.started", target,
+                "Operator started a Microsoft Defender scan", "AEGIS local operator"), token);
+            try
+            {
+                var result = await defender.ScanAsync(body.Path, token);
+                await incidents.AppendAuditAsync(new AuditRecord(DateTimeOffset.UtcNow,
+                    result.ThreatsFound ? "defender.scan.threats" : "defender.scan.finished", target,
+                    $"Defender exit code {result.ExitCode}", "Microsoft Defender"), CancellationToken.None);
+                if (result.ThreatsFound)
+                    await incidents.UpsertAsync(new IncidentRecord($"DEFENDER-SCAN-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}",
+                        "Defender нашёл угрозы при проверке", "Microsoft Defender / " + Environment.MachineName, "Критический", "Авто",
+                        "Проверка: " + target + ". Defender обработал найденное по своим правилам; подробности — во вкладке «Защита» и в Защитнике Windows.",
+                        [$"{DateTimeOffset.Now:HH:mm:ss} — код завершения MpCmdRun {result.ExitCode}"], true, false, "protection:defender", DateTimeOffset.UtcNow),
+                        CancellationToken.None);
+                return Results.Ok(result);
+            }
+            catch (InvalidOperationException error) { return Results.Json(new { detail = error.Message }, statusCode: StatusCodes.Status409Conflict); }
+            catch (Exception error) when (error is FileNotFoundException or ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                return Results.BadRequest(new { detail = error.Message });
+            }
+        });
     }
 
     private static string Csv(object? value)
@@ -88,6 +143,7 @@ public static class SecurityEndpoints
 }
 
 public sealed record MotionReport(double ChangedPercent);
+public sealed record DefenderScanRequest(string? Path);
 
 /// <summary>Why a sensor may be missing: elevation, the PawnIO driver LibreHardwareMonitor needs for CPU/board sensors, VM.</summary>
 public static class SensorCapabilities

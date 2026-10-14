@@ -51,7 +51,7 @@ public static class SignatureInspector
         return trust;
     }
 
-    private static bool IsUserWritable(string path)
+    public static bool IsUserWritable(string path)
     {
         var p = path.ToLowerInvariant();
         string[] markers =

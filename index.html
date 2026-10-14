@@ -19,6 +19,7 @@
       <button class="nav active" data-view="overview"><span class="nav-symbol">▦</span>Обзор</button>
       <button class="nav" data-view="monitoring"><span class="nav-symbol">◫</span>Мониторинг</button>
       <button class="nav" data-view="network"><span class="nav-symbol">⌁</span>Сеть</button>
+<button class="nav" data-view="protection"><span class="nav-symbol">⛨</span>Защита <i id="protectionBadge" hidden>!</i></button>
       <button class="nav" data-view="lab"><span class="nav-symbol">◉</span>Лаборатория</button>
       <button class="nav" data-view="incidents"><span class="nav-symbol">⚑</span>Инциденты <i id="incidentBadge">0</i></button>
       <button class="nav" data-view="assets"><span class="nav-symbol">▤</span>Оборудование</button>
@@ -201,6 +202,45 @@
           <a class="report-download" id="netJournalCsv" href="/api/v1/network/journal.csv" download>↓ CSV</a>
         </div>
         <div class="net-journal" id="netJournalRows"></div>
+      </article>
+    </section>
+
+    <section class="view" id="protection">
+      <div class="net-tiles protect-tiles">
+        <article class="card"><span>Антивирус</span><strong id="protAv">—</strong></article>
+        <article class="card"><span>Защита в реальном времени</span><strong id="protRt">—</strong></article>
+        <article class="card"><span>Диски</span><strong id="protDisks">—</strong></article>
+        <article class="card"><span>Порты, открытые в сеть</span><strong id="protExposed">—</strong></article>
+        <article class="card"><span>Обнаружения Defender</span><strong id="protDetCount">—</strong></article>
+      </div>
+      <article class="card">
+        <div class="card-head"><div><small>MICROSOFT DEFENDER · ЭТОТ КОМПЬЮТЕР</small><h2>Антивирус</h2></div><b class="access-status" id="protDefStatus">…</b></div>
+        <p class="muted" id="protDefText">Загрузка…</p>
+        <div class="list-tools protect-scan">
+          <button class="primary" id="protQuickScan" type="button">Быстрая проверка</button>
+          <input id="protScanPath" type="text" maxlength="400" placeholder="Папка или файл, например C:\Users\…\Downloads">
+          <button class="secondary" id="protPathScan" type="button">Проверить путь</button>
+        </div>
+        <p class="muted" id="protScanResult">AEGIS не удаляет файлы сам: проверку выполняет Защитник Windows и действует по своим правилам.</p>
+        <div class="access-list" id="protDetections"></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>ЗДОРОВЬЕ · SMART · ЗАПОЛНЕННОСТЬ</small><h2>Диски</h2></div><span class="muted" id="protSmartNote"></span></div>
+        <div class="protect-disks" id="protDiskRows"><p class="muted">Загрузка…</p></div>
+        <div class="protect-volumes" id="protVolumeRows"></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>ПРОСЛУШИВАЕМЫЕ ПОРТЫ</small><h2>Открытые порты</h2></div><span class="muted" id="protPortCount">—</span></div>
+        <div class="list-tools">
+          <select id="protPortScope"><option value="network">Открытые в сеть</option><option value="">Все</option><option value="local">Только этот ПК</option></select>
+          <select id="protPortProto"><option value="TCP">TCP</option><option value="">TCP и UDP</option><option value="UDP">UDP</option></select>
+        </div>
+        <div class="net-table"><div class="port-row net-head"><span>Порт</span><span>Адрес</span><span>Доступ</span><span>Процесс</span><span>Подпись файла</span><span>Сервис</span></div><div id="protPortRows"><div class="empty-process">Загрузка…</div></div></div>
+        <p class="muted">«Из сети» — порт слушает все или внешний адрес; дойдёт ли подключение, решает ещё брандмауэр Windows. Новый TCP-порт, открытый в сеть, создаёт инцидент. Подпись — встроенная цифровая подпись файла (часть системных файлов Windows подписана каталогом и показана как «нет встроенной подписи»).</p>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>ФЛЕШКИ И ВНЕШНИЕ ДИСКИ · 30 ДНЕЙ</small><h2>Журнал устройств</h2></div><button class="secondary" id="protDevRefresh" type="button">Обновить</button></div>
+        <div class="access-list" id="protDeviceRows"><p class="muted">Загрузка…</p></div>
       </article>
     </section>
 
@@ -548,6 +588,7 @@
 <script src="frontend/lab-tests.js"></script>
 <script src="frontend/lab.js"></script>
 <script src="frontend/security.js"></script>
+<script src="frontend/protection.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
