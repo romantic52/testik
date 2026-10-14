@@ -79,7 +79,8 @@ public sealed class DefenderService
             {
                 var full = Path.GetFullPath(path);
                 if (!File.Exists(full) && !Directory.Exists(full)) throw new FileNotFoundException("Путь не найден: " + full);
-                args = $"-Scan -ScanType 3 -File \"{full}\"";
+                // MpCmdRun cuts its console output at non-ASCII characters; an 8.3 path keeps the report readable.
+                args = $"-Scan -ScanType 3 -File \"{ShortPath(full)}\"";
             }
             var start = new ProcessStartInfo(exe, args) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
             using var process = Process.Start(start) ?? throw new InvalidOperationException("Не удалось запустить MpCmdRun.exe.");
@@ -88,10 +89,22 @@ public sealed class DefenderService
             var stderr = process.StandardError.ReadToEndAsync(token);
             await Task.WhenAll(stdout, stderr, process.WaitForExitAsync(token));
             var output = (stdout.Result + "\n" + stderr.Result).Trim();
-            // MpCmdRun exit code 2 = threats found and handled, 0 = clean.
-            return new DefenderScanResult(process.ExitCode == 0, process.ExitCode == 2, process.ExitCode, string.IsNullOrWhiteSpace(path) ? "Быстрая проверка" : path!, output.Length > 4000 ? output[^4000..] : output);
+            // MpCmdRun: 0 = clean, 2 = threats found — but 2 is also returned for tool errors ("CmdTool: Failed with hr = …").
+            var failed = output.Contains("CmdTool: Failed", StringComparison.OrdinalIgnoreCase);
+            return new DefenderScanResult(process.ExitCode == 0 && !failed, process.ExitCode == 2 && !failed, process.ExitCode, string.IsNullOrWhiteSpace(path) ? "Быстрая проверка" : path!, output.Length > 4000 ? output[^4000..] : output);
         }
         finally { _scan.Release(); }
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern uint GetShortPathName(string longPath, System.Text.StringBuilder shortPath, uint size);
+
+    private static string ShortPath(string path)
+    {
+        if (path.All(c => c < 128) || !OperatingSystem.IsWindows()) return path;
+        var buffer = new System.Text.StringBuilder(1024);
+        var length = GetShortPathName(path, buffer, (uint)buffer.Capacity);
+        return length > 0 && length < buffer.Capacity ? buffer.ToString() : path;
     }
 
     private static string MpCmdRunPath()

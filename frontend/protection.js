@@ -6,7 +6,7 @@
   const time = v => v ? new Date(v).toLocaleString("ru-RU") : "—";
   const healthNames = { healthy: "✓ исправен", warning: "⚠ предупреждение", unhealthy: "✕ неисправен", unknown: "? неизвестно" };
   const smartNames = { ok: "✓ отказ не прогнозируется", failing: "✕ ПРОГНОЗ ОТКАЗА", unknown: "нет данных" };
-  const trustNames = { signed: "✓ подписан", unsigned: "нет встроенной подписи", "unsigned-user-writable": "⚠ без подписи, папка пользователя", missing: "файл не найден", "no-path": "—" };
+  const trustNames = { signed: "✓ подписан", unsigned: "нет встроенной подписи", "unsigned-user-writable": "⚠ без подписи, папка пользователя", missing: "файл не найден", "no-path": "—", "no-access": "путь скрыт (системный процесс)" };
   const deviceKinds = { removable: "флешка / карта", fixed: "диск", optical: "оптический привод" };
   let active = false, timer = null, ports = [], scanning = false;
 
@@ -89,7 +89,7 @@
     const rows = ports.filter(p => (!scope || p.exposure === scope) && (!proto || p.protocol === proto));
     q("#protPortCount").textContent = rows.length + " из " + ports.length;
     q("#protPortRows").innerHTML = rows.length ? rows.slice(0, 500).map(p => {
-      const t = p.trust?.status || "no-path";
+      const t = p.trust?.status || (p.processId <= 4 ? "no-path" : "no-access");
       return '<div class="port-row' + (t === "unsigned-user-writable" && p.exposure === "network" ? " is-failure" : "") + '">' +
         '<span><b>' + esc(p.protocol + " " + p.port) + '</b></span><span>' + esc(p.address) + '</span>' +
         '<span>' + (p.exposure === "network" ? "<b>◆ из сети</b>" : "○ только этот ПК") + '</span>' +

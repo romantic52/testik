@@ -175,8 +175,9 @@
 @media(max-width:1100px){.camera-form{grid-template-columns:1fr 1fr}}
 /* Protection tab */
 #protection>.card{margin-bottom:15px}
-.protect-scan{margin-top:12px}
-.protect-scan input{flex:1;min-width:220px}
+.protect-scan{margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.protect-scan button{flex:0 0 auto;width:auto;padding:0 18px;min-height:37px}
+.protect-scan input{flex:1 1 260px;min-width:0}
 .protect-disks,.protect-volumes{display:grid;gap:8px;margin-top:12px}
 .protect-disk,.protect-volume{display:grid;grid-template-columns:minmax(180px,1.4fr) minmax(150px,1fr) minmax(140px,1fr) minmax(170px,1fr);gap:10px;align-items:center;padding:10px;border:1px solid #333;border-radius:10px;background:#111;font-size:11px;color:#cfcfcf}
 .protect-disk b,.protect-volume b{color:#fff}
@@ -186,7 +187,7 @@
 .protect-bar::-webkit-progress-bar{background:#000}
 .protect-bar::-webkit-progress-value{background:#fff}
 .protect-bar::-moz-progress-bar{background:#fff}
-.port-row{display:grid;grid-template-columns:90px minmax(120px,1fr) 120px minmax(130px,1.2fr) minmax(170px,1.3fr) 110px;gap:10px;align-items:center;padding:8px 6px;border-top:1px solid #242424;font-size:11px;color:#cfcfcf;min-width:780px}
+.port-row{display:grid;grid-template-columns:80px minmax(90px,1fr) 100px minmax(110px,1.1fr) minmax(130px,1.2fr) 80px;gap:8px;align-items:center;padding:8px 6px;border-top:1px solid #242424;font-size:11px;color:#cfcfcf;min-width:620px}
 .port-row b{color:#fff;font-weight:650}
 .port-row small{display:block;color:#8a8a8a;font-size:10px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .port-row.is-failure{background:#151515;border-left:3px solid #fff}
