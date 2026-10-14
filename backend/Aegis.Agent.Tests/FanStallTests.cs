@@ -11,6 +11,7 @@ public sealed class FanStallTests
     [InlineData("Critical Temperature", true)]
     [InlineData("Warning Temperature", true)]
     [InlineData("GPU Core", false)]
+    [InlineData("Temperature Sensor Resolution", true)]
     [InlineData("Composite Temperature", false)]
     public void Nvme_limits_are_not_readings(string name, bool threshold) =>
         Assert.Equal(threshold, HardwareMonitorService.IsThreshold(name));

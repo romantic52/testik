@@ -230,7 +230,9 @@ public static class SensorCapabilities
     public static object Detect()
     {
         bool pawnIo;
-        try { pawnIo = System.ServiceProcess.ServiceController.GetServices().Any(s => s.ServiceName.Equals("PawnIO", StringComparison.OrdinalIgnoreCase)); }
+        // PawnIO is a kernel driver: it is listed by GetDevices(), not GetServices().
+        try { pawnIo = System.ServiceProcess.ServiceController.GetDevices().Concat(System.ServiceProcess.ServiceController.GetServices())
+            .Any(s => s.ServiceName.Equals("PawnIO", StringComparison.OrdinalIgnoreCase)); }
         catch { pawnIo = false; }
         var elevated = Environment.IsPrivilegedProcess;
         var service = !Environment.UserInteractive;

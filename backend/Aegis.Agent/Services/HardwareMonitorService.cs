@@ -137,12 +137,14 @@ public sealed class HardwareMonitorService : IDisposable
     }
 
     public static bool IsUnreliableVirtualReading(bool virtualMachine, string hardwareType, string sensorType, float? value) =>
-        hardwareType == "Cpu" && sensorType == "Temperature" && value is <= 0;
+        // 0 °C (or below) from CPU, board or memory means "no probe connected" (e.g. Nuvoton "M2 #1"), not a reading.
+        sensorType == "Temperature" && value is <= 0;
 
     /// <summary>NVMe drives report their limits ("Warning Temperature", "Critical Temperature") as sensors; these are not readings.</summary>
     public static bool IsThreshold(string name) =>
         name.Contains("Warning", StringComparison.OrdinalIgnoreCase) || name.Contains("Critical", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("Limit", StringComparison.OrdinalIgnoreCase) || name.Contains("Threshold", StringComparison.OrdinalIgnoreCase);
+        || name.Contains("Limit", StringComparison.OrdinalIgnoreCase) || name.Contains("Threshold", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("Resolution", StringComparison.OrdinalIgnoreCase);   // DDR5 "Temperature Sensor Resolution" (0.25)
 
     public static bool IsVirtualMachineModel(string? model) =>
         model is not null && new[] { "Virtual Machine", "VirtualBox", "VMware", "KVM", "QEMU", "HVM domU" }
