@@ -85,3 +85,15 @@ function Stop-AegisProcess([int]$processId){
  if(-not $p.WaitForExit(15000)){throw "AEGIS (PID $processId) не завершился за 15 секунд."}
  for($i=0;$i -lt 20 -and (Get-NetTCPConnection -State Listen -LocalPort $AegisPort -ErrorAction SilentlyContinue);$i++){Start-Sleep -Milliseconds 250}
 }
+
+# Console-mode data of AEGIS. UAC may elevate as a *different* (administrator) account whose
+# %LOCALAPPDATA% has no AEGIS data, so also look through all local profiles; newest database wins.
+function Find-AegisConsoleData([string]$preferred){
+ if($preferred -and (Test-Path -LiteralPath (Join-Path $preferred 'aegis.db'))){return $preferred}
+ $found=Get-ChildItem -Path (Join-Path $env:SystemDrive 'Users') -Directory -ErrorAction SilentlyContinue |
+  ForEach-Object { Join-Path $_.FullName 'AppData\Local\AEGIS\aegis.db' } |
+  Where-Object { Test-Path -LiteralPath $_ } |
+  ForEach-Object { Get-Item -LiteralPath $_ } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+ if($found){return $found.DirectoryName}
+ return $null
+}

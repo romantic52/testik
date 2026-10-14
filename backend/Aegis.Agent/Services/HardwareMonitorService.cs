@@ -70,7 +70,7 @@ public sealed class HardwareMonitorService : IDisposable
             .ToList();
 
         var temperatures = sensors
-            .Where(s => s.SensorType.Equals("Temperature", StringComparison.OrdinalIgnoreCase) && s.Value is not null)
+            .Where(s => s.SensorType.Equals("Temperature", StringComparison.OrdinalIgnoreCase) && s.Value is not null && !IsThreshold(s.Name))
             .Select(s => new TemperatureSnapshot(s.Device, s.HardwareType, s.Name, s.Value))
             .OrderByDescending(t => t.Celsius)
             .ToList();
@@ -138,6 +138,11 @@ public sealed class HardwareMonitorService : IDisposable
 
     public static bool IsUnreliableVirtualReading(bool virtualMachine, string hardwareType, string sensorType, float? value) =>
         hardwareType == "Cpu" && sensorType == "Temperature" && value is <= 0;
+
+    /// <summary>NVMe drives report their limits ("Warning Temperature", "Critical Temperature") as sensors; these are not readings.</summary>
+    public static bool IsThreshold(string name) =>
+        name.Contains("Warning", StringComparison.OrdinalIgnoreCase) || name.Contains("Critical", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("Limit", StringComparison.OrdinalIgnoreCase) || name.Contains("Threshold", StringComparison.OrdinalIgnoreCase);
 
     public static bool IsVirtualMachineModel(string? model) =>
         model is not null && new[] { "Virtual Machine", "VirtualBox", "VMware", "KVM", "QEMU", "HVM domU" }

@@ -174,7 +174,10 @@ public sealed class AccessControlService : BackgroundService
 
     public static string FailureReason(string subStatus, string status)
     {
-        var code = (subStatus is { Length: > 0 } && subStatus != "0x0" ? subStatus : status).ToLowerInvariant();
+        var code = (subStatus is { Length: > 0 } && subStatus != "0x0" && subStatus != "0" ? subStatus : status).ToLowerInvariant();
+        // The event log hands NTSTATUS over as a number (often signed: -1073741718 = 0xC000006A).
+        if (long.TryParse(code, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var numeric))
+            code = "0x" + unchecked((uint)numeric).ToString("x8", System.Globalization.CultureInfo.InvariantCulture);
         return code switch
         {
             "0xc000006a" => "неверный пароль",

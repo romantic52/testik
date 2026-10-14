@@ -38,9 +38,10 @@ if ($state.Kind -eq 'aegis') {
 $dataDirectory = Join-Path $env:ProgramData "AEGIS"
 New-Item -ItemType Directory -Force -Path $dataDirectory | Out-Null
 if (-not $SourceData) { $SourceData = Join-Path $env:LOCALAPPDATA "AEGIS" }
+$SourceData = Find-AegisConsoleData $SourceData
 $targetDb = Join-Path $dataDirectory "aegis.db"
-$sourceDb = Join-Path $SourceData "aegis.db"
-if (-not (Test-Path -LiteralPath $targetDb) -and (Test-Path -LiteralPath $sourceDb)) {
+if (-not $SourceData) { Write-Host "Данных консольного AEGIS не найдено — служба начнёт с пустой базой." }
+elseif (-not (Test-Path -LiteralPath $targetDb)) {
     Get-ChildItem -LiteralPath $SourceData -File | Where-Object { $_.Name -like 'aegis.db*' } |
         Copy-Item -Destination $dataDirectory
     Write-Host "Данные перенесены: $SourceData -> $dataDirectory (оригинал оставлен как резервная копия)."

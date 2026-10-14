@@ -48,6 +48,9 @@ public sealed class AccessControlParsingTests
     [InlineData("0xc0000064", "0xc000006d", "нет такой учётной записи")]
     [InlineData("0x0", "0xC0000234", "учётная запись заблокирована")]
     [InlineData("0x1234", "0x0", "код 0x1234")]
+    [InlineData("-1073741718", "-1073741715", "неверный пароль")]   // as read from the user's Security log
+    [InlineData("3221225572", "3221225581", "нет такой учётной записи")]
+    [InlineData("0", "-1073741260", "учётная запись заблокирована")]
     public void Failure_reason_is_readable(string subStatus, string status, string expected) =>
         Assert.Equal(expected, AccessControlService.FailureReason(subStatus, status));
 
