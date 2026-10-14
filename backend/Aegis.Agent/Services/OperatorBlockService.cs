@@ -37,6 +37,7 @@ public sealed class OperatorBlockService
     {
         if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path)) throw new ArgumentException("Нужен полный путь к программе.");
         if (IsProtected(path)) throw new InvalidOperationException("Это системный процесс или сам AEGIS — его остановка нарушит работу Windows.");
+        path = LongPath(path);
         var stopped = 0;
         var denied = 0;
         foreach (var process in Process.GetProcesses())
@@ -44,7 +45,7 @@ public sealed class OperatorBlockService
             {
                 string? file = null;
                 try { file = process.MainModule?.FileName; } catch { }
-                if (!string.Equals(file, path, StringComparison.OrdinalIgnoreCase)) continue;
+                if (file is null || !string.Equals(LongPath(file), path, StringComparison.OrdinalIgnoreCase)) continue;
                 try { process.Kill(entireProcessTree: false); stopped++; }
                 catch { denied++; }
             }
@@ -105,6 +106,18 @@ public sealed class OperatorBlockService
             list.Add(new FirewallRuleRecord(r.GetInt64(0), DateTimeOffset.Parse(r.GetString(1), CultureInfo.InvariantCulture), r.GetString(2), r.GetString(3),
                 r.IsDBNull(4) ? null : r.GetString(4), r.GetInt64(5) == 1));
         return list;
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern uint GetLongPathName(string shortPath, System.Text.StringBuilder longPath, uint size);
+
+    /// <summary>8.3 names (C:\Users\ROMANT~1\…) and long names point to the same file; compare in long form.</summary>
+    private static string LongPath(string path)
+    {
+        if (!path.Contains('~')) return path;
+        var buffer = new System.Text.StringBuilder(1024);
+        var length = GetLongPathName(path, buffer, (uint)buffer.Capacity);
+        return length > 0 && length < buffer.Capacity ? buffer.ToString() : path;
     }
 
     private static async Task Netsh(string args, CancellationToken token)
