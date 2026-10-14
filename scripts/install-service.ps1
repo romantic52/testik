@@ -1,60 +1,66 @@
-param(
+﻿param(
     [string]$Executable = "",
+    [string]$SourceData = "",
     [switch]$NoStart
 )
-
+# Installs AEGIS as the Windows service "AEGIS Agent" (LocalSystem, automatic start).
+# Running as a service gives AEGIS access to the Security log (sign-ins), per-connection
+# traffic counters and hardware sensors that need elevation. Data: %ProgramData%\AEGIS.
+# The console agent is stopped first; its data is copied once if the service has none.
 $ErrorActionPreference = "Stop"
 $serviceName = "AEGISAgent"
 $displayName = "AEGIS Agent"
+. (Join-Path $PSScriptRoot 'aegis-common.ps1')
 
-function Assert-Administrator {
-    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
-    if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        throw "Run this script from an elevated PowerShell session (Run as administrator)."
-    }
+$principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    throw "Нужны права администратора: запусти install-service.bat (он сам запросит повышение прав)."
 }
 
-Assert-Administrator
-
-if (-not $Executable) {
-    $bundleCandidate = Join-Path $PSScriptRoot "..\Aegis.Agent.exe"
-    $repoCandidate = Join-Path $PSScriptRoot "..\dist\AEGIS\Aegis.Agent.exe"
-
-    if (Test-Path -LiteralPath $bundleCandidate -PathType Leaf) {
-        $Executable = $bundleCandidate
-    }
-    else {
-        $Executable = $repoCandidate
-    }
+if (-not $Executable) { $Executable = Get-AegisBundleExe }
+if (-not $Executable -or -not (Test-Path -LiteralPath $Executable -PathType Leaf)) {
+    throw "Не найден Aegis.Agent.exe готового пакета."
 }
-
 $Executable = [IO.Path]::GetFullPath($Executable)
-if (-not (Test-Path -LiteralPath $Executable -PathType Leaf)) {
-    throw "Published AEGIS executable was not found: $Executable. Run build-release.bat first."
+if (Get-Service -Name $serviceName -ErrorAction SilentlyContinue) {
+    throw "Служба $serviceName уже установлена. Для переустановки сначала uninstall-service.bat."
 }
 
-$existing = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
-if ($existing) {
-    throw "Service $serviceName already exists. Run uninstall-service.ps1 first."
+# 1. Free port 8765 from a console AEGIS (never touches other programs).
+$state = Get-AegisPortState
+if ($state.Kind -eq 'foreign') { throw "Порт 8765 занят другой программой: $($state.ProcessName) (PID $($state.Pid))." }
+if ($state.Kind -eq 'aegis') {
+    Write-Host "Останавливаю консольный AEGIS $($state.Version) (PID $($state.Pid))…"
+    Stop-AegisProcess $state.Pid
 }
 
+# 2. Data directory and one-time migration of the console data.
 $dataDirectory = Join-Path $env:ProgramData "AEGIS"
 New-Item -ItemType Directory -Force -Path $dataDirectory | Out-Null
+if (-not $SourceData) { $SourceData = Join-Path $env:LOCALAPPDATA "AEGIS" }
+$SourceData = Find-AegisConsoleData $SourceData
+$targetDb = Join-Path $dataDirectory "aegis.db"
+if (-not $SourceData) { Write-Host "Данных консольного AEGIS не найдено — служба начнёт с пустой базой." }
+elseif (-not (Test-Path -LiteralPath $targetDb)) {
+    Get-ChildItem -LiteralPath $SourceData -File | Where-Object { $_.Name -like 'aegis.db*' } |
+        Copy-Item -Destination $dataDirectory
+    Write-Host "Данные перенесены: $SourceData -> $dataDirectory (оригинал оставлен как резервная копия)."
+}
 
+# 3. Service with automatic restart on failure.
 $binaryPath = '"' + $Executable + '" --Agent:DataDirectory="' + $dataDirectory + '"'
-New-Service -Name $serviceName -BinaryPathName $binaryPath -DisplayName $displayName -Description "Local AEGIS Windows monitoring and SOC agent" -StartupType Automatic | Out-Null
-
+New-Service -Name $serviceName -BinaryPathName $binaryPath -DisplayName $displayName `
+    -Description "AEGIS: локальный мониторинг и SOC-агент (127.0.0.1:8765)" -StartupType Automatic | Out-Null
 & sc.exe failure $serviceName reset= 86400 actions= restart/5000/restart/15000/restart/60000 | Out-Null
 & sc.exe failureflag $serviceName 1 | Out-Null
 
 if (-not $NoStart) {
     Start-Service -Name $serviceName
+    if (-not (Wait-AegisReady 60 $null)) { throw "Служба запущена, но AEGIS не ответил за 60 секунд. Логи: $dataDirectory\logs" }
 }
 
 $service = Get-Service -Name $serviceName
-Write-Host "AEGIS service installed."
-Write-Host "Name:   $($service.Name)"
-Write-Host "Status: $($service.Status)"
-Write-Host "Binary: $Executable"
-Write-Host "Data:   $dataDirectory"
+Write-Host "Служба AEGIS установлена: $($service.Status)"
+Write-Host "Программа: $Executable"
+Write-Host "Данные:    $dataDirectory"
+Write-Host "Окно интерфейса: Start AEGIS.cmd (подключится к службе)."

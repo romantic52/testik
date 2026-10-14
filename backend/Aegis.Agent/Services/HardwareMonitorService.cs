@@ -70,7 +70,7 @@ public sealed class HardwareMonitorService : IDisposable
             .ToList();
 
         var temperatures = sensors
-            .Where(s => s.SensorType.Equals("Temperature", StringComparison.OrdinalIgnoreCase) && s.Value is not null)
+            .Where(s => s.SensorType.Equals("Temperature", StringComparison.OrdinalIgnoreCase) && s.Value is not null && !IsThreshold(s.Name))
             .Select(s => new TemperatureSnapshot(s.Device, s.HardwareType, s.Name, s.Value))
             .OrderByDescending(t => t.Celsius)
             .ToList();
@@ -119,7 +119,8 @@ public sealed class HardwareMonitorService : IDisposable
     {
         foreach (var sensor in hardware.Sensors)
         {
-            // Guest MSR reads can return zero without exposing a physical sensor.
+            // A running CPU is never at 0 °C: VM guests and non-elevated sessions on
+            // physical AMD/Intel CPUs return 0 when the ring-0 sensor driver is unavailable.
             var unavailable = IsUnreliableVirtualReading(_virtualHardware, hardware.HardwareType.ToString(), sensor.SensorType.ToString(), sensor.Value);
             result.Add(new SensorReading(
                 hardware.Name,
@@ -136,7 +137,14 @@ public sealed class HardwareMonitorService : IDisposable
     }
 
     public static bool IsUnreliableVirtualReading(bool virtualMachine, string hardwareType, string sensorType, float? value) =>
-        virtualMachine && hardwareType == "Cpu" && sensorType == "Temperature" && value == 0;
+        // 0 °C (or below) from CPU, board or memory means "no probe connected" (e.g. Nuvoton "M2 #1"), not a reading.
+        sensorType == "Temperature" && value is <= 0;
+
+    /// <summary>NVMe drives report their limits ("Warning Temperature", "Critical Temperature") as sensors; these are not readings.</summary>
+    public static bool IsThreshold(string name) =>
+        name.Contains("Warning", StringComparison.OrdinalIgnoreCase) || name.Contains("Critical", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("Limit", StringComparison.OrdinalIgnoreCase) || name.Contains("Threshold", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("Resolution", StringComparison.OrdinalIgnoreCase);   // DDR5 "Temperature Sensor Resolution" (0.25)
 
     public static bool IsVirtualMachineModel(string? model) =>
         model is not null && new[] { "Virtual Machine", "VirtualBox", "VMware", "KVM", "QEMU", "HVM domU" }

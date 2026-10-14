@@ -4,10 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="AEGIS SOC — корпоративная система мониторинга безопасности с интеграцией AETHER.chat">
-  <title>AEGIS SOC</title>
+  <link rel="icon" href="data:,">
+<title>AEGIS SOC</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="frontend/app-shell.css">
   <link rel="stylesheet" href="frontend/monochrome.css">
+  <link rel="stylesheet" href="frontend/ui.css">
 </head>
 <body>
 <div class="shell">
@@ -17,6 +19,9 @@
       <div class="nav-section-label">РАБОЧЕЕ МЕСТО</div>
       <button class="nav active" data-view="overview"><span class="nav-symbol">▦</span>Обзор</button>
       <button class="nav" data-view="monitoring"><span class="nav-symbol">◫</span>Мониторинг</button>
+      <button class="nav" data-view="network"><span class="nav-symbol">⌁</span>Сеть</button>
+<button class="nav" data-view="protection"><span class="nav-symbol">⛨</span>Защита <i id="protectionBadge" hidden>!</i></button>
+<button class="nav" data-view="control"><span class="nav-symbol">◎</span>Контроль <i id="controlBadge" hidden>0</i></button>
       <button class="nav" data-view="lab"><span class="nav-symbol">◉</span>Лаборатория</button>
       <button class="nav" data-view="incidents"><span class="nav-symbol">⚑</span>Инциденты <i id="incidentBadge">0</i></button>
       <button class="nav" data-view="assets"><span class="nav-symbol">▤</span>Оборудование</button>
@@ -30,24 +35,25 @@
       <button class="nav" data-view="cameras"><span class="nav-symbol">▣</span>Камеры</button>
     </nav>
     <div class="side-bottom">
-      <button class="crash-button" id="crashButton" type="button">⏻ &nbsp; Управление питанием</button>
+      <button class="crash-button" id="crashButton" type="button">▣ &nbsp; Синий экран / питание</button>
       <div class="health" id="sidebarAgentHealth"><i></i> Ожидаем подключение агента</div>
-      <div class="operator"><div class="avatar">RM</div><div><b>Оператор SOC</b><span>Смена №42</span></div></div>
+      <div class="operator agent-identity"><div class="avatar">⌂</div><div><b id="sidebarMachine">Компьютер не определён</b><span id="sidebarVersion">AEGIS Agent: нет связи</span></div></div>
     </div>
   </aside>
 
   <main class="main">
     <header>
       <div class="page-identity"><small>AEGIS / ЛОКАЛЬНАЯ СИСТЕМА МОНИТОРИНГА</small><h1 id="pageTitle">Обзор инфраструктуры</h1><p id="pageDescription">Контроль компонентов, процессов и событий Windows в реальном времени.</p></div>
-      <div class="header-actions"><span class="agent-state offline" id="agentState"><i></i> AGENT OFFLINE</span><span class="live"><i></i> LIVE</span><span id="clock">--:--:--</span><button class="topbar-button" id="headerChat" type="button" title="Открыть AETHER" aria-label="Открыть чат AETHER">✉</button><button id="notify" title="Активные инциденты">0</button></div>
+      <div class="header-actions"><span class="ui-scale" role="group" aria-label="Масштаб интерфейса"><button type="button" id="uiScaleDown" title="Уменьшить интерфейс (Ctrl+Alt+−)" aria-label="Уменьшить масштаб">−</button><button type="button" id="uiScaleValue" title="Масштаб интерфейса. Нажми, чтобы вернуть 100% (Ctrl+Alt+0)">100%</button><button type="button" id="uiScaleUp" title="Увеличить интерфейс (Ctrl+Alt+=)" aria-label="Увеличить масштаб">+</button></span><span class="agent-state offline" id="agentState"><i></i> AGENT OFFLINE</span><span class="live"><i></i> LIVE</span><span id="clock">--:--:--</span><button class="topbar-button" id="headerChat" type="button" title="Открыть AETHER" aria-label="Открыть чат AETHER">✉</button><button id="notify" title="Активные инциденты">0</button></div>
     </header>
+    <div class="connection-banner" id="connectionBanner" role="alert" hidden><b id="connectionBannerTitle">⚠ Нет связи с AEGIS Agent</b><span id="connectionBannerText">Показания не обновляются.</span><button type="button" class="secondary" id="connectionBannerRetry">Переподключить</button></div>
 
     <section class="view active" id="overview">
       <div class="metrics">
         <article class="card metric">
           <div class="metric-top"><span>Риск системы</span><em id="riskLabel">ожидание</em></div>
           <strong><span id="riskValue">—</span><small>/100</small></strong>
-          <div class="bar"><i id="riskBar" style="width:0%"></i></div>
+          <div class="bar"><i id="riskBar"></i></div>
           <p id="riskMeta">Расчёт из live telemetry и активных инцидентов</p>
         </article>
         <article class="card metric">
@@ -71,17 +77,11 @@
         <article class="card">
           <div class="card-head">
             <div><small>ИСТОРИЯ ТЕЛЕМЕТРИИ · SQLITE</small><h2>История нагрузки</h2></div>
-            <div class="history-controls"><label for="historyRange">Период</label><select id="historyRange" aria-label="Период истории"><option value="900">15 мин</option><option value="3600">1 час</option><option value="21600">6 часов</option><option value="86400">24 часа</option></select><div class="legend"><span><i class="blue"></i>CPU</span><span><i class="ram-dot"></i>RAM</span><span><i class="gpu-dot"></i>GPU</span></div></div>
+            <div class="history-controls"><label for="historyRange">Период</label><select id="historyRange" aria-label="Период истории"><option value="900">15 мин</option><option value="3600">1 час</option><option value="21600">6 часов</option><option value="86400">24 часа</option></select></div>
           </div>
-          <svg class="chart" viewBox="0 0 760 230" aria-label="История нагрузки CPU RAM GPU">
-            <defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".25"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient></defs>
-            <g class="gridlines"><line x1="20" y1="35" x2="740" y2="35"/><line x1="20" y1="85" x2="740" y2="85"/><line x1="20" y1="135" x2="740" y2="135"/><line x1="20" y1="185" x2="740" y2="185"/></g>
-            <path class="area" id="cpuHistoryArea" d=""/>
-            <path class="line" id="cpuHistoryLine" d=""/>
-            <path class="history-line ram-history" id="ramHistoryLine" d=""/>
-            <path class="history-line gpu-history" id="gpuHistoryLine" d=""/>
-            <g class="labels"><text id="historyLabel0" x="20" y="226">−15м</text><text id="historyLabel1" x="250" y="226">−10м</text><text id="historyLabel2" x="480" y="226">−5м</text><text id="historyLabel3" x="700" y="226">Сейчас</text></g>
-          </svg>
+          <div class="chart-host" id="historyChart"></div>
+          <div class="chart-subhead"><small>СЕТЬ · ВСЕ АДАПТЕРЫ</small></div>
+          <div class="chart-host" id="historyNetChart"></div>
         </article>
         <article class="card">
           <div class="card-head"><div><small>LOCAL STACK</small><h2>Состояние подсистем</h2></div><b class="ok" id="systemOverallStatus">Ожидание</b></div>
@@ -133,24 +133,150 @@
     </section>
 
     <section class="view" id="access">
-      <article class="card tall connector-card">
-        <small>СКУД / CONNECTOR</small><h2>Контроль физического доступа</h2>
-        <div class="connector-state"><b>NOT CONFIGURED</b><span>Реальный контроллер доступа не подключён.</span></div>
-        <p class="muted">AEGIS не генерирует фиктивные проходы. Для production сюда подключается API/SDK конкретной СКУД, а её события идут в общий incident/audit pipeline.</p>
+      <article class="card connector-card">
+        <div class="card-head"><div><small>КОНТРОЛЬ ДОСТУПА · ЭТОТ КОМПЬЮТЕР</small><h2>Входы в Windows</h2></div><b class="access-status" id="accessStatus">…</b></div>
+        <p class="muted" id="accessStatusText">Загрузка…</p>
+        <div class="access-tiles">
+          <div><b id="accessOk">—</b><span>успешных входов за 24 ч</span></div>
+          <div><b id="accessFail">—</b><span>неудачных входов за 24 ч</span></div>
+          <div><b id="accessLock">—</b><span>блокировок учётных записей</span></div>
+          <div><b id="accessCtl">—</b><span>событий от СКУД за 24 ч</span></div>
+        </div>
+        <p class="muted">Правила: 5 и более неудачных входов за 5 минут → инцидент «Подбор пароля»; блокировка учётной записи → инцидент; 3 отказа в проходе на одной точке СКУД за 5 минут → инцидент.</p>
+      </article>
+      <article class="card tall">
+        <div class="card-head"><div><small>ЖУРНАЛ ДОСТУПА</small><h2>События</h2></div>
+          <div class="event-controls"><select id="accessSource"><option value="">Все источники</option><option value="windows">Windows</option><option value="controller">СКУД</option></select><button class="primary" id="accessRefresh">Обновить</button></div></div>
+        <div class="access-list" id="accessRows"><p class="muted">Загрузка…</p></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>ФИЗИЧЕСКАЯ СКУД</small><h2>Подключение контроллера</h2></div><span class="muted" id="accessCtlState">—</span></div>
+        <p class="muted">Контроллер дверей или его программа-шлюз отправляет события на локальный API AEGIS. Пример запроса (токен уникален для этой установки):</p>
+        <pre class="code-box" id="accessIntake">…</pre>
+        <p class="muted">Поля: <b>eventId</b> (уникальный номер, повтор не дублируется), <b>door</b>, <b>person</b>, <b>granted</b> (true/false), <b>reason</b>, <b>timestamp</b> (необязательно, ISO 8601). AEGIS принимает запросы только с этого компьютера.</p>
       </article>
     </section>
 
     <section class="view" id="cameras">
-      <article class="card tall connector-card">
-        <small>VIDEO / CONNECTOR</small><h2>Видеонаблюдение</h2>
-        <div class="connector-state"><b>NOT CONFIGURED</b><span>RTSP/VMS connector не настроен.</span></div>
-        <p class="muted">Фейковые LIVE-камеры удалены. Реальная интеграция должна получать stream/status/events от VMS или камер.</p>
+      <article class="card">
+        <div class="card-head"><div><small>ВИДЕОНАБЛЮДЕНИЕ</small><h2>Камеры</h2></div><button class="secondary" id="cameraLocal" type="button">◉ Камера этого компьютера</button></div>
+        <form class="camera-form" id="cameraForm">
+          <label>Название<input id="cameraName" maxlength="80" placeholder="Вход, склад…"></label>
+          <label class="camera-url">Адрес снимка или MJPEG<input id="cameraUrl" required placeholder="http://192.168.1.64/ISAPI/Streaming/channels/101/picture"></label>
+          <label class="camera-check"><input type="checkbox" id="cameraMotion" checked> Детектор движения</label>
+          <label>Чувствительность<input type="range" id="cameraSensitivity" min="1" max="100" value="40"></label>
+          <button class="primary" type="submit">+ Добавить</button>
+        </form>
+        <p class="muted" id="cameraFeedback">Поддерживаются IP-камеры этого компьютера и локальной сети по HTTP: JPEG-снимок или поток MJPEG. Для RTSP-камер укажи их HTTP-адрес снимка (есть у Hikvision, Dahua, Axis, Reolink и др.). Логин и пароль можно указать в адресе: http://логин:пароль@IP/… — они хранятся в локальной базе AEGIS.</p>
+      </article>
+      <div class="camera-grid" id="cameraGrid"><p class="muted">Загрузка…</p></div>
+    </section>
+
+    <section class="view" id="network">
+      <div class="net-tiles">
+        <article class="card"><span>Внешних соединений</span><strong id="netActive">—</strong></article>
+        <article class="card"><span>В интернет</span><strong id="netInternet">—</strong></article>
+        <article class="card"><span>В локальной сети</span><strong id="netLan">—</strong></article>
+        <article class="card"><span>Входящих</span><strong id="netInbound">—</strong></article>
+        <article class="card"><span>Подсчёт трафика</span><strong id="netCounters">—</strong></article>
+      </div>
+      <article class="card">
+        <div class="card-head"><div><small>LIVE · КАЖДЫЕ 3 СЕКУНДЫ</small><h2>Активные соединения</h2></div><span class="muted" id="netLiveCount">—</span></div>
+        <div class="list-tools">
+          <input id="netSearch" type="search" placeholder="Процесс, адрес, имя хоста, сервис, порт…">
+          <select id="netScope"><option value="">Все, кроме этого ПК</option><option value="internet">Интернет</option><option value="lan">Локальная сеть</option><option value="provider">Сеть провайдера</option><option value="loopback">Только этот ПК</option><option value="all">Все</option></select>
+          <select id="netDirection"><option value="">Любое направление</option><option value="outbound">Исходящие</option><option value="inbound">Входящие</option></select>
+        </div>
+        <div class="net-table"><div class="net-row net-head"><span>Процесс</span><span>Удалённый узел</span><span>Сервис</span><span>Зона</span><span>Направление</span><span>Состояние</span><span>Трафик</span></div><div id="netLiveRows"><div class="empty-process">Загрузка…</div></div></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>ПО ПРОЦЕССАМ</small><h2>Кто пользуется сетью</h2></div></div>
+        <p class="muted" id="netCountersNote"></p>
+        <div class="net-proc-list" id="netProcessRows"></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>ЖУРНАЛ · SQLITE · 7 ДНЕЙ</small><h2>История соединений</h2></div><span class="muted" id="netJournalCount"></span></div>
+        <div class="list-tools net-journal-tools">
+          <input id="netJournalSearch" type="search" placeholder="Процесс, IP, хост, сервис или порт — Enter">
+          <select id="netJournalScope"><option value="">Все зоны</option><option value="internet">Интернет</option><option value="lan">Локальная сеть</option><option value="provider">Сеть провайдера</option></select>
+          <select id="netJournalHours"><option value="1">1 час</option><option value="6">6 часов</option><option value="24" selected>24 часа</option><option value="168">7 дней</option></select>
+          <button class="primary" id="netJournalRefresh" type="button">Показать</button>
+          <a class="report-download" id="netJournalCsv" href="/api/v1/network/journal.csv" download>↓ CSV</a>
+        </div>
+        <div class="net-journal" id="netJournalRows"></div>
+      </article>
+    </section>
+
+    <section class="view" id="protection">
+      <div class="net-tiles protect-tiles">
+        <article class="card"><span>Антивирус</span><strong id="protAv">—</strong></article>
+        <article class="card"><span>Защита в реальном времени</span><strong id="protRt">—</strong></article>
+        <article class="card"><span>Диски</span><strong id="protDisks">—</strong></article>
+        <article class="card"><span>Порты, открытые в сеть</span><strong id="protExposed">—</strong></article>
+        <article class="card"><span>Обнаружения Defender</span><strong id="protDetCount">—</strong></article>
+      </div>
+      <article class="card">
+        <div class="card-head"><div><small>MICROSOFT DEFENDER · ЭТОТ КОМПЬЮТЕР</small><h2>Антивирус</h2></div><b class="access-status" id="protDefStatus">…</b></div>
+        <p class="muted" id="protDefText">Загрузка…</p>
+        <div class="list-tools protect-scan">
+          <button class="primary" id="protQuickScan" type="button">Быстрая проверка</button>
+          <input id="protScanPath" type="text" maxlength="400" placeholder="Папка или файл, например C:\Users\…\Downloads">
+          <button class="secondary" id="protPathScan" type="button">Проверить путь</button>
+        </div>
+        <p class="muted" id="protScanResult">AEGIS не удаляет файлы сам: проверку выполняет Защитник Windows и действует по своим правилам.</p>
+        <div class="access-list" id="protDetections"></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>ЗДОРОВЬЕ · SMART · ЗАПОЛНЕННОСТЬ</small><h2>Диски</h2></div><span class="muted" id="protSmartNote"></span></div>
+        <div class="protect-disks" id="protDiskRows"><p class="muted">Загрузка…</p></div>
+        <div class="protect-volumes" id="protVolumeRows"></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>ПРОСЛУШИВАЕМЫЕ ПОРТЫ</small><h2>Открытые порты</h2></div><span class="muted" id="protPortCount">—</span></div>
+        <div class="list-tools">
+          <select id="protPortScope"><option value="network">Открытые в сеть</option><option value="">Все</option><option value="local">Только этот ПК</option></select>
+          <select id="protPortProto"><option value="TCP">TCP</option><option value="">TCP и UDP</option><option value="UDP">UDP</option></select>
+        </div>
+        <div class="net-table"><div class="port-row net-head"><span>Порт</span><span>Адрес</span><span>Доступ</span><span>Процесс</span><span>Подпись файла</span><span>Сервис</span></div><div id="protPortRows"><div class="empty-process">Загрузка…</div></div></div>
+        <p class="muted">«Из сети» — порт слушает все или внешний адрес; дойдёт ли подключение, решает ещё брандмауэр Windows. Новый TCP-порт, открытый в сеть, создаёт инцидент. Подпись — встроенная цифровая подпись файла (часть системных файлов Windows подписана каталогом и показана как «нет встроенной подписи»).</p>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>ФЛЕШКИ И ВНЕШНИЕ ДИСКИ · 30 ДНЕЙ</small><h2>Журнал устройств</h2></div><button class="secondary" id="protDevRefresh" type="button">Обновить</button></div>
+        <div class="access-list" id="protDeviceRows"><p class="muted">Загрузка…</p></div>
+      </article>
+    </section>
+
+    <section class="view" id="control">
+      <article class="card">
+        <div class="card-head"><div><small>РЕЖИМ КОНТРОЛЯ · ЭТОТ КОМПЬЮТЕР</small><h2>Всё новое — на проверку оператору</h2></div><b class="access-status" id="ctlStatus">…</b></div>
+        <p class="muted" id="ctlText">Загрузка…</p>
+        <div class="access-tiles">
+          <div><b id="ctlBaseline">—</b><span>разрешено (базовое состояние)</span></div>
+          <div><b id="ctlPending">—</b><span>ждут решения</span></div>
+          <div><b id="ctlHigh">—</b><span>⚠ высокий риск</span></div>
+          <div><b id="ctlThreats">—</b><span>отмечено как угроза</span></div>
+        </div>
+        <div class="list-tools ctl-actions">
+          <button class="primary" id="ctlToggle" type="button">Включить режим контроля</button>
+          <button class="secondary" id="ctlScan" type="button">Проверить сейчас</button>
+          <button class="secondary" id="ctlRebase" type="button">Принять всё текущее как норму</button>
+        </div>
+        <p class="muted">Контролируются: запущенные программы (по пути к файлу), службы Windows, автозагрузка (реестр Run и папки автозагрузки), TCP-порты, открытые в сеть. Новые флешки — во вкладке «Защита». Сам режим ничего не блокирует: остановить программу или закрыть ей сеть можно только кнопкой с подтверждением.</p>
+      </article>
+      <article class="card tall">
+        <div class="card-head"><div><small>ОЧЕРЕДЬ</small><h2>Новое на компьютере</h2></div>
+          <div class="event-controls"><select id="ctlFilter"><option value="pending">Ждут решения</option><option value="threat">Угрозы</option><option value="allowed">Разрешённые</option><option value="all">Все</option></select></div></div>
+        <div class="ctl-list" id="ctlRows"><p class="muted">Загрузка…</p></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>БРАНДМАУЭР WINDOWS</small><h2>Правила, созданные AEGIS</h2></div></div>
+        <div class="access-list" id="ctlRules"><p class="muted">Правил нет.</p></div>
       </article>
     </section>
 
     <section class="view" id="monitoring">
       <div class="monitor-hero card">
-        <div><small>WINDOWS LOCAL AGENT</small><h2 id="machineName">Ожидание подключения…</h2><p class="muted" id="machineMeta">Запусти run-agent.bat на этом компьютере.</p></div>
+        <div><small>WINDOWS LOCAL AGENT</small><h2 id="machineName">Ожидание подключения…</h2><p class="muted" id="machineMeta">Нет связи с AEGIS Agent. Запусти «Start AEGIS.cmd» из готового пакета.</p></div>
         <button class="primary" id="reconnectAgent">Переподключить</button>
       </div>
 
@@ -178,6 +304,17 @@
         <article class="card telemetry-card"><span>GPU</span><strong id="gpuLoad">—</strong><div class="telemetry-bar"><i id="gpuBar"></i></div><small id="gpuMeta">Температура: —</small></article>
         <article class="card telemetry-card"><span>NETWORK</span><strong id="networkRate">—</strong><div class="network-pair"><small id="networkDown">↓ —</small><small id="networkUp">↑ —</small></div></article>
       </div>
+
+      <article class="card live-charts-card">
+        <div class="card-head">
+          <div><small>LIVE · КАЖДУЮ СЕКУНДУ</small><h2>Нагрузка в реальном времени</h2></div>
+          <div class="history-controls"><label for="liveRange">Окно</label><select id="liveRange" aria-label="Окно живого графика"><option value="60">1 мин</option><option value="120" selected>2 мин</option><option value="300">5 мин</option><option value="600">10 мин</option></select></div>
+        </div>
+        <div class="chart-host" id="liveLoadChart"></div>
+        <div class="chart-subhead"><small>СЕТЬ · ВСЕ АДАПТЕРЫ</small></div>
+        <div class="chart-host" id="liveNetChart"></div>
+        <p class="muted chart-note">Значения берутся напрямую из AEGIS Agent (WebSocket /ws/monitor). Если датчик недоступен — линия отсутствует и в легенде написано «нет данных», числа не подставляются.</p>
+      </article>
 
       <article class="card automation-card">
         <div class="automation-main"><div><small>AUTO RESPONSE</small><h2>Автоматические инциденты</h2><p class="muted">Порог должен удерживаться заданное время; одинаковые тревоги ограничиваются cooldown.</p></div><label class="auto-switch"><input id="autoAlertsEnabled" type="checkbox" checked><span></span></label></div>
@@ -216,7 +353,7 @@
           <button class="secondary" id="refreshConnections">Обновить</button>
         </div>
         <div class="list-tools compact"><input id="connectionSearch" type="search" placeholder="IP, порт или state…"></div>
-        <p class="muted">On-demand снимок активных TCP endpoints Windows с owner PID/process через Windows IP Helper API.</p>
+        <p class="muted">Краткий снимок. Подробно — с зонами, именами узлов, трафиком и журналом — во вкладке <button type="button" class="link" data-go="network">Сеть →</button></p>
         <div class="connection-table">
           <div class="connection-row connection-head"><span>Local</span><span>Remote</span><span>State</span><span>Process</span></div>
           <div id="networkConnectionRows"><div class="empty-process">Нет данных.</div></div>
@@ -246,6 +383,11 @@
         <div class="list-tools compact"><input id="auditSearch" type="search" placeholder="Фильтр audit…"></div>
         <p class="muted">Локальный журнал действий AEGIS: создание, изменение и удаление инцидентов, системные события и операторские действия.</p>
         <div class="audit-list" id="auditList"><p class="muted">Нет данных.</p></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><small>ЛОГИ АГЕНТА</small><h2>Технический журнал AEGIS</h2></div><button class="secondary" id="refreshAgentLog" type="button">Обновить</button></div>
+        <p class="muted">Файл: <code id="agentLogFile">—</code>. Хранится 14 дней, новый файл каждый день.</p>
+        <pre class="code-box agent-log" id="agentLogBox">…</pre>
       </article>
     </section>
     <section class="view" id="events">
@@ -282,9 +424,16 @@
 
     <section class="view" id="lab">
       <article class="card lab-intro-card">
-        <div><small>AEGIS / TEST BENCH</small><h2>Рулетка испытаний</h2><p class="muted">Крути колесо, чтобы случайно выбрать ресурс Windows. CPU и RAM можно проверить коротким, ограниченным тестом. Для остальных ресурсов доступны реальные показатели мониторинга.</p></div>
+        <div><small>AEGIS / TEST BENCH</small><h2>Лаборатория испытаний</h2><p class="muted">Пять настоящих проверок этого компьютера: CPU, RAM, GPU, диск и сеть. Выбери тест кнопкой или рулеткой, задай параметры и запусти — нагрузка видна на живом графике. Любой тест можно остановить; ресурсы освобождаются сразу.</p></div>
         <span class="lab-mini-badge" id="labStatus">ГОТОВО</span>
       </article>
+      <div class="lab-picker" id="labPicker" role="group" aria-label="Выбор теста">
+        <button type="button" class="lab-pick" data-kind="cpu"><span>◉</span><b>CPU</b><small>Вычисления в N потоках</small></button>
+        <button type="button" class="lab-pick" data-kind="ram"><span>▦</span><b>RAM</b><small>Выделение и проверка памяти</small></button>
+        <button type="button" class="lab-pick" data-kind="gpu"><span>◈</span><b>GPU</b><small>Рендер WebGL2, FPS</small></button>
+        <button type="button" class="lab-pick" data-kind="disk"><span>▤</span><b>DISK</b><small>Запись/чтение файла TEMP</small></button>
+        <button type="button" class="lab-pick" data-kind="network"><span>⌁</span><b>NET</b><small>Обмен через loopback</small></button>
+      </div>
       <div class="lab-layout">
         <article class="card lab-wheel-panel">
           <div class="lab-wheel-wrap">
@@ -298,57 +447,68 @@
               <span class="lab-wheel-center">Æ</span>
             </div>
           </div>
-          <button class="primary lab-wheel-spin" type="button" id="labWheelButton">↻ Крутить рулетку</button>
-          <p class="muted lab-wheel-note">Каждый сектор выбирается случайно. Настоящий BSOD рулеткой никогда не запускается.</p>
+          <button class="secondary lab-wheel-spin" type="button" id="labWheelButton">↻ Случайный тест</button>
+          <p class="muted lab-wheel-note">Рулетка только выбирает тест. Запуск — всегда отдельной кнопкой.</p>
         </article>
         <article class="card lab-control-panel">
-          <div class="lab-chosen-header"><span class="lab-choice-icon" id="labSelectedIcon">?</span><div><small>ВЫБРАННОЕ ИСПЫТАНИЕ</small><h2 id="labSelectedTitle">Раскрути колесо</h2></div></div>
-          <p class="muted" id="labSelectedDescription">После остановки колеса появится выбранная категория и доступные действия.</p>
+          <div class="lab-chosen-header"><span class="lab-choice-icon" id="labSelectedIcon">?</span><div><small>ВЫБРАННОЕ ИСПЫТАНИЕ</small><h2 id="labSelectedTitle">Выбери тест</h2></div></div>
+          <p class="muted" id="labSelectedDescription">Нажми CPU, RAM, GPU, DISK или NET сверху либо крутани рулетку.</p>
           <div id="labActions" hidden>
             <div class="lab-tuning" id="labTuning">
               <div class="lab-setting-row" id="labDurationRow">
-                <label for="labDuration">Длительность теста</label>
-                <select id="labDuration"><option value="10">10 секунд</option><option value="20">20 секунд</option><option value="30">30 секунд</option></select>
+                <label for="labDuration">Длительность</label>
+                <select id="labDuration"><option value="10">10 секунд</option><option value="20" selected>20 секунд</option><option value="30">30 секунд</option><option value="60">60 секунд</option></select>
               </div>
               <div class="lab-setting-row" id="labCpuRow" hidden>
-                <label for="labCpuIntensity">Интенсивность одного потока <b id="labCpuAmount">50%</b></label>
-                <input id="labCpuIntensity" type="range" min="20" max="80" value="50" step="10">
+                <label for="labCpuThreads">Потоков <b id="labCpuThreadsAmount">1</b></label>
+                <input id="labCpuThreads" type="range" min="1" max="4" value="1" step="1">
+                <label for="labCpuIntensity">Загрузка каждого потока <b id="labCpuAmount">75%</b></label>
+                <input id="labCpuIntensity" type="range" min="10" max="100" value="75" step="5">
               </div>
               <div class="lab-setting-row" id="labRamRow" hidden>
-                <label for="labMemory">Объём выделяемой RAM <b id="labMemoryAmount">32 МиБ</b></label>
-                <input id="labMemory" type="range" min="16" max="128" value="32" step="16">
+                <label for="labMemory">Объём памяти <b id="labMemoryAmount">512 МиБ</b></label>
+                <input id="labMemory" type="range" min="64" max="2048" value="512" step="64">
+              </div>
+              <div class="lab-setting-row" id="labGpuRow" hidden>
+                <label for="labGpuIterations">Сложность шейдера <b id="labGpuAmount">64</b></label>
+                <input id="labGpuIterations" type="range" min="16" max="256" value="64" step="16">
               </div>
               <div class="lab-setting-row" id="labDiskRow" hidden>
-                <label for="labDiskSize">Временный тестовый файл</label>
-                <select id="labDiskSize"><option value="8">8 МиБ</option><option value="16" selected>16 МиБ</option><option value="32">32 МиБ</option></select>
+                <label for="labDiskSize">Тестовый файл</label>
+                <select id="labDiskSize"><option value="64">64 МиБ</option><option value="256" selected>256 МиБ</option><option value="512">512 МиБ</option><option value="1024">1 ГиБ</option></select>
               </div>
-              <p class="muted" id="labSafetyNotice">Нагрузка ограничена. Системные файлы и реальные сетевые адреса не затрагиваются.</p>
+              <p class="muted" id="labSafetyNotice"></p>
             </div>
-            <label class="lab-consent" id="labConsentLabel"><input type="checkbox" id="labConsent"> Подтверждаю запуск ограниченного теста на моём компьютере.</label>
-            <div class="lab-action-buttons"><button type="button" class="primary" id="labStart">▶ Запустить выбранный тест</button><button type="button" id="labStop" disabled>■ Стоп</button><b id="labTimer">00:00</b></div>
+            <label class="lab-consent" id="labConsentLabel"><input type="checkbox" id="labConsent"> Понимаю, что тест создаст реальную нагрузку на этот компьютер.</label>
+            <div class="lab-action-buttons"><button type="button" class="primary" id="labStart">▶ Запустить тест</button><button type="button" id="labStop" disabled>■ Стоп</button><b id="labTimer">00:00</b></div>
           </div>
-          <canvas id="labGpuCanvas" width="512" height="320" hidden aria-label="Визуальный GPU-тест"></canvas>
-          <p id="labOutcome" role="status" aria-live="polite">Сначала нажми «Крутить рулетку».</p>
+          <canvas id="labGpuCanvas" width="960" height="540" hidden aria-label="Визуальный GPU-тест"></canvas>
+          <p id="labOutcome" role="status" aria-live="polite">Тест не выбран.</p>
           <div class="lab-test-summary" id="labResultSummary" aria-live="polite" hidden></div>
-          <div class="lab-readings">
-            <div><i id="labIndicator-cpu"></i><span>CPU</span><strong id="labActual-cpu">—</strong></div>
-            <div><i id="labIndicator-ram"></i><span>RAM</span><strong id="labActual-ram">—</strong></div>
-            <div><i id="labIndicator-gpu"></i><span>GPU</span><strong id="labActual-gpu">—</strong></div>
-            <div><i id="labIndicator-disk"></i><span>DISK</span><strong id="labActual-disk">—</strong></div>
-            <div><i id="labIndicator-network"></i><span>NET RX</span><strong id="labActual-network">—</strong></div>
-          </div>
         </article>
       </div>
+      <article class="card lab-live-card">
+        <div class="card-head"><div><small>LIVE · ПОКАЗАНИЯ АГЕНТА</small><h2>Нагрузка во время теста</h2></div><span class="muted" id="labLiveNote">Последние 90 секунд. Светлая зона — время теста.</span></div>
+        <div class="chart-host" id="labLiveChart"></div>
+        <div class="lab-readings">
+          <div><i id="labIndicator-cpu"></i><span>CPU</span><strong id="labActual-cpu">—</strong></div>
+          <div><i id="labIndicator-ram"></i><span>RAM</span><strong id="labActual-ram">—</strong></div>
+          <div><i id="labIndicator-gpu"></i><span>GPU</span><strong id="labActual-gpu">—</strong></div>
+          <div><i id="labIndicator-disk"></i><span>DISK</span><strong id="labActual-disk">—</strong></div>
+          <div><i id="labIndicator-network"></i><span>NET RX</span><strong id="labActual-network">—</strong></div>
+        </div>
+      </article>
+      <article class="card lab-bsod-card">
+        <div><small>ДЕМОНСТРАЦИЯ · БЕЗОПАСНО</small><h2>Синий экран (BSOD)</h2>
+          <p class="muted">Полноэкранная имитация синего экрана Windows 10 внутри окна AEGIS. Windows не падает, не перезагружается и не выключается. Выход — кнопка на экране или Esc.</p>
+          <p class="muted">Настоящий сбой ядра AEGIS не вызывает. Для ручного испытания в отдельной виртуальной машине Microsoft предлагает <a href="https://learn.microsoft.com/sysinternals/downloads/notmyfault" target="_blank" rel="noopener noreferrer">NotMyFault ↗</a>.</p></div>
+        <button type="button" class="bsod-launch" id="labBsodButton">▣ Показать синий экран</button>
+      </article>
       <article class="card lab-results-card">
-        <div class="lab-results-head"><div><small>ИСТОРИЯ ТЕСТОВ</small><h2>Результаты и замеры</h2></div>
+        <div class="lab-results-head"><div><small>ИСТОРИЯ ТЕСТОВ · ЭТОТ БРАУЗЕР</small><h2>Результаты и замеры</h2></div>
           <div><button type="button" id="labExport" class="secondary">↓ JSON</button><button type="button" id="labClear" class="secondary">Очистить</button></div>
         </div>
         <div id="labRunHistory" class="lab-run-history"><p class="muted">Проверок пока не было.</p></div>
-      </article>
-      <article class="card lab-bsod-info">
-        <div><small>VM-ONLY / ADVANCED</small><h2>Настоящий синий экран смерти</h2>
-          <p class="muted">Для отдельного ручного испытания в виртуальной Windows Microsoft предоставляет NotMyFault. Рулетка не вызывает сбой ядра, не выключает компьютер и не выполняет опасных операций.</p></div>
-        <a href="https://learn.microsoft.com/sysinternals/downloads/notmyfault" target="_blank" rel="noopener noreferrer">Microsoft NotMyFault ↗</a>
       </article>
     </section>
   </main>
@@ -367,6 +527,7 @@
     <label class="totp-field" id="aetherTotpField"><span>Код 2FA</span><input id="aetherTotp" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code"></label>
     <div class="aether-config-actions"><button class="aether-disconnect" id="aetherDisconnect" type="button">Выйти</button><button class="aether-connect" id="aetherConnect" type="submit">Войти в AETHER</button></div>
     <p id="aetherLoginStatus" role="status">Работает через AETHER relay. Исходный мессенджер не изменяется.</p>
+    <p class="muted aether-register-row">Нет аккаунта на этом сервере? <button type="button" class="aether-register-link" id="aetherRegister">Создать аккаунт ↗</button></p>
   </form>
   <div class="mini-messenger" id="aetherMessenger">
     <div class="mini-roster-heading"><div><span>ДИАЛОГИ</span><small id="aetherUserLabel">Не в сети</small></div><button type="button" id="aetherNewChatToggle" title="Новый диалог" aria-label="Добавить собеседника">+</button></div>
@@ -387,11 +548,11 @@
 
 <div class="crash-confirm" id="crashConfirm" aria-hidden="true" role="dialog" aria-labelledby="powerDialogTitle">
   <div class="confirm-box power-dialog">
-    <div class="power-dialog-header"><div class="power-dialog-icon">⏻</div><div><small>AEGIS / ЛОКАЛЬНОЕ УПРАВЛЕНИЕ</small><h2 id="powerDialogTitle">Действия с системой</h2></div></div>
+    <div class="power-dialog-header"><div class="power-dialog-icon">▣</div><div><small>AEGIS / ЛОКАЛЬНОЕ УПРАВЛЕНИЕ</small><h2 id="powerDialogTitle">Действия с системой</h2></div></div>
     <p>Выбери действие. Имитация сбоя безопасна. Реальное выключение Windows запускается только после явного подтверждения.</p>
     <div class="power-options">
-      <button class="power-option" id="confirmCrash" type="button"><strong>▣ &nbsp; Показать фейковый BSOD</strong><span>Полноэкранная демонстрация. Windows не выключается.</span></button>
-      <button class="power-option power-option-warning" id="realShutdownButton" type="button"><strong>⏻ &nbsp; Выключить Windows после BSOD</strong><span>Реальное завершение работы через 45 секунд. Можно отменить.</span></button>
+      <button class="power-option" id="confirmCrash" type="button"><strong>▣ &nbsp; Показать синий экран (демо)</strong><span>Полноэкранная имитация. Windows не выключается.</span></button>
+      <button class="power-option power-option-warning" id="realShutdownButton" type="button"><strong>⚠ &nbsp; Выключить Windows по-настоящему</strong><span>Реальное завершение работы через 45 секунд. Можно отменить.</span></button>
     </div>
     <form id="powerConfirmForm" class="power-confirm-form" hidden>
       <div class="power-warning">⚠ Сохрани открытые документы. После запуска Windows действительно завершит работу. Принудительное закрытие приложений не используется.</div>
@@ -405,15 +566,20 @@
   </div>
 </div>
 
-<div class="bsod" id="bsod" aria-hidden="true">
+<div class="bsod" id="bsod" aria-hidden="true" role="dialog" aria-label="Демонстрация синего экрана">
   <div class="bsod-content">
     <div class="sad">:(</div>
-    <h2>Your device ran into a problem and needs to restart.</h2>
-    <p>We're just collecting some error info, and then we'll restart for you.</p>
-    <div class="progress"><span id="crashProgress">0</span>% complete</div>
-    <div class="stopcode">Stop code: AEGIS_SIMULATED_SYSTEM_FAILURE</div>
-    <div class="demo-label" id="bsodModeLabel">DEMO MODE — no real system action</div>
-    <button id="cancelScheduledShutdown" class="bsod-cancel" type="button" hidden>Отменить выключение Windows</button>
+    <h2>На вашем ПК возникла проблема, и его необходимо перезагрузить. Мы лишь собираем некоторые сведения об ошибке, а затем будет автоматически выполнена перезагрузка.</h2>
+    <div class="progress"><span id="crashProgress">0</span>% завершено</div>
+    <div class="bsod-details">
+      <svg class="bsod-qr" viewBox="0 0 29 29" aria-hidden="true" id="bsodQr"></svg>
+      <div>
+        <p>Дополнительные сведения об этой ошибке и возможных способах её устранения см. на странице https://www.windows.com/stopcode</p>
+        <p>При обращении в службу поддержки предоставьте следующие сведения:<br>Код остановки: AEGIS_SIMULATED_SYSTEM_FAILURE</p>
+      </div>
+    </div>
+    <div class="demo-label" id="bsodModeLabel">ДЕМОНСТРАЦИЯ AEGIS — Windows работает. Esc или кнопка ниже — выход.</div>
+    <div class="bsod-buttons"><button id="bsodExit" class="bsod-exit" type="button">Выйти из демонстрации</button><button id="cancelScheduledShutdown" class="bsod-cancel" type="button" hidden>Отменить выключение Windows</button></div>
   </div>
 </div>
 
@@ -442,6 +608,8 @@
 <div class="toast" id="toast"></div>
 <script src="vendor/nacl.min.js"></script>
 <script src="aether.js"></script>
+<script src="frontend/scale.js"></script>
+<script src="frontend/charts.js"></script>
 <script src="frontend/core.js"></script>
 <script src="frontend/incidents.js"></script>
 <script src="frontend/aether-ui.js"></script>
@@ -450,6 +618,9 @@
 <script src="frontend/crash-demo.js"></script>
 <script src="frontend/lab-tests.js"></script>
 <script src="frontend/lab.js"></script>
+<script src="frontend/security.js"></script>
+<script src="frontend/protection.js"></script>
+<script src="frontend/control.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 // AEGIS frontend core: state, overview, API client, reports and read-only Windows views.
 const state={current:"",incidents:[]};
-const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",lab:"Лаборатория испытаний",audit:"Журнал аудита",events:"События Windows",services:"Службы Windows"};
+const titles={overview:"Обзор инфраструктуры",incidents:"Управление инцидентами",assets:"Активы предприятия",access:"Контроль доступа",cameras:"Видеонаблюдение",network:"Сетевые соединения",protection:"Защита компьютера",control:"Режим контроля",reports:"Отчёты и аналитика",monitoring:"Мониторинг компьютера",lab:"Лаборатория испытаний",audit:"Журнал аудита",events:"События Windows",services:"Службы Windows"};
 const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
 let lastProcesses=[];
 let lastConnections=[];
@@ -126,16 +126,54 @@ function historyPointFromSystem(system){
     timestamp:system.timestamp||new Date().toISOString(),
     cpuLoadPercent:numeric(system.cpuLoadPercent),
     memoryLoadPercent:numeric(system.memory?.loadPercent),
-    gpuLoadPercent:numeric(system.gpus?.[0]?.loadPercent)
+    gpuLoadPercent:numeric(system.gpus?.[0]?.loadPercent),
+    receiveBytesPerSecond:numeric(system.network?.totalReceiveBytesPerSecond),
+    sendBytesPerSecond:numeric(system.network?.totalSendBytesPerSecond)
   };
+}
+// Full-resolution buffer of the last 10 minutes for live charts (monitoring, lab).
+let liveSamples=[];
+const LIVE_BUFFER_MS=600000;
+function chartPoint(p){
+  return {
+    t:new Date(p.timestamp).getTime(),
+    cpu:numeric(p.cpuLoadPercent),
+    ram:numeric(p.memoryLoadPercent),
+    gpu:numeric(p.gpuLoadPercent),
+    rx:numeric(p.receiveBytesPerSecond),
+    tx:numeric(p.sendBytesPerSecond)
+  };
+}
+const percentSeries=[
+  {key:"cpu",label:"CPU",cls:"s-cpu"},
+  {key:"ram",label:"RAM",cls:"s-ram"},
+  {key:"gpu",label:"GPU",cls:"s-gpu"}
+];
+const networkSeries=[
+  {key:"rx",label:"Приём ↓",cls:"s-rx"},
+  {key:"tx",label:"Передача ↑",cls:"s-tx"}
+];
+const charts={};
+function chartFor(id,options){
+  if(charts[id])return charts[id];
+  const host=q("#"+id);
+  if(!host||!window.AegisCharts)return null;
+  charts[id]=AegisCharts.create(host,options);
+  return charts[id];
 }
 function pushHistory(system){
   if(!system)return;
   const next=historyPointFromSystem(system);
-  const previous=telemetryHistory.at(-1);
   const nextTime=new Date(next.timestamp).getTime();
-  const previousTime=previous?new Date(previous.timestamp).getTime():0;
   if(!Number.isFinite(nextTime))return;
+
+  const point=chartPoint(next);
+  if(!liveSamples.length||point.t>liveSamples.at(-1).t)liveSamples.push(point);
+  const liveCutoff=Date.now()-LIVE_BUFFER_MS;
+  while(liveSamples.length&&liveSamples[0].t<liveCutoff)liveSamples.shift();
+
+  const previous=telemetryHistory.at(-1);
+  const previousTime=previous?new Date(previous.timestamp).getTime():0;
   if(nextTime>previousTime){
     if(historyWindowSeconds>900&&nextTime-previousTime<5000&&telemetryHistory.length){
       telemetryHistory[telemetryHistory.length-1]=next;
@@ -144,50 +182,27 @@ function pushHistory(system){
   const cutoff=Date.now()-historyWindowSeconds*1000;
   telemetryHistory=telemetryHistory.filter(p=>new Date(p.timestamp).getTime()>=cutoff).slice(-2500);
   renderHistoryChart();
+  renderLiveCharts();
   if(historyWindowSeconds>900&&Date.now()-lastHistoryRefreshAt>=300000){
     lastHistoryRefreshAt=Date.now();
     loadTelemetryHistory(true);
   }
 }
-function pathForHistory(key){
-  const now=Date.now(),start=now-historyWindowSeconds*1000;
-  const points=telemetryHistory.map(p=>({t:new Date(p.timestamp).getTime(),v:numeric(p[key])}))
-    .filter(p=>Number.isFinite(p.t)&&p.v!==null&&p.t>=start);
-  if(!points.length)return "";
-  return points.map((p,index)=>{
-    const x=20+Math.max(0,Math.min(1,(p.t-start)/(now-start)))*720;
-    const y=185-Math.max(0,Math.min(100,p.v))/100*150;
-    return (index?"L":"M")+x.toFixed(1)+" "+y.toFixed(1);
-  }).join(" ");
-}
-function renderHistoryLabels(){
-  const ranges={
-    900:["−15м","−10м","−5м","Сейчас"],
-    3600:["−1ч","−40м","−20м","Сейчас"],
-    21600:["−6ч","−4ч","−2ч","Сейчас"],
-    86400:["−24ч","−16ч","−8ч","Сейчас"]
-  };
-  const labels=ranges[historyWindowSeconds]||ranges[900];
-  for(let i=0;i<4;i++){
-    const node=q("#historyLabel"+i);
-    if(node)node.textContent=labels[i];
-  }
-}
 function renderHistoryChart(){
-  const cpu=pathForHistory("cpuLoadPercent");
-  const ram=pathForHistory("memoryLoadPercent");
-  const gpu=pathForHistory("gpuLoadPercent");
-  if(q("#cpuHistoryLine"))q("#cpuHistoryLine").setAttribute("d",cpu);
-  if(q("#ramHistoryLine"))q("#ramHistoryLine").setAttribute("d",ram);
-  if(q("#gpuHistoryLine"))q("#gpuHistoryLine").setAttribute("d",gpu);
-  if(q("#cpuHistoryArea")){
-    if(cpu){
-      const pts=cpu.match(/(?:M|L)([0-9.]+) ([0-9.]+)/g)||[];
-      const first=pts[0]?.match(/([0-9.]+) ([0-9.]+)/),last=pts.at(-1)?.match(/([0-9.]+) ([0-9.]+)/);
-      q("#cpuHistoryArea").setAttribute("d",first&&last?cpu+" L"+last[1]+" 210 L"+first[1]+" 210 Z":"");
-    }else q("#cpuHistoryArea").setAttribute("d","");
-  }
-  renderHistoryLabels();
+  if(!q("#overview")?.classList.contains("active"))return;
+  const now=Date.now(),from=now-historyWindowSeconds*1000;
+  const points=telemetryHistory.map(chartPoint).filter(p=>Number.isFinite(p.t));
+  // Downsampled history is sparser: allow gaps proportional to the window.
+  const gapMs=Math.max(15000,historyWindowSeconds*1000/600*3);
+  chartFor("historyChart",{series:percentSeries,height:230,ariaLabel:"История нагрузки CPU, RAM, GPU",emptyText:"История ещё не накоплена или агент не подключён."})?.render(points,{from,to:now,gapMs});
+  chartFor("historyNetChart",{series:networkSeries,mode:"bytes",height:150,area:false,ariaLabel:"История сетевого трафика",emptyText:"Нет данных о сети."})?.render(points,{from,to:now,gapMs});
+}
+let liveWindowSeconds=120;
+function renderLiveCharts(){
+  if(!q("#monitoring")?.classList.contains("active"))return;
+  const now=Date.now(),from=now-liveWindowSeconds*1000;
+  chartFor("liveLoadChart",{series:percentSeries,height:230,ariaLabel:"Живая нагрузка CPU, RAM, GPU"})?.render(liveSamples,{from,to:now});
+  chartFor("liveNetChart",{series:networkSeries,mode:"bytes",height:160,area:false,ariaLabel:"Живой сетевой трафик"})?.render(liveSamples,{from,to:now});
 }
 async function loadTelemetryHistory(force=false){
   if(historyLoaded&&!force)return;
@@ -204,9 +219,16 @@ async function loadTelemetryHistory(force=false){
         telemetryHistory.push(current);
       }
     }
+    if(liveSamples.length<10&&requestedSeconds<=900){
+      const cutoff=Date.now()-LIVE_BUFFER_MS;
+      const seeded=telemetryHistory.map(chartPoint).filter(p=>Number.isFinite(p.t)&&p.t>=cutoff);
+      const firstLive=liveSamples[0]?.t??Infinity;
+      liveSamples=[...seeded.filter(p=>p.t<firstLive),...liveSamples];
+    }
     historyLoaded=true;
     lastHistoryRefreshAt=Date.now();
     renderHistoryChart();
+    renderLiveCharts();
   }catch(error){
     if(requestId===historyRequestId)console.warn("History unavailable",error);
   }
@@ -220,6 +242,12 @@ q("#historyRange")?.addEventListener("change",event=>{
   telemetryHistory=[];
   renderHistoryChart();
   loadTelemetryHistory(true);
+});
+q("#liveRange")?.addEventListener("change",event=>{
+  const requested=Number(event.target.value);
+  if(![60,120,300,600].includes(requested))return;
+  liveWindowSeconds=requested;
+  renderLiveCharts();
 });
 
 async function apiJson(path,options={}){
@@ -410,12 +438,15 @@ function toast(t){const e=q("#toast");e.textContent=t;e.classList.add("show");cl
 // Main shell navigation and integrated secure chat shortcut.
 const pageSummaries={
   overview:"Контроль компонентов, процессов и событий Windows в реальном времени.",
-  monitoring:"Реальные показания CPU, GPU, RAM, сети, дисков и датчиков.",
-  lab:"Рулетка проверки ресурсов и короткие ограниченные тесты.",
+  monitoring:"Живые показания CPU, RAM, GPU, сети, дисков, датчиков и процессов этого компьютера.",
+  lab:"Пять реальных тестов CPU, RAM, GPU, диска и сети с живым графиком; демонстрация синего экрана.",
   incidents:"Расследования, приоритеты, статусы и отправка через AETHER.",
   assets:"Обнаруженное оборудование этого Windows-компьютера.",
-  access:"Подключение СКУД. Источники данных не симулируются.",
-  cameras:"Интеграция видеосистем по API или SDK производителя.",
+  access:"Входы в Windows этого компьютера и события физической СКУД. Ничего не симулируется.",
+  cameras:"IP-камеры локальной сети и камера этого компьютера, детектор движения.",
+  network:"Кто и куда подключается: процессы, узлы, зоны, трафик и журнал за 7 дней.",
+  control:"Новые программы, службы, автозагрузка и порты — на решение оператора. Блокировка только по кнопке.",
+  protection:"Microsoft Defender, здоровье дисков, открытые порты и журнал флешек. AEGIS ничего не блокирует сам.",
   events:"Системный журнал Windows и события безопасности.",
   services:"Состояние установленных служб Windows.",
   audit:"Хронология действий оператора и автоматических правил.",
@@ -431,5 +462,5 @@ q("#headerChat")?.addEventListener("click",()=>{
   q("#aetherSetupToggle")?.focus();
 });
 
-function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(q("#pageDescription"))q("#pageDescription").textContent=pageSummaries[id]||"";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent();if(id==="audit")loadAudit();if(id==="reports")loadReportSummary();if(id==="events")loadWindowsEvents();if(id==="services")loadWindowsServices()}
+function view(id){qa(".view").forEach(v=>v.classList.toggle("active",v.id===id));qa(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===id));q("#pageTitle").textContent=titles[id]||"AEGIS SOC";if(q("#pageDescription"))q("#pageDescription").textContent=pageSummaries[id]||"";if(id==="incidents")renderIncidents();if(id==="monitoring"&&!agentSocket)connectAgent();if(id==="monitoring")renderLiveCharts();if(id==="overview")renderHistoryChart();if(id==="audit")loadAudit();if(id==="reports")loadReportSummary();if(id==="events")loadWindowsEvents();if(id==="services")loadWindowsServices();window.AegisSecurity?.onView(id);window.AegisProtection?.onView(id);window.AegisControl?.onView(id)}
 qa(".nav").forEach(b=>b.onclick=()=>view(b.dataset.view));

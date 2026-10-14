@@ -1,0 +1,44 @@
+AEGIS 0.7.0 — команды (PowerShell). Пути от корня папки FullProject.
+
+=== Песочница (основная Windows) ===
+& '.\Start Sandbox.cmd'
+
+=== AEGIS: запуск / остановка / диагностика ===
+& '.\AEGIS\Start AEGIS.cmd'
+& '.\AEGIS\Stop AEGIS.cmd'
+& '.\AEGIS\Diagnose AEGIS.cmd'
+# без окон, для скриптов:
+powershell -NoProfile -ExecutionPolicy Bypass -File .\AEGIS\scripts\start-aegis.ps1 -NoBrowser
+powershell -NoProfile -ExecutionPolicy Bypass -File .\AEGIS\scripts\stop-aegis.ps1 -Quiet
+powershell -NoProfile -ExecutionPolicy Bypass -File .\AEGIS\scripts\diagnose-aegis.ps1
+
+=== Проверка API вручную ===
+Invoke-RestMethod http://127.0.0.1:8765/api/v1/version
+Invoke-RestMethod http://127.0.0.1:8765/api/v1/health/ready
+Invoke-RestMethod http://127.0.0.1:8765/api/v1/system
+Get-NetTCPConnection -State Listen -LocalPort 8765
+
+=== Данные и восстановление ===
+# База SQLite и логи:
+explorer "$env:LOCALAPPDATA\AEGIS"
+# Резервная копия (агент остановлен):
+& '.\AEGIS\Stop AEGIS.cmd'
+Copy-Item "$env:LOCALAPPDATA\AEGIS\aegis.db*" "$env:USERPROFILE\Documents\"
+# Восстановление: остановить агент, вернуть файлы aegis.db, aegis.db-wal, aegis.db-shm на место, запустить.
+# Отчёт для поддержки (ZIP): Отчёты -> Support bundle ZIP, или:
+Invoke-WebRequest http://127.0.0.1:8765/api/v1/reports/bundle.zip -OutFile aegis-support.zip
+
+=== Служба Windows (от администратора) ===
+.\AEGIS\install-service.bat
+.\AEGIS\uninstall-service.bat
+
+=== AETHER relay локально (любая Windows) ===
+& '.\AETHER-LAN\Start AETHER Local.cmd'
+& '.\AETHER-LAN\Stop AETHER LAN.cmd'
+Invoke-RestMethod http://127.0.0.1:8766/health
+
+=== AETHER relay в режиме LAN (только внутри песочницы) ===
+& "$env:USERPROFILE\AEGIS-kit\AETHER-LAN\Start AETHER LAN.cmd"
+& "$env:USERPROFILE\AEGIS-kit\AETHER-LAN\Stop AETHER LAN.cmd"
+Get-Content "$env:LOCALAPPDATA\AETHER-LAN\connection.json"
+# логи relay: %LOCALAPPDATA%\AETHER-LAN\logs

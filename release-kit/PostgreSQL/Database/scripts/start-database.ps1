@@ -1,4 +1,4 @@
-param([switch]$NoConsole)
+﻿param([switch]$NoConsole)
 . (Join-Path $PSScriptRoot 'common.ps1')
 $mutex=[Threading.Mutex]::new($false,'Local\AEGIS-PostgreSQL-'+[Security.Principal.WindowsIdentity]::GetCurrent().User.Value)
 $locked=$false
@@ -23,7 +23,7 @@ try {
   "`nlisten_addresses = '127.0.0.1'`nport = $dbPort`nmax_connections = 20`nshared_buffers = '32MB'" | Add-Content (Join-Path $dataDir 'postgresql.conf') -Encoding ASCII
  }
  $status=Run-Tool (Join-Path $pgBin 'pg_ctl.exe') @('-D',(Q $dataDir),'status') 'status' -AllowNonzero
- if($status -ne 0){$null=Run-Tool (Join-Path $pgBin 'pg_ctl.exe') @('-D',(Q $dataDir),'-l',(Q (Join-Path $logs 'postgresql.log')),'-w','start') 'start'}
+ if($status -ne 0){$null=Run-Tool (Join-Path $pgBin 'pg_ctl.exe') @('-D',(Q $dataDir),'-l',(Q (Join-Path $logs 'postgresql.log')),'-w','start') 'start' -NoRedirect}
  Set-DatabasePassword
  $connection=@('-h','127.0.0.1','-p',"$dbPort",'-U','demo','-w')
  $null=Run-Tool (Join-Path $pgBin 'psql.exe') ($connection+@('-d','postgres','-At','-c','"SELECT datname FROM pg_database WHERE datname=''aether_demo'';"')) 'database-exists'
@@ -35,10 +35,10 @@ try {
   $null=Run-Tool (Join-Path $pgBin 'psql.exe') ($connection+@('-d','aether_demo','-v','ON_ERROR_STOP=1','--single-transaction','-f',(Q (Join-Path $kitRoot 'data\aether.sql')))) 'restore'
   @{restored=(Get-Date).ToString('o');source='data/aether.sql';sample='Original AETHER schema without account or message data'} | ConvertTo-Json | Set-Content $marker -Encoding UTF8
  }elseif(-not(Test-Path $marker)){
-  throw 'A database without a successful restore marker already exists. It was preserved; inspect the restore log.'
+  throw 'База aether_demo есть, но импорт схемы ранее не завершился (нет restored.json). Данные сохранены. Запусти Repair PostgreSQL.cmd: он переименует неполную базу и создаст новую.'
  }
  $null=Run-Tool (Join-Path $pgBin 'psql.exe') ($connection+@('-d','aether_demo','-v','ON_ERROR_STOP=1','-f',(Q (Join-Path $kitRoot 'sql\overview.sql')))) 'overview'
  @{database='aether_demo';user='demo';host='127.0.0.1';port=$dbPort;data=$dataDir;logs=$logs} | ConvertTo-Json | Set-Content (Join-Path $stateDir 'connection.json') -Encoding UTF8
  Write-Output "PostgreSQL ready: 127.0.0.1:$dbPort / aether_demo. AEGIS and AETHER relay are not started by this launcher."
-} finally {$env:PGPASSWORD=$null;if($locked){$mutex.ReleaseMutex()};$mutex.Dispose()}
+} catch {Write-Output "ОШИБКА: $($_.Exception.Message)";if($locked){$mutex.ReleaseMutex();$locked=$false};$mutex.Dispose();$mutex=$null;exit 1} finally {$env:PGPASSWORD=$null;if($mutex){if($locked){$mutex.ReleaseMutex()};$mutex.Dispose()}}
 if(-not $NoConsole){& (Join-Path $PSScriptRoot 'open-postgresql.ps1') -AlreadyStarted}

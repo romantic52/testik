@@ -17,6 +17,11 @@ var startupOptions = builder.Configuration
 
 builder.WebHost.UseUrls(startupOptions.ListenUrl);
 
+// Rolling file log next to the database (works in console and service mode).
+var fileLogs = new FileLoggerProvider(Path.Combine(StateDatabase.ResolveDataDirectory(startupOptions.DataDirectory), "logs"));
+builder.Logging.AddProvider(fileLogs);
+builder.Services.AddSingleton(fileLogs);
+
 builder.Services
     .AddOptions<AgentOptions>()
     .Bind(builder.Configuration.GetSection(AgentOptions.SectionName))
@@ -38,6 +43,19 @@ builder.Services.AddSingleton<AlertSettingsService>();
 builder.Services.AddSingleton<ReportService>();
 builder.Services.AddSingleton<TelemetryHistoryStoreService>();
 builder.Services.AddSingleton<TelemetrySamplerService>();
+builder.Services.AddSingleton<ConnectionTrackerService>();
+builder.Services.AddSingleton<AccessControlService>();
+builder.Services.AddSingleton<CameraService>();
+builder.Services.AddSingleton<DiskMonitorService>();
+builder.Services.AddSingleton<DefenderService>();
+builder.Services.AddSingleton<PortsService>();
+builder.Services.AddSingleton<ProtectionWatchService>();
+builder.Services.AddHostedService(provider => provider.GetRequiredService<ProtectionWatchService>());
+builder.Services.AddSingleton<ControlModeService>();
+builder.Services.AddSingleton<OperatorBlockService>();
+builder.Services.AddHostedService(provider => provider.GetRequiredService<ControlModeService>());
+builder.Services.AddHostedService(provider => provider.GetRequiredService<ConnectionTrackerService>());
+builder.Services.AddHostedService(provider => provider.GetRequiredService<AccessControlService>());
 builder.Services.AddHostedService(provider => provider.GetRequiredService<TelemetrySamplerService>());
 builder.Services.AddHostedService<AlertEngineService>();
 builder.Services.AddHostedService<WindowsEventAlertService>();

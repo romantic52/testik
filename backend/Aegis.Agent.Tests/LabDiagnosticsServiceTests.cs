@@ -11,8 +11,10 @@ public sealed class LabDiagnosticsServiceTests
     [InlineData(8, true)]
     [InlineData(16, true)]
     [InlineData(32, true)]
-    [InlineData(33, false)]
-    [InlineData(512, false)]
+    [InlineData(512, true)]
+    [InlineData(1024, true)]
+    [InlineData(1025, false)]
+    [InlineData(100_000, false)]
     public void Only_bounded_disk_file_sizes_are_allowed(int sizeMiB, bool valid)
     {
         Assert.Equal(valid, LabDiagnosticsService.ValidSize(sizeMiB));
@@ -35,6 +37,6 @@ public sealed class LabDiagnosticsServiceTests
     {
         var service = new LabDiagnosticsService(NullLogger<LabDiagnosticsService>.Instance);
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            service.CheckDiskAsync(300, CancellationToken.None));
+            service.CheckDiskAsync(5000, CancellationToken.None));
     }
 }

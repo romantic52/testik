@@ -60,24 +60,19 @@ async function startFakeCrash() {
   scheduledShutdown = false;
   closePowerDialog();
   setShutdownControls(false);
-  q("#bsodModeLabel").textContent = "ДЕМОНСТРАЦИЯ — Windows не выключается";
+  q("#bsodModeLabel").textContent = "ДЕМОНСТРАЦИЯ AEGIS — Windows работает. Esc или кнопка ниже — выход.";
+  q("#bsodExit").hidden = false;
   await enterBsod();
+  q("#bsodExit").focus();
   let progress = 0;
   crashTimer = setInterval(() => {
     progress = Math.min(100, progress + Math.floor(Math.random() * 12) + 4);
     q("#crashProgress").textContent = String(progress);
     if (progress >= 100) {
       resetPowerTimer();
-      setTimeout(() => {
-        if (powerMode !== "demo") return;
-        bsod.classList.remove("show");
-        bsod.setAttribute("aria-hidden", "true");
-        q("#offlineStateText").textContent = "Демо: компьютер выключен только на экране";
-        fakeOff.classList.add("show");
-        fakeOff.setAttribute("aria-hidden", "false");
-      }, 650);
+      q("#bsodModeLabel").textContent = "ДЕМОНСТРАЦИЯ AEGIS завершена — перезагрузки не будет. Esc или кнопка ниже — выход.";
     }
-  }, 260);
+  }, 420);
 }
 function showRealPowerForm() {
   shutdownForm.hidden = false;
@@ -87,7 +82,8 @@ function showShutdownCountdown(delay) {
   powerMode = "shutdown";
   scheduledShutdown = true;
   setShutdownControls(true);
-  q("#bsodModeLabel").textContent = "WINDOWS SHUTDOWN • 45 секунд на отмену";
+  q("#bsodExit").hidden = true;
+  q("#bsodModeLabel").textContent = "ВНИМАНИЕ: реальное выключение Windows • 45 секунд на отмену";
   closePowerDialog();
   enterBsod();
   const started = Date.now();
@@ -183,8 +179,49 @@ q("#restoreSystem").addEventListener("click", async () => {
 });
 q("#cancelScheduledShutdown").addEventListener("click", cancelRealShutdown);
 q("#cancelShutdownOffline").addEventListener("click", cancelRealShutdown);
+async function exitDemo() {
+  if (scheduledShutdown) return;
+  resetPowerTimer();
+  await exitPowerOverlay();
+  toast("Демонстрация синего экрана завершена");
+}
+q("#bsodExit").addEventListener("click", exitDemo);
 document.addEventListener("keydown", event => {
   if (event.key !== "Escape") return;
   if (scheduledShutdown) { event.preventDefault(); cancelRealShutdown(); }
+  else if (bsod.classList.contains("show")) exitDemo();
   else if (crashConfirm.classList.contains("show")) closePowerDialog();
 });
+// Leaving fullscreen with Esc ends the demo too (the browser eats the first Esc).
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement && bsod.classList.contains("show") && !scheduledShutdown) exitDemo();
+});
+// Decorative QR-like block (not a scannable code), drawn once without inline styles.
+(function drawQr() {
+  const svg = q("#bsodQr");
+  if (!svg) return;
+  const ns = "http://www.w3.org/2000/svg";
+  let seed = 20261014;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const finder = (x, y) => {
+    for (const [d, s, f] of [[0, 7, 1], [1, 5, 0], [2, 3, 1]]) {
+      const r = document.createElementNS(ns, "rect");
+      r.setAttribute("x", x + d); r.setAttribute("y", y + d);
+      r.setAttribute("width", s); r.setAttribute("height", s);
+      r.setAttribute("class", f ? "qr-on" : "qr-off");
+      svg.append(r);
+    }
+  };
+  const bg = document.createElementNS(ns, "rect");
+  bg.setAttribute("width", 29); bg.setAttribute("height", 29); bg.setAttribute("class", "qr-off");
+  svg.append(bg);
+  for (let y = 1; y < 28; y++) for (let x = 1; x < 28; x++) {
+    const inFinder = (x < 9 && y < 9) || (x > 19 && y < 9) || (x < 9 && y > 19);
+    if (inFinder || rnd() < 0.5) continue;
+    const r = document.createElementNS(ns, "rect");
+    r.setAttribute("x", x); r.setAttribute("y", y); r.setAttribute("width", 1); r.setAttribute("height", 1);
+    r.setAttribute("class", "qr-on");
+    svg.append(r);
+  }
+  finder(1, 1); finder(21, 1); finder(1, 21);
+})();

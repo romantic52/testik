@@ -4,6 +4,8 @@ import path from "node:path";
 const html = fs.readFileSync("index.html", "utf8");
 const runtimeFiles = [
   "aether.js",
+  "frontend/scale.js",
+  "frontend/charts.js",
   "frontend/core.js",
   "frontend/incidents.js",
   "frontend/aether-ui.js",
@@ -12,6 +14,9 @@ const runtimeFiles = [
   "frontend/crash-demo.js",
   "frontend/lab-tests.js",
   "frontend/lab.js",
+  "frontend/security.js",
+  "frontend/protection.js",
+  "frontend/control.js",
   "app.js"
 ];
 
@@ -53,7 +58,12 @@ const requiredIds = [
   "processRows",
   "networkConnectionRows",
   "windowsEventList",
-  "cpuHistoryLine",
+  "historyChart",
+  "liveLoadChart",
+  "labLiveChart",
+  "labBsodButton",
+  "bsodExit",
+  "connectionBanner",
   "incidentModal",
   "processModal",
   "agentDiagnosticsGrid",
@@ -62,7 +72,12 @@ const requiredIds = [
   "labWheelButton",
   "labStart",
   "labStop",
-  "labActual-cpu"
+  "labActual-cpu",
+  "protection",
+  "protPortRows",
+  "control",
+  "ctlRows",
+  "uiScaleValue"
 ];
 
 for (const id of requiredIds) {
@@ -106,6 +121,7 @@ const dynamicallyCreatedIds = new Set([
   "shareIncident",
   "closeIncident",
   "deleteIncident",
+  "incidentStatusSelect",
   "processIncidentButton"
 ]);
 for (const pattern of [

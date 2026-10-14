@@ -11,12 +11,7 @@ public sealed class StateDatabase
 
     public StateDatabase(IOptions<AgentOptions> options)
     {
-        var configured = options.Value.DataDirectory;
-        DataDirectory = string.IsNullOrWhiteSpace(configured)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AEGIS")
-            : Environment.ExpandEnvironmentVariables(configured);
-
-        DataDirectory = Path.GetFullPath(DataDirectory);
+        DataDirectory = ResolveDataDirectory(options.Value.DataDirectory);
         Directory.CreateDirectory(DataDirectory);
 
         DatabasePath = Path.Combine(DataDirectory, "aegis.db");
@@ -31,6 +26,11 @@ public sealed class StateDatabase
         InitializeSchema();
         _revision = LoadRevision();
     }
+
+    public static string ResolveDataDirectory(string? configured) =>
+        Path.GetFullPath(string.IsNullOrWhiteSpace(configured)
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AEGIS")
+            : Environment.ExpandEnvironmentVariables(configured));
 
     public string DataDirectory { get; }
     public string DatabasePath { get; }
@@ -193,9 +193,104 @@ public sealed class StateDatabase
                 value TEXT NOT NULL
             );
 
+            -- v3: network connection journal and access-control events.
+            CREATE TABLE IF NOT EXISTS connection_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                opened_at TEXT NOT NULL,
+                last_seen TEXT NOT NULL,
+                closed_at TEXT NULL,
+                pid INTEGER NULL,
+                process TEXT NULL,
+                process_path TEXT NULL,
+                local_address TEXT NOT NULL,
+                local_port INTEGER NOT NULL,
+                remote_address TEXT NOT NULL,
+                remote_port INTEGER NOT NULL,
+                remote_host TEXT NULL,
+                service TEXT NULL,
+                scope TEXT NOT NULL,
+                direction TEXT NOT NULL,
+                state TEXT NOT NULL,
+                bytes_in INTEGER NULL,
+                bytes_out INTEGER NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_connection_log_opened
+                ON connection_log(opened_at DESC);
+
+            CREATE INDEX IF NOT EXISTS ix_connection_log_remote
+                ON connection_log(remote_address);
+
+            CREATE TABLE IF NOT EXISTS access_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                source TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                outcome TEXT NOT NULL,
+                subject TEXT NULL,
+                detail TEXT NULL,
+                origin TEXT NULL,
+                record_key TEXT NOT NULL UNIQUE
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_access_events_timestamp
+                ON access_events(timestamp DESC);
+
+            -- v4: control mode (baseline + pending approvals), device journal, AEGIS-made firewall rules.
+            CREATE TABLE IF NOT EXISTS control_baseline (
+                kind TEXT NOT NULL,
+                item_key TEXT NOT NULL,
+                label TEXT NOT NULL,
+                detail TEXT NULL,
+                approved_at TEXT NOT NULL,
+                approver TEXT NOT NULL,
+                PRIMARY KEY (kind, item_key)
+            );
+
+            CREATE TABLE IF NOT EXISTS control_pending (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kind TEXT NOT NULL,
+                item_key TEXT NOT NULL,
+                label TEXT NOT NULL,
+                detail TEXT NULL,
+                risk TEXT NOT NULL,
+                reason TEXT NULL,
+                first_seen TEXT NOT NULL,
+                last_seen TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                UNIQUE (kind, item_key)
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_control_pending_status
+                ON control_pending(status, last_seen DESC);
+
+            CREATE TABLE IF NOT EXISTS device_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                action TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                label TEXT NOT NULL,
+                detail TEXT NULL,
+                record_key TEXT NOT NULL UNIQUE
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_device_events_timestamp
+                ON device_events(timestamp DESC);
+
+            CREATE TABLE IF NOT EXISTS firewall_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                rule_name TEXT NOT NULL UNIQUE,
+                scope TEXT NOT NULL,
+                target TEXT NOT NULL,
+                direction TEXT NOT NULL,
+                note TEXT NULL,
+                active INTEGER NOT NULL DEFAULT 1
+            );
+
             INSERT INTO metadata(key, value)
-            VALUES ('schema_version', '2')
-            ON CONFLICT(key) DO UPDATE SET value = '2';
+            VALUES ('schema_version', '4')
+            ON CONFLICT(key) DO UPDATE SET value = '4';
 
             INSERT INTO metadata(key, value)
             VALUES ('revision', '0')

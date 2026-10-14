@@ -150,17 +150,7 @@ public sealed class AlertEngineService : BackgroundService
                 cancellationToken);
         }
 
-        var hot = system.Temperatures
-            .Where(t => t.Celsius is not null)
-            .Select(t => (double)t.Celsius!.Value)
-            .DefaultIfEmpty(0)
-            .Max();
-
-        var maxRpm = system.Fans
-            .Where(f => f.Rpm is not null)
-            .Select(f => (double)f.Rpm!.Value)
-            .DefaultIfEmpty(double.NaN)
-            .Max();
+        var (hot, hotDevice, maxRpm) = FanStall(system);
 
         await EvaluateAsync(
             "fan-stall",
@@ -171,7 +161,7 @@ public sealed class AlertEngineService : BackgroundService
                 "Возможная остановка охлаждения",
                 machine,
                 "Критический",
-                $"Температура достигла {hot:F1} °C, доступные fan sensors показывают не более {maxRpm:F0} RPM.",
+                $"{hotDevice}: температура {hot:F1} °C, его вентиляторы показывают не более {maxRpm:F0} RPM.",
                 "fan-stall"),
             cancellationToken);
 
@@ -256,6 +246,29 @@ public sealed class AlertEngineService : BackgroundService
             false,
             ruleKey,
             now);
+    }
+
+    /// <summary>
+    /// Hot device and the fans that cool it: its own fans (GPU), or board fans for CPU/motherboard.
+    /// Storage has no fans of its own, and GPU fans idle at 0 RPM by design while the GPU is cool.
+    /// </summary>
+    public static (double Hot, string Device, double MaxRpm) FanStall(SystemSnapshot system)
+    {
+        var boardFans = system.Fans.Where(f => f.Rpm is not null && !system.Temperatures.Any(t => t.Device == f.Device && t.HardwareType.StartsWith("Gpu", StringComparison.OrdinalIgnoreCase))).ToList();
+        (double Hot, string Device, double MaxRpm) result = (0, "", double.NaN);
+        foreach (var device in system.Temperatures.Where(t => t.Celsius is not null && t.HardwareType != "Storage").GroupBy(t => (t.Device, t.HardwareType)))
+        {
+            var hot = device.Max(t => (double)t.Celsius!.Value);
+            var own = system.Fans.Where(f => f.Device == device.Key.Device && f.Rpm is not null).ToList();
+            var fans = own.Count > 0 ? own
+                : device.Key.HardwareType is "Cpu" or "Motherboard" or "SuperIO" ? boardFans : [];
+            var rpm = fans.Count > 0 ? fans.Max(f => (double)f.Rpm!.Value) : double.NaN;
+            var stalled = hot >= 85 && !double.IsNaN(rpm) && rpm <= 100;
+            var resultStalled = result.Hot >= 85 && !double.IsNaN(result.MaxRpm) && result.MaxRpm <= 100;
+            if (stalled && !resultStalled || stalled == resultStalled && hot > result.Hot)
+                result = (hot, device.Key.Device, rpm);
+        }
+        return result;
     }
 
     private static TimeSpan Min(TimeSpan left, TimeSpan right) =>

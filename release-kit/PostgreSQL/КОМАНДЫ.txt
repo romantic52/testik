@@ -1,0 +1,24 @@
+PostgreSQL для AEGIS/AETHER — команды (PowerShell), от корня папки PostgreSQL.
+
+=== Песочница ===
+& '.\Start Database Sandbox.cmd'
+
+=== Запуск / остановка ===
+& '.\Database\Start PostgreSQL.cmd'
+& '.\Database\Stop PostgreSQL.cmd'
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Database\scripts\start-database.ps1 -NoConsole
+
+=== Консоль ===
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Database\scripts\open-postgresql.ps1
+
+=== Резервная копия / восстановление / ремонт ===
+& '.\Database\Backup PostgreSQL.cmd'
+& '.\Database\Restore PostgreSQL.cmd'
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Database\scripts\restore-database.ps1 -File "C:\путь\к\aether_demo-....dump"
+& '.\Database\Repair PostgreSQL.cmd'
+
+=== Диагностика ===
+Get-NetTCPConnection -State Listen -LocalPort 54331
+Get-Content "$env:LOCALAPPDATA\AEGIS-PostgreSQL\connection.json"
+Get-ChildItem "$env:LOCALAPPDATA\AEGIS-PostgreSQL\logs"
+Get-Content "$env:LOCALAPPDATA\AEGIS-PostgreSQL\logs\postgresql.log" -Tail 40

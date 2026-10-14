@@ -1,6 +1,34 @@
 // Live telemetry, processes, network investigation and Agent diagnostics.
-const AGENT_HTTP="http://127.0.0.1:8765";
-const AGENT_WS="ws://127.0.0.1:8765/ws/monitor";
+// Same origin as the page: the UI is always served by the agent it talks to.
+const AGENT_HTTP=location.protocol.startsWith("http")?location.origin:"http://127.0.0.1:8765";
+const AGENT_WS=(location.protocol==="https:"?"wss://":"ws://")+(location.protocol.startsWith("http")?location.host:"127.0.0.1:8765")+"/ws/monitor";
+let lastFrameAt=0;
+let sensorHint="",sensorHintRequested=false;
+let agentVersion=null;
+function showConnectionBanner(title,text){
+  const banner=q("#connectionBanner");if(!banner)return;
+  if(!title){banner.hidden=true;return}
+  q("#connectionBannerTitle").textContent=title;
+  q("#connectionBannerText").textContent=text;
+  banner.hidden=false;
+}
+function checkFreshness(){
+  if(location.protocol==="file:"){
+    showConnectionBanner("⚠ Интерфейс открыт как файл","Это не запуск приложения. Запусти «Start AEGIS.cmd» из готового пакета — окно откроется само по адресу http://127.0.0.1:8765.");
+    return;
+  }
+  if(!agentSocket||agentSocket.readyState!==WebSocket.OPEN){
+    showConnectionBanner("⚠ Нет связи с AEGIS Agent",lastFrameAt?"Последние данные: "+new Date(lastFrameAt).toLocaleTimeString("ru-RU")+". Показания не обновляются, повторное подключение каждые 3 с.":"Агент не отвечает. Запусти «Start AEGIS.cmd»; если не помогает — «Diagnose AEGIS.cmd».");
+    return;
+  }
+  if(lastFrameAt&&Date.now()-lastFrameAt>10000){
+    showConnectionBanner("⚠ Данные устарели","Агент на связи, но новых замеров нет "+Math.round((Date.now()-lastFrameAt)/1000)+" с.");
+    return;
+  }
+  showConnectionBanner(null);
+}
+setInterval(checkFreshness,1000);
+q("#connectionBannerRetry")?.addEventListener("click",()=>{toast("Переподключение к AEGIS Agent…");connectAgent()});
 let agentSocket=null;
 let reconnectTimer=null;
 
@@ -55,7 +83,7 @@ function setBar(id,value){
   if(el)el.style.width=clampPercent(value)+"%";
 }
 function sensorRows(items,valueFormatter,limit=8){
-  if(!items||!items.length)return '<p class="muted">Датчик не предоставил данные.</p>';
+  if(!items||!items.length)return '<p class="muted">Датчики недоступны на этом компьютере (в виртуальной машине это нормально). Значения не подставляются.</p>';
   return items.slice(0,limit).map(item=>'<div class="sensor-row"><div><b>'+escapeHtml(item.name||item.device||"Sensor")+'</b><span>'+escapeHtml(item.device||item.hardwareType||"")+'</span></div><strong>'+valueFormatter(item)+'</strong></div>').join("");
 }
 function escapeHtml(value){
@@ -66,14 +94,21 @@ function renderTelemetry(payload){
   const system=payload?.system;
   if(!system)return;
   lastTelemetryPayload=payload;
+  lastFrameAt=Date.now();
   pushHistory(system);
+  if(q("#sidebarMachine"))q("#sidebarMachine").textContent=system.machineName||"Windows PC";
   updateOverview(payload);
 
   q("#machineName").textContent=system.machineName||"Windows PC";
   q("#machineMeta").textContent=(system.os||"Windows")+" • "+(system.logicalProcessors||"?")+" logical CPU";
 
   q("#cpuLoad").textContent=fmtPercent(system.cpuLoadPercent);
-  q("#cpuTemp").textContent="Температура: "+fmtTemp(system.cpuTemperatureC);
+  q("#cpuTemp").textContent="Температура: "+(numeric(system.cpuTemperatureC)===null?"недоступна":fmtTemp(system.cpuTemperatureC));
+  q("#cpuTemp").title=numeric(system.cpuTemperatureC)===null?(sensorHint||"Датчик не отдаёт значение."):"";
+  if(numeric(system.cpuTemperatureC)===null&&!sensorHintRequested){
+    sensorHintRequested=true;
+    apiJson("/api/v1/sensors/capabilities").then(c=>{sensorHint=c.cpuTemperatureHint||"";if(sensorHint)q("#cpuTemp").textContent="Температура: недоступна — "+(c.pawnIoDriver?"нужна служба AEGIS":"нужен драйвер PawnIO")}).catch(()=>{});
+  }else if(sensorHint&&numeric(system.cpuTemperatureC)===null)q("#cpuTemp").textContent="Температура: недоступна — "+(sensorHint.includes("PawnIO (")?"нужен драйвер PawnIO":"нужна служба AEGIS");
   setBar("#cpuBar",system.cpuLoadPercent);
 
   q("#ramLoad").textContent=fmtPercent(system.memory?.loadPercent);
@@ -85,8 +120,8 @@ function renderTelemetry(payload){
   const gpu=system.gpus?.[0];
   q("#gpuLoad").textContent=gpu?fmtPercent(gpu.loadPercent):"—";
   q("#gpuMeta").textContent=gpu
-    ?(gpu.name+" • "+fmtTemp(gpu.temperatureC))
-    :"GPU sensor unavailable";
+    ?(gpu.name+" • "+fmtTemp(gpu.temperatureC)+(numeric(gpu.loadPercent)===null?" • загрузка недоступна":""))
+    :"Датчик GPU недоступен (часто в VM)";
   setBar("#gpuBar",gpu?.loadPercent);
 
   const down=system.network?.totalReceiveBytesPerSecond;
@@ -186,6 +221,8 @@ async function loadAgentDiagnostics(){
     const persistence=d.persistence||{};
     q("#diagMode").textContent=agent.runningAsWindowsService?"WINDOWS SERVICE":"CONSOLE";
     q("#diagVersion").textContent=agent.version||"—";
+    agentVersion=agent.version||null;
+    if(q("#sidebarVersion"))q("#sidebarVersion").textContent="AEGIS Agent "+(agent.version||"?")+(agent.runningAsWindowsService?" · служба":"");
     q("#diagUptime").textContent=formatDuration(agent.uptimeSeconds);
     q("#diagPid").textContent=String(agent.processId??"—");
     q("#diagWorkingSet").textContent=Number.isFinite(Number(agent.workingSetMb))?Number(agent.workingSetMb).toFixed(1)+" MB":"—";
