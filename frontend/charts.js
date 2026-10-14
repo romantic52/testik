@@ -195,8 +195,10 @@
         tooltip.append(row);
       }
       tooltip.hidden = false;
-      const left = cx / geometry.width * rect.width;
-      tooltip.classList.toggle("flip", left > rect.width * 0.6);
+      // CSS px of the host (clientWidth), not screen px (rect): with the in-app scale (CSS zoom) they differ.
+      const width = svg.clientWidth || rect.width;
+      const left = cx / geometry.width * width;
+      tooltip.classList.toggle("flip", left > width * 0.6);
       tooltip.style.left = Math.round(left) + "px";
     }
     svg.addEventListener("mousemove", hover);

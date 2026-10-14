@@ -264,7 +264,8 @@ q("#aetherCollapseToggle").addEventListener("click", () => {
   q("#aetherCollapseToggle").setAttribute("aria-expanded", String(!collapsed));
   q("#aetherCollapseToggle").setAttribute("aria-label", collapsed ? "Развернуть чат" : "Свернуть чат");
 });
-if (window.matchMedia("(max-width: 1180px)").matches) {
+// Effective width: the in-app scale (frontend/scale.js) makes the layout narrower than the window.
+if (window.innerWidth / ((window.AegisScale?.get() ?? 100) / 100) <= 1180) {
   aetherPanel.classList.add("is-collapsed");
   q("#aetherCollapseToggle").textContent = "+";
   q("#aetherCollapseToggle").setAttribute("aria-expanded", "false");

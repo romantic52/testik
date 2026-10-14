@@ -44,7 +44,7 @@
   <main class="main">
     <header>
       <div class="page-identity"><small>AEGIS / ЛОКАЛЬНАЯ СИСТЕМА МОНИТОРИНГА</small><h1 id="pageTitle">Обзор инфраструктуры</h1><p id="pageDescription">Контроль компонентов, процессов и событий Windows в реальном времени.</p></div>
-      <div class="header-actions"><span class="agent-state offline" id="agentState"><i></i> AGENT OFFLINE</span><span class="live"><i></i> LIVE</span><span id="clock">--:--:--</span><button class="topbar-button" id="headerChat" type="button" title="Открыть AETHER" aria-label="Открыть чат AETHER">✉</button><button id="notify" title="Активные инциденты">0</button></div>
+      <div class="header-actions"><span class="ui-scale" role="group" aria-label="Масштаб интерфейса"><button type="button" id="uiScaleDown" title="Уменьшить интерфейс (Ctrl+Alt+−)" aria-label="Уменьшить масштаб">−</button><button type="button" id="uiScaleValue" title="Масштаб интерфейса. Нажми, чтобы вернуть 100% (Ctrl+Alt+0)">100%</button><button type="button" id="uiScaleUp" title="Увеличить интерфейс (Ctrl+Alt+=)" aria-label="Увеличить масштаб">+</button></span><span class="agent-state offline" id="agentState"><i></i> AGENT OFFLINE</span><span class="live"><i></i> LIVE</span><span id="clock">--:--:--</span><button class="topbar-button" id="headerChat" type="button" title="Открыть AETHER" aria-label="Открыть чат AETHER">✉</button><button id="notify" title="Активные инциденты">0</button></div>
     </header>
     <div class="connection-banner" id="connectionBanner" role="alert" hidden><b id="connectionBannerTitle">⚠ Нет связи с AEGIS Agent</b><span id="connectionBannerText">Показания не обновляются.</span><button type="button" class="secondary" id="connectionBannerRetry">Переподключить</button></div>
 
@@ -608,6 +608,7 @@
 <div class="toast" id="toast"></div>
 <script src="vendor/nacl.min.js"></script>
 <script src="aether.js"></script>
+<script src="frontend/scale.js"></script>
 <script src="frontend/charts.js"></script>
 <script src="frontend/core.js"></script>
 <script src="frontend/incidents.js"></script>

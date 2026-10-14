@@ -97,7 +97,7 @@
 /* ---- medium windows (901–1180px): chat floats and collapses instead of eating 40% of the width ---- */
 @media(max-width:1180px) and (min-width:901px){
   .main{padding-right:28px!important}
-  .chat.aether-embedded{position:fixed;top:auto;right:12px;bottom:12px;width:min(390px,calc(100vw - 24px));height:min(620px,calc(100dvh - 90px));z-index:30;border:1px solid #4c4c4c;border-radius:17px;padding:11px 12px;box-shadow:0 24px 90px rgba(0,0,0,.65)}
+  .chat.aether-embedded{position:fixed;top:auto;right:12px;bottom:12px;width:min(390px,calc(100vw - 24px));height:min(620px,calc(calc(100dvh / var(--ui-zoom, 1)) - 90px));z-index:30;border:1px solid #4c4c4c;border-radius:17px;padding:11px 12px;box-shadow:0 24px 90px rgba(0,0,0,.65)}
   #aetherCollapseToggle{display:block}
   .chat.aether-embedded.is-collapsed{height:62px;overflow:hidden}
   .chat.aether-embedded.is-collapsed .secure,
@@ -209,3 +209,9 @@
 .ctl-buttons button{width:auto;min-height:30px;padding:0 10px;font-size:11px}
 #controlBadge{font-style:normal;margin-left:6px;padding:0 6px;border:1px solid #fff;border-radius:6px}
 @media(max-width:900px){.ctl-row{grid-template-columns:1fr 1fr}.ctl-buttons{grid-column:1/-1;justify-content:flex-start}}
+/* Interface scale */
+.ui-scale{display:inline-flex;align-items:center;border:1px solid #3a3a3a;border-radius:8px;overflow:hidden;background:#141414}
+.ui-scale button{width:auto;min-width:30px;height:30px;padding:0 8px;border:0;border-radius:0;background:transparent;color:#dcdcdc;font:600 12px/1 inherit;cursor:pointer}
+.ui-scale button:hover:not(:disabled){background:#2a2a2a}
+.ui-scale button:disabled{color:#555;cursor:default}
+.ui-scale #uiScaleValue{min-width:48px;border-left:1px solid #3a3a3a;border-right:1px solid #3a3a3a;font-variant-numeric:tabular-nums}

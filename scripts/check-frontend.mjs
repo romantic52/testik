@@ -4,6 +4,7 @@ import path from "node:path";
 const html = fs.readFileSync("index.html", "utf8");
 const runtimeFiles = [
   "aether.js",
+  "frontend/scale.js",
   "frontend/charts.js",
   "frontend/core.js",
   "frontend/incidents.js",
@@ -75,7 +76,8 @@ const requiredIds = [
   "protection",
   "protPortRows",
   "control",
-  "ctlRows"
+  "ctlRows",
+  "uiScaleValue"
 ];
 
 for (const id of requiredIds) {
